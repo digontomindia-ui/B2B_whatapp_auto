@@ -1,4 +1,4 @@
-declare interface ResponseData<T = any> {
+declare interface ResponseData<T> {
   error: boolean;
   message: string;
   data: T;

@@ -1,20 +1,18 @@
 // app/posts/queries.ts
 import { queryOptions } from "@tanstack/react-query";
+import { Data } from "../api/route";
 
-export interface Post {
-  id: number;
-  title: string;
-}
-
-export async function getPosts(): Promise<Post[]> {
-  const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+export async function getPosts() {
+  const res = await fetch("/api");
   if (!res.ok) throw new Error("Failed to fetch posts");
-  return res.json();
+  const json = await res.json();
+  console.log({ json });
+  return json as ResponseData<Array<Data>>;
 }
 
 export const postsQueryOptions = () =>
   queryOptions({
     queryKey: ["posts"],
     queryFn: getPosts,
-    staleTime: 60 * 1000
+    staleTime: 0
   });
