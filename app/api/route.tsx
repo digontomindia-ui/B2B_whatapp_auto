@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
+import { DATABASE_URL } from "@/lib/env";
 
 export interface Data {
   id: number;
@@ -18,11 +19,11 @@ export async function GET(request: NextRequest) {
 
   const results = data.slice((page - 1) * limit, page * limit);
 
-  return NextResponse.json<ResponseData<Array<Data>>>(
+  return NextResponse.json(
     {
       error: false,
-      message: "Healthy",
-      data: results
+      message: "Healthy ss",
+      data: { DATABASE_URL }
     },
     { status: 200 }
   );

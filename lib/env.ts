@@ -1,4 +1,4 @@
 const env = process.env;
 
-const DATABASE_URI = env.DATABASE_URL;
-const IS_PRODUCTION = env.NODE_ENV === "production";
+export const DATABASE_URL = env.DATABASE_URL || "HELLO";
+export const IS_PRODUCTION = env.NODE_ENV === "production";
