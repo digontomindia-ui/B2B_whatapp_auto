@@ -9,10 +9,19 @@ datasource db {
 }
 
 model Admin {
-  id           String @id
-  email        String @unique
+  id           String  @id @default(cuid())
+  email        String  @unique
   name         String
   passwordHash String
+  tokens       Token[]
 
   @@map("admin")
+}
+
+model Token {
+  id      String @id
+  admin   Admin  @relation(fields: [adminId], references: [id])
+  adminId String
+
+  @@map("tokens")
 }
