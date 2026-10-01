@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from "next/server";
-import { DATABASE_URL } from "@/lib/env";
 
 export interface Data {
   id: number;
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     {
       error: false,
       message: "Healthy ss",
-      data: { DATABASE_URL }
+      data: { results }
     },
     { status: 200 }
   );
