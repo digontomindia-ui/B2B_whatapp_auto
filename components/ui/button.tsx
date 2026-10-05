@@ -1,50 +1,51 @@
-import { Button as ButtonPrimitive } from "@base-ui/react/button";
-import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-2xs active:translate-y-px",
-        outline:
-          "border border-border bg-card text-foreground hover:bg-muted shadow-2xs active:translate-y-px",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-muted active:translate-y-px",
-        ghost: "hover:bg-muted text-foreground",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-2xs active:translate-y-px",
-        link: "text-[#0051c3] dark:text-[#4b9bff] underline-offset-4 hover:underline p-0 h-auto"
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-5 text-sm",
-        icon: "size-9"
-      }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
-  }
-);
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+}
 
-function Button({
+export function Button({
   className,
-  variant = "default",
-  size = "default",
+  variant = "primary",
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
   return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+    <button
+      className={cn(
+        "inline-flex h-9 cursor-pointer items-center justify-center rounded-md px-4",
+        "text-sm leading-5 font-medium",
+        "transition-colors duration-150",
+        "focus-visible:outline-none",
+        "focus-visible:ring-cf-orange/40 focus-visible:ring-2",
+        "disabled:pointer-events-none disabled:opacity-50",
+
+        {
+          "bg-cf-orange text-white hover:bg-[#e87516] active:bg-[#d96b13]":
+            variant === "primary",
+
+          "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-100":
+            variant === "secondary",
+
+          "dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100":
+            variant === "secondary",
+
+          "border border-red-300 bg-white text-red-600 hover:bg-red-50 active:bg-red-100":
+            variant === "danger",
+
+          "dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-950/40":
+            variant === "danger",
+
+          "bg-transparent text-gray-700 hover:bg-gray-100 active:bg-gray-200":
+            variant === "ghost",
+
+          "dark:text-gray-300 dark:hover:bg-gray-800 dark:active:bg-gray-700":
+            variant === "ghost"
+        },
+
+        className
+      )}
       {...props}
     />
   );
 }
-
-export { Button, buttonVariants };
