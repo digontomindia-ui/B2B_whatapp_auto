@@ -95,11 +95,18 @@ export class WhatsAppClient {
 
   private parseError(data: unknown): { code?: string; message?: string } {
     if (!data || typeof data !== "object") return {};
-    const d = data as { error?: { code?: number | string; message?: string; error_subcode?: number } };
+    const d = data as {
+      error?: {
+        code?: number | string;
+        message?: string;
+        error_subcode?: number;
+      };
+    };
     if (d.error) {
       let msg = d.error.message || "Meta API Error";
       if (d.error.code === 131047) {
-        msg = "Customer service window closed (24 hours elapsed since last customer response). A template message is required.";
+        msg =
+          "Customer service window closed (24 hours elapsed since last customer response). A template message is required.";
       }
       return {
         code: String(d.error.code ?? d.error.error_subcode ?? "META_ERROR"),
@@ -137,7 +144,8 @@ export class WhatsAppClient {
         success: false,
         statusCode: res.status,
         errorCode: code || `HTTP_${res.status}`,
-        errorMessage: message || "Failed to deliver message via WhatsApp Cloud API",
+        errorMessage:
+          message || "Failed to deliver message via WhatsApp Cloud API",
         rawResponse: res.data
       };
     }
@@ -153,7 +161,11 @@ export class WhatsAppClient {
   /**
    * Send plain text message
    */
-  async sendText(to: string, text: string, previewUrl = false): Promise<MetaSendResult> {
+  async sendText(
+    to: string,
+    text: string,
+    previewUrl = false
+  ): Promise<MetaSendResult> {
     return this.sendMessage({
       to,
       type: "text",
@@ -330,7 +342,10 @@ export class WhatsAppClient {
 
     if (!res.ok) {
       const { message } = this.parseError(res.data);
-      return { templates: [], error: message || "Failed to fetch WABA templates" };
+      return {
+        templates: [],
+        error: message || "Failed to fetch WABA templates"
+      };
     }
 
     return { templates: res.data?.data || [] };
@@ -339,7 +354,10 @@ export class WhatsAppClient {
   /**
    * Create a new message template in Meta WABA
    */
-  async createTemplate(payload: Record<string, unknown>, wabaId?: string): Promise<{
+  async createTemplate(
+    payload: Record<string, unknown>,
+    wabaId?: string
+  ): Promise<{
     success: boolean;
     templateId?: string;
     status?: string;

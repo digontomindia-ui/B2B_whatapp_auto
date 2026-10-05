@@ -17,7 +17,7 @@ export function Button({
       className={cn(
         "inline-flex cursor-pointer items-center justify-center rounded-md font-medium",
         "transition-colors duration-150 select-none",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cf-orange/40",
+        "focus-visible:ring-cf-orange/40 focus-visible:ring-2 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-50",
 
         // Sizes
@@ -32,11 +32,11 @@ export function Button({
         variant === "secondary" &&
           "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800",
         variant === "outline" &&
-          "border border-border bg-transparent text-foreground hover:bg-muted active:bg-muted/80",
+          "border-border text-foreground hover:bg-muted active:bg-muted/80 border bg-transparent",
         variant === "danger" &&
           "border border-red-300 bg-white text-red-600 hover:bg-red-50 active:bg-red-100 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-950/40",
         variant === "ghost" &&
-          "bg-transparent text-foreground/80 hover:bg-muted hover:text-foreground active:bg-muted/80",
+          "text-foreground/80 hover:bg-muted hover:text-foreground active:bg-muted/80 bg-transparent",
 
         className
       )}

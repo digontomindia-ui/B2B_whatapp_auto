@@ -9,7 +9,10 @@ export async function GET(
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);
 
-    const limit = Math.max(1, Math.min(100, Number(searchParams.get("limit") || 50)));
+    const limit = Math.max(
+      1,
+      Math.min(100, Number(searchParams.get("limit") || 50))
+    );
     const beforeCursor = searchParams.get("beforeCursor") || undefined;
 
     const messages = await getConversationMessages(id, { limit, beforeCursor });
@@ -21,6 +24,9 @@ export async function GET(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch messages";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 500 });
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 500 }
+    );
   }
 }

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { whatsappClient } from "@/clients/whatsapp";
 import { findOrCreateCustomerByPhone } from "@/server/customers/service";
 import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 import {
@@ -81,7 +82,10 @@ export async function processWebhookPayload(payload: Record<string, unknown>) {
       if (!val) continue;
 
       // Extract contact profile map including name and profile picture
-      const contactMap = new Map<string, { name?: string; profilePicUrl?: string }>();
+      const contactMap = new Map<
+        string,
+        { name?: string; profilePicUrl?: string }
+      >();
       for (const contact of val.contacts || []) {
         if (contact.wa_id) {
           const prof = contact.profile;
@@ -96,7 +100,8 @@ export async function processWebhookPayload(payload: Record<string, unknown>) {
 
           contactMap.set(contact.wa_id, {
             name: prof?.name,
-            profilePicUrl: typeof pic === "string" && pic.trim() ? pic.trim() : undefined
+            profilePicUrl:
+              typeof pic === "string" && pic.trim() ? pic.trim() : undefined
           });
         }
       }
@@ -170,6 +175,8 @@ async function handleIncomingMessage(
   let mediaData: {
     type: MessageType;
     metaMediaId?: string;
+    metaUrl?: string;
+    fileSize?: number;
     mimeType?: string;
     caption?: string;
     fileName?: string;
@@ -229,6 +236,20 @@ async function handleIncomingMessage(
     body = msg.reaction.emoji;
   }
 
+  // Fetch direct Meta URL (metadata only, no binary downloading or server processing)
+  if (mediaData?.metaMediaId) {
+    try {
+      const meta = await whatsappClient.getMediaMetadata(mediaData.metaMediaId);
+      if (meta?.url) {
+        mediaData.metaUrl = meta.url;
+        if (meta.file_size) mediaData.fileSize = meta.file_size;
+        if (meta.mime_type) mediaData.mimeType = meta.mime_type;
+      }
+    } catch (err) {
+      console.error("Failed to retrieve Meta media URL metadata:", err);
+    }
+  }
+
   const msgTimestamp = msg.timestamp
     ? new Date(Number(msg.timestamp) * 1000)
     : new Date();
@@ -252,6 +273,8 @@ async function handleIncomingMessage(
               create: {
                 type: mediaData.type,
                 metaMediaId: mediaData.metaMediaId,
+                metaUrl: mediaData.metaUrl || null,
+                fileSize: mediaData.fileSize || null,
                 mimeType: mediaData.mimeType || "application/octet-stream",
                 caption: mediaData.caption,
                 fileName: mediaData.fileName

@@ -16,6 +16,9 @@ export async function GET(
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Bulk job not found";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 404 });
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 404 }
+    );
   }
 }

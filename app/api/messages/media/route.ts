@@ -33,11 +33,18 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       error: message.status === "FAILED",
-      message: message.status === "FAILED" ? (message.errorMessage || "Send failed") : "Media message sent",
+      message:
+        message.status === "FAILED"
+          ? message.errorMessage || "Send failed"
+          : "Media message sent",
       data: message
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to send media message";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 500 });
+    const msg =
+      err instanceof Error ? err.message : "Failed to send media message";
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 500 }
+    );
   }
 }

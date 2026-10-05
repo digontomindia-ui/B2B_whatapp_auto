@@ -109,7 +109,8 @@ export interface DashboardTemplate {
 export interface DashboardBulkJob {
   id: string;
   type: "MESSAGE" | "TEMPLATE";
-  status: "PENDING" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED";
+  status:
+    "PENDING" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED";
   title: string | null;
   content: string | null;
   totalRecipients: number;

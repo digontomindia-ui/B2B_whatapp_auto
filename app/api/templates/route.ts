@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
       data: templates
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to fetch templates";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 500 });
+    const msg =
+      err instanceof Error ? err.message : "Failed to fetch templates";
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 500 }
+    );
   }
 }

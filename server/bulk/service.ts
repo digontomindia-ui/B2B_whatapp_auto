@@ -44,8 +44,12 @@ export async function createBulkMessageJob({
     select: { id: true, state: true, normalizedPhone: true }
   });
 
-  const blockedCount = customers.filter((c) => c.state === CustomerState.BLOCKED).length;
-  const optedOutCount = customers.filter((c) => c.state === CustomerState.OPTED_OUT).length;
+  const blockedCount = customers.filter(
+    (c) => c.state === CustomerState.BLOCKED
+  ).length;
+  const optedOutCount = customers.filter(
+    (c) => c.state === CustomerState.OPTED_OUT
+  ).length;
 
   const eligibleCustomers = allowOverrideBlocked
     ? customers
@@ -57,7 +61,8 @@ export async function createBulkMessageJob({
     );
   }
 
-  const jobType = type === "MESSAGE" ? BulkJobType.MESSAGE : BulkJobType.TEMPLATE;
+  const jobType =
+    type === "MESSAGE" ? BulkJobType.MESSAGE : BulkJobType.TEMPLATE;
   const total = eligibleCustomers.length;
 
   // 2. Create Bulk Job and Recipients in Prisma transaction
@@ -66,10 +71,14 @@ export async function createBulkMessageJob({
       data: {
         type: jobType,
         status: BulkJobStatus.PENDING,
-        title: title || `${type === "MESSAGE" ? "Text Broadcast" : `Template: ${templateName}`} (${total} recipients)`,
+        title:
+          title ||
+          `${type === "MESSAGE" ? "Text Broadcast" : `Template: ${templateName}`} (${total} recipients)`,
         content: content || null,
         templateSnapshot: templateName
-          ? (JSON.parse(JSON.stringify({ templateId, templateName, language, components })))
+          ? JSON.parse(
+              JSON.stringify({ templateId, templateName, language, components })
+            )
           : undefined,
         createdByAdminId: adminId || null,
         totalRecipients: total,
@@ -182,7 +191,8 @@ async function executeBulkJob(jobId: string) {
             status: MessageStatus.FAILED,
             messageId: resultingMsg?.id || null,
             errorCode: resultingMsg?.errorCode || "FAILED",
-            errorMessage: resultingMsg?.errorMessage || "Message failed to send",
+            errorMessage:
+              resultingMsg?.errorMessage || "Message failed to send",
             failedAt: new Date()
           }
         });

@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Send, Paperclip, Layers, Loader2, Image as ImageIcon, FileText, Video, Music } from "lucide-react";
+import {
+  Send,
+  Paperclip,
+  Layers,
+  Loader2,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  Music
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface ComposerProps {
@@ -25,7 +34,9 @@ export function Composer({
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
-  const [mediaType, setMediaType] = useState<"IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO">("IMAGE");
+  const [mediaType, setMediaType] = useState<
+    "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO"
+  >("IMAGE");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaCaption, setMediaCaption] = useState("");
   const [mediaFileName, setMediaFileName] = useState("");
@@ -84,9 +95,9 @@ export function Composer({
     <div className="relative">
       {/* Media Attachment Modal */}
       {showMediaModal && (
-        <div className="absolute bottom-14 left-0 z-30 w-80 rounded-lg border border-border bg-card p-4 shadow-lg text-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            <span className="font-semibold text-foreground">Attach Media</span>
+        <div className="border-border bg-card absolute bottom-14 left-0 z-30 w-80 space-y-3 rounded-lg border p-4 text-xs shadow-lg">
+          <div className="border-border flex items-center justify-between border-b pb-2">
+            <span className="text-foreground font-semibold">Attach Media</span>
             <button
               onClick={() => setShowMediaModal(false)}
               className="text-muted-foreground hover:text-foreground cursor-pointer"
@@ -99,7 +110,7 @@ export function Composer({
             <button
               type="button"
               onClick={() => setMediaType("IMAGE")}
-              className={`flex items-center justify-center gap-1 rounded py-1.5 border text-xs cursor-pointer ${
+              className={`flex cursor-pointer items-center justify-center gap-1 rounded border py-1.5 text-xs ${
                 mediaType === "IMAGE"
                   ? "border-cf-orange bg-cf-orange/10 text-cf-orange font-semibold"
                   : "border-border text-muted-foreground"
@@ -112,7 +123,7 @@ export function Composer({
             <button
               type="button"
               onClick={() => setMediaType("VIDEO")}
-              className={`flex items-center justify-center gap-1 rounded py-1.5 border text-xs cursor-pointer ${
+              className={`flex cursor-pointer items-center justify-center gap-1 rounded border py-1.5 text-xs ${
                 mediaType === "VIDEO"
                   ? "border-cf-orange bg-cf-orange/10 text-cf-orange font-semibold"
                   : "border-border text-muted-foreground"
@@ -125,7 +136,7 @@ export function Composer({
             <button
               type="button"
               onClick={() => setMediaType("AUDIO")}
-              className={`flex items-center justify-center gap-1 rounded py-1.5 border text-xs cursor-pointer ${
+              className={`flex cursor-pointer items-center justify-center gap-1 rounded border py-1.5 text-xs ${
                 mediaType === "AUDIO"
                   ? "border-cf-orange bg-cf-orange/10 text-cf-orange font-semibold"
                   : "border-border text-muted-foreground"
@@ -138,7 +149,7 @@ export function Composer({
             <button
               type="button"
               onClick={() => setMediaType("DOCUMENT")}
-              className={`flex items-center justify-center gap-1 rounded py-1.5 border text-xs cursor-pointer ${
+              className={`flex cursor-pointer items-center justify-center gap-1 rounded border py-1.5 text-xs ${
                 mediaType === "DOCUMENT"
                   ? "border-cf-orange bg-cf-orange/10 text-cf-orange font-semibold"
                   : "border-border text-muted-foreground"
@@ -151,7 +162,7 @@ export function Composer({
 
           <form onSubmit={handleMediaSubmit} className="space-y-2">
             <div>
-              <label className="text-[11px] text-muted-foreground font-medium">
+              <label className="text-muted-foreground text-[11px] font-medium">
                 Public Media URL (HTTPS)
               </label>
               <input
@@ -168,13 +179,13 @@ export function Composer({
                         ? "https://example.com/voice.ogg"
                         : "https://example.com/brochure.pdf"
                 }
-                className="mt-1 w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
               />
             </div>
 
             {mediaType === "DOCUMENT" && (
               <div>
-                <label className="text-[11px] text-muted-foreground font-medium">
+                <label className="text-muted-foreground text-[11px] font-medium">
                   File Name
                 </label>
                 <input
@@ -182,13 +193,13 @@ export function Composer({
                   value={mediaFileName}
                   onChange={(e) => setMediaFileName(e.target.value)}
                   placeholder="Admission_Brochure_2026.pdf"
-                  className="mt-1 w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+                  className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
                 />
               </div>
             )}
 
             <div>
-              <label className="text-[11px] text-muted-foreground font-medium">
+              <label className="text-muted-foreground text-[11px] font-medium">
                 Caption (optional)
               </label>
               <input
@@ -196,7 +207,7 @@ export function Composer({
                 value={mediaCaption}
                 onChange={(e) => setMediaCaption(e.target.value)}
                 placeholder="Here is your requested information..."
-                className="mt-1 w-full rounded border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
               />
             </div>
 
@@ -204,13 +215,13 @@ export function Composer({
               <button
                 type="button"
                 onClick={() => setShowMediaModal(false)}
-                className="rounded px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted cursor-pointer"
+                className="text-muted-foreground hover:bg-muted cursor-pointer rounded px-2.5 py-1 text-xs"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded bg-cf-orange px-3 py-1 text-xs font-semibold text-white hover:bg-[#e87516] cursor-pointer"
+                className="bg-cf-orange cursor-pointer rounded px-3 py-1 text-xs font-semibold text-white hover:bg-[#e87516]"
               >
                 Attach &amp; Send
               </button>
@@ -226,7 +237,7 @@ export function Composer({
             type="button"
             onClick={() => setShowMediaModal((prev) => !prev)}
             disabled={disabled || isSending}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
             title="Attach Media"
           >
             <Paperclip className="size-4" />
@@ -236,7 +247,7 @@ export function Composer({
             type="button"
             onClick={onOpenTemplate}
             disabled={disabled || isSending}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-cf-orange transition-colors cursor-pointer disabled:opacity-50"
+            className="text-muted-foreground hover:bg-muted hover:text-cf-orange flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
             title="Send WhatsApp Template"
           >
             <Layers className="size-4" />
@@ -251,7 +262,7 @@ export function Composer({
             disabled={disabled || isSending}
             rows={1}
             placeholder="Type a message (Enter to send, Shift+Enter for new line)..."
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-cf-orange focus:outline-none focus:ring-1 focus:ring-cf-orange disabled:opacity-50 max-h-32 min-h-[38px]"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-cf-orange focus:ring-cf-orange max-h-32 min-h-[38px] w-full resize-none rounded-lg border px-3 py-2 text-xs focus:ring-1 focus:outline-none disabled:opacity-50"
           />
         </div>
 
@@ -259,13 +270,13 @@ export function Composer({
           type="button"
           onClick={handleSend}
           disabled={!text.trim() || isSending || disabled}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-cf-orange text-white shadow-2xs hover:bg-[#e87516] active:bg-[#d96b13] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+          className="bg-cf-orange flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-2xs transition-colors hover:bg-[#e87516] active:bg-[#d96b13] disabled:cursor-not-allowed disabled:opacity-50"
           title="Send"
         >
           {isSending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Send className="size-4 ml-0.5" />
+            <Send className="ml-0.5 size-4" />
           )}
         </button>
       </div>

@@ -5,7 +5,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit = Math.max(1, Math.min(50, Number(searchParams.get("limit") || 20)));
+    const limit = Math.max(
+      1,
+      Math.min(50, Number(searchParams.get("limit") || 20))
+    );
 
     const result = await listBulkJobs(page, limit);
 
@@ -15,7 +18,11 @@ export async function GET(request: NextRequest) {
       data: result
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to fetch bulk jobs";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 500 });
+    const msg =
+      err instanceof Error ? err.message : "Failed to fetch bulk jobs";
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 500 }
+    );
   }
 }

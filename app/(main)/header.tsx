@@ -1,40 +1,55 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export function Header() {
+  const pathname = usePathname();
   const { admin, logout } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  let section = "Inbox";
+  if (pathname.startsWith("/templates")) {
+    section = "Templates";
+  } else if (pathname.startsWith("/broadcast")) {
+    section = "Broadcast";
+  } else if (pathname.startsWith("/import-export")) {
+    section = "Import & Export";
+  }
 
   async function handleLogout() {
     try {
-      setLoggingOut(true);
+      setIsLoggingOut(true);
       toast.info("Signing out...");
       await logout();
     } catch {
       toast.error("Failed to sign out");
-      setLoggingOut(false);
+      setIsLoggingOut(false);
     }
   }
+
   return (
-    <header className="border-border bg-card sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b px-4 sm:px-6">
-      <div className="flex items-center gap-3">
-        <span className="text-foreground text-sm font-semibold tracking-tight">
+    <header className="border-border bg-card sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b px-4 select-none sm:px-6">
+      {/* Cloudflare-style Breadcrumbs */}
+      <div className="flex items-center gap-2 text-xs sm:text-sm">
+        <span className="text-foreground font-semibold tracking-tight">
           My School Branding
         </span>
-        <span className="text-muted-foreground text-xs font-normal">CRM</span>
+        <span className="text-muted-foreground/50">/</span>
+        <span className="text-muted-foreground font-normal">{section}</span>
       </div>
 
+      {/* Right Controls: User info, Theme, Sign Out */}
       <div className="flex items-center gap-3">
         <div className="hidden flex-col text-right sm:flex">
           <span className="text-foreground text-xs leading-none font-medium">
             {admin?.name || "Admin"}
           </span>
-          <span className="text-muted-foreground mt-0.5 text-[11px] leading-tight">
+          <span className="text-muted-foreground mt-0.5 font-mono text-[11px] leading-tight">
             {admin?.email || "admin@school.com"}
           </span>
         </div>
@@ -43,10 +58,10 @@ export function Header() {
           variant="outline"
           size="sm"
           onClick={handleLogout}
-          disabled={loggingOut}
-          className="h-8 text-xs"
+          disabled={isLoggingOut}
+          className="h-8 cursor-pointer gap-1.5 text-xs font-medium"
         >
-          {loggingOut ? (
+          {isLoggingOut ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
             <>

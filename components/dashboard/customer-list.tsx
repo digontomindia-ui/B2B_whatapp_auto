@@ -64,49 +64,63 @@ export function CustomerList({
     customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
 
   return (
-    <div className="flex h-full flex-col bg-card border-r border-border">
+    <div className="bg-card border-border flex h-full flex-col border-r">
       {/* Bulk selection helper header */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs bg-muted/40">
+      <div className="border-border bg-muted/40 flex items-center justify-between border-b px-3 py-2 text-xs">
         <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={isAllVisibleSelected}
-            onChange={() => {
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={isAllVisibleSelected}
+            onClick={() => {
               if (isAllVisibleSelected) {
                 onClearSelection();
               } else {
                 onSelectAllVisible();
               }
             }}
-            className="h-3.5 w-3.5 rounded border-border accent-cf-orange cursor-pointer"
-            title="Select all visible customers"
-          />
+            className={`flex size-4 cursor-pointer items-center justify-center rounded border transition-colors ${
+              isAllVisibleSelected
+                ? "bg-cf-orange border-cf-orange text-white"
+                : selectedIds.size > 0
+                  ? "border-cf-orange bg-cf-orange/15 text-cf-orange"
+                  : "border-border hover:border-foreground/50 bg-background"
+            }`}
+            title="Select all visible contacts"
+          >
+            {isAllVisibleSelected ? (
+              <Check className="size-3 stroke-[3]" />
+            ) : selectedIds.size > 0 ? (
+              <span className="bg-cf-orange size-1.5 rounded-xs" />
+            ) : null}
+          </button>
           <span className="text-muted-foreground font-medium">
             {selectedIds.size > 0
-              ? `${selectedIds.size} selected`
+              ? `${selectedIds.size} of ${customers.length} selected`
               : `${customers.length} contacts`}
           </span>
         </div>
 
         {selectedIds.size > 0 && (
           <button
+            type="button"
             onClick={onClearSelection}
-            className="text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+            className="text-muted-foreground hover:text-foreground cursor-pointer text-xs font-medium"
           >
-            Clear selection
+            Deselect all
           </button>
         )}
       </div>
 
       {/* Customer items list */}
-      <div className="flex-1 overflow-y-auto divide-y divide-border/60">
+      <div className="divide-border/60 flex-1 divide-y overflow-y-auto">
         {isLoading && customers.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground p-8 text-center text-sm">
             Loading conversations...
           </div>
         ) : customers.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            <MessageSquare className="mx-auto mb-2 size-8 text-muted-foreground/40" />
+          <div className="text-muted-foreground p-8 text-center text-sm">
+            <MessageSquare className="text-muted-foreground/40 mx-auto mb-2 size-8" />
             No customers match the current filter.
           </div>
         ) : (
@@ -126,26 +140,33 @@ export function CustomerList({
               <div
                 key={cust.id}
                 onClick={() => onSelectCustomer(cust)}
-                className={`group flex items-start gap-3 p-3 transition-colors cursor-pointer select-none ${
+                className={`group flex cursor-pointer items-start gap-3 p-3 transition-colors select-none ${
                   isSelected
-                    ? "bg-accent/70 border-l-4 border-l-cf-orange"
+                    ? "bg-accent/70 border-l-cf-orange border-l-4"
                     : "hover:bg-muted/50"
                 }`}
               >
                 {/* Selection checkbox */}
                 <div
-                  className="pt-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSelect(cust.id);
-                  }}
+                  className="shrink-0 pt-0.5"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => onToggleSelect(cust.id)}
-                    className="h-4 w-4 rounded border-border accent-cf-orange cursor-pointer"
-                  />
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={isChecked}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSelect(cust.id);
+                    }}
+                    className={`flex size-4 cursor-pointer items-center justify-center rounded border transition-colors ${
+                      isChecked
+                        ? "bg-cf-orange border-cf-orange text-white"
+                        : "border-border hover:border-foreground/50 bg-background"
+                    }`}
+                  >
+                    {isChecked && <Check className="size-3 stroke-[3]" />}
+                  </button>
                 </div>
 
                 {/* Avatar with fallback initials */}
@@ -154,20 +175,26 @@ export function CustomerList({
                     <img
                       src={cust.profilePicUrl}
                       alt={displayName}
-                      className="h-11 w-11 rounded-full object-cover border border-border"
+                      className="border-border h-11 w-11 rounded-full border object-cover"
                     />
                   ) : (
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted font-semibold text-xs text-foreground border border-border">
+                    <div className="bg-muted text-foreground border-border flex h-11 w-11 items-center justify-center rounded-full border text-xs font-semibold">
                       {getInitials(cust.customName || cust.whatsappName)}
                     </div>
                   )}
                   {cust.state === "BLOCKED" && (
-                    <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-red-600 p-0.5 text-white" title="Blocked">
+                    <span
+                      className="absolute -right-0.5 -bottom-0.5 rounded-full bg-red-600 p-0.5 text-white"
+                      title="Blocked"
+                    >
                       <Ban className="size-3" />
                     </span>
                   )}
                   {cust.state === "OPTED_OUT" && (
-                    <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-amber-600 p-0.5 text-white" title="Opted out">
+                    <span
+                      className="absolute -right-0.5 -bottom-0.5 rounded-full bg-amber-600 p-0.5 text-white"
+                      title="Opted out"
+                    >
                       <Slash className="size-3" />
                     </span>
                   )}
@@ -176,21 +203,21 @@ export function CustomerList({
                 {/* Main info */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="truncate text-sm font-semibold text-foreground">
+                    <span className="text-foreground truncate text-sm font-semibold">
                       {displayName}
                     </span>
-                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    <span className="text-muted-foreground text-[11px] whitespace-nowrap">
                       {relativeTime}
                     </span>
                   </div>
 
                   {/* Subtitle phone / WhatsApp profile */}
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                     <span className="font-mono text-[11px]">
                       {formatDisplayPhone(cust.normalizedPhone)}
                     </span>
                     {cust.customName && cust.whatsappName && (
-                      <span className="truncate text-[10px] text-muted-foreground/80">
+                      <span className="text-muted-foreground/80 truncate text-[10px]">
                         • {cust.whatsappName}
                       </span>
                     )}
@@ -198,31 +225,40 @@ export function CustomerList({
 
                   {/* Last message preview */}
                   <div className="mt-1 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                    <div className="text-muted-foreground flex items-center gap-1 truncate text-xs">
                       {lastMsg && (
                         <>
                           {lastMsg.direction === "OUTBOUND" && (
-                            <span className="inline-flex items-center mr-0.5">
-                              {lastMsg.status === "QUEUED" || lastMsg.status === "SENDING" ? (
-                                <Clock className="size-3 text-muted-foreground" />
+                            <span className="mr-0.5 inline-flex items-center">
+                              {lastMsg.status === "QUEUED" ||
+                              lastMsg.status === "SENDING" ? (
+                                <Clock className="text-muted-foreground size-3" />
                               ) : lastMsg.status === "SENT" ? (
-                                <Check className="size-3 text-muted-foreground" />
+                                <Check className="text-muted-foreground size-3" />
                               ) : lastMsg.status === "DELIVERED" ? (
-                                <CheckCheck className="size-3 text-muted-foreground" />
+                                <CheckCheck className="text-muted-foreground size-3" />
                               ) : lastMsg.status === "READ" ? (
                                 <CheckCheck className="size-3 text-emerald-500" />
                               ) : (
-                                <AlertCircle className="size-3 text-destructive" />
+                                <AlertCircle className="text-destructive size-3" />
                               )}
                             </span>
                           )}
 
-                          {lastMsg.type === "IMAGE" && <ImageIcon className="size-3 text-muted-foreground" />}
-                          {lastMsg.type === "VIDEO" && <Video className="size-3 text-muted-foreground" />}
-                          {lastMsg.type === "AUDIO" && <Music className="size-3 text-muted-foreground" />}
-                          {lastMsg.type === "DOCUMENT" && <FileText className="size-3 text-muted-foreground" />}
+                          {lastMsg.type === "IMAGE" && (
+                            <ImageIcon className="text-muted-foreground size-3" />
+                          )}
+                          {lastMsg.type === "VIDEO" && (
+                            <Video className="text-muted-foreground size-3" />
+                          )}
+                          {lastMsg.type === "AUDIO" && (
+                            <Music className="text-muted-foreground size-3" />
+                          )}
+                          {lastMsg.type === "DOCUMENT" && (
+                            <FileText className="text-muted-foreground size-3" />
+                          )}
                           {lastMsg.type === "TEMPLATE" && (
-                            <span className="rounded bg-muted px-1 text-[10px] font-medium text-foreground">
+                            <span className="bg-muted text-foreground rounded px-1 text-[10px] font-medium">
                               Template
                             </span>
                           )}
@@ -243,7 +279,7 @@ export function CustomerList({
                       )}
 
                       {!lastMsg && (
-                        <span className="italic text-muted-foreground/60 text-[11px]">
+                        <span className="text-muted-foreground/60 text-[11px] italic">
                           No messages yet
                         </span>
                       )}
@@ -251,7 +287,7 @@ export function CustomerList({
 
                     {/* Unread badge */}
                     {cust.unreadCount > 0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cf-orange px-1.5 text-[10px] font-bold text-white shadow-xs">
+                      <span className="bg-cf-orange flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white shadow-xs">
                         {cust.unreadCount}
                       </span>
                     )}
@@ -263,13 +299,13 @@ export function CustomerList({
                       {cust.tags.slice(0, 3).map(({ tag }) => (
                         <span
                           key={tag.id}
-                          className="rounded-xs bg-muted px-1.5 py-0.2 text-[10px] font-medium text-muted-foreground border border-border/80"
+                          className="bg-muted py-0.2 text-muted-foreground border-border/80 rounded-xs border px-1.5 text-[10px] font-medium"
                         >
                           {tag.name}
                         </span>
                       ))}
                       {cust.tags.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-muted-foreground text-[10px]">
                           +{cust.tags.length - 3}
                         </span>
                       )}

@@ -5,7 +5,9 @@ import { z } from "zod";
 const bulkMessageSchema = z.object({
   title: z.string().optional(),
   content: z.string().min(1, "Message content cannot be empty"),
-  customerIds: z.array(z.string().uuid()).min(1, "At least one recipient is required"),
+  customerIds: z
+    .array(z.string().uuid())
+    .min(1, "At least one recipient is required"),
   allowOverrideBlocked: z.boolean().default(false)
 });
 
@@ -18,7 +20,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: true,
-          message: parsed.error.issues[0]?.message || "Invalid bulk message payload",
+          message:
+            parsed.error.issues[0]?.message || "Invalid bulk message payload",
           data: null
         },
         { status: 400 }
@@ -39,7 +42,11 @@ export async function POST(request: NextRequest) {
       data: result
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Failed to initiate bulk broadcast";
-    return NextResponse.json({ error: true, message: msg, data: null }, { status: 500 });
+    const msg =
+      err instanceof Error ? err.message : "Failed to initiate bulk broadcast";
+    return NextResponse.json(
+      { error: true, message: msg, data: null },
+      { status: 500 }
+    );
   }
 }

@@ -4,15 +4,14 @@ import { CustomerDetailsSheet } from "@/components/dashboard/customer-details-sh
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
 import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
-import { SendMessageDialog } from "@/components/dashboard/send-message-dialog";
 import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, UserPlus, Users, Layers, MessageSquare } from "lucide-react";
 import { ConversationView } from "@/components/dashboard/conversation-view";
-import { TemplatesDialog } from "@/components/dashboard/templates-dialog";
 import { BulkJobsDialog } from "@/components/dashboard/bulk-jobs-dialog";
 import { CustomerList } from "@/components/dashboard/customer-list";
-import React, { useState, useMemo, useEffect } from "react";
 import { Composer } from "@/components/dashboard/composer";
+import { useState, useMemo, useEffect } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
 import { toast } from "sonner";
 import type {
@@ -21,15 +20,6 @@ import type {
   DashboardTemplate,
   DashboardBulkJob
 } from "@/components/dashboard/types";
-import {
-  Search,
-  UserPlus,
-  Send,
-  Users,
-  Layers,
-  BarChart3,
-  MessageSquare
-} from "lucide-react";
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -61,11 +51,10 @@ export default function DashboardPage() {
   // Dialog & drawer visibility states
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
-  const [isSendMessageOpen, setIsSendMessageOpen] = useState(false);
+
   const [isSendTemplateOpen, setIsSendTemplateOpen] = useState(false);
   const [isBulkMessageOpen, setIsBulkMessageOpen] = useState(false);
   const [isBulkTemplateOpen, setIsBulkTemplateOpen] = useState(false);
-  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isBulkJobsOpen, setIsBulkJobsOpen] = useState(false);
 
   // Debounce search input
@@ -116,9 +105,12 @@ export default function DashboardPage() {
   useRealtime(activeConversationId);
 
   // 2. Fetch Messages Query for active conversation
-  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<
-    DashboardMessage[]
-  >({
+  const {
+    data: messages = [],
+    isLoading: isLoadingMessages,
+    isFetching: isFetchingMessages,
+    refetch: refetchMessages
+  } = useQuery<DashboardMessage[]>({
     queryKey: ["messages", activeConversationId],
     queryFn: async () => {
       if (!activeConversationId) return [];
@@ -254,6 +246,18 @@ export default function DashboardPage() {
     setSelectedCustomerIds(new Set());
   }
 
+  async function handleRefreshMessages() {
+    try {
+      await Promise.all([
+        refetchMessages(),
+        queryClient.invalidateQueries({ queryKey: ["customers"] })
+      ]);
+      toast.success("Messages synchronized");
+    } catch {
+      toast.error("Failed to sync messages");
+    }
+  }
+
   const selectedCustomersForBulk = useMemo(() => {
     return customers.filter((c) => selectedCustomerIds.has(c.id));
   }, [customers, selectedCustomerIds]);
@@ -282,7 +286,8 @@ export default function DashboardPage() {
             {/* Date filter dropdown */}
             <select
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as any)}
+              //@ts-expect-error nothing
+              onChange={(e) => setDateRange(e.target.value)}
               className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
             >
               <option value="all">Date: All Time</option>
@@ -349,7 +354,8 @@ export default function DashboardPage() {
             {/* Sort selector */}
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as any)}
+              //@ts-expect-error nothing
+              onChange={(e) => setSort(e.target.value)}
               className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
             >
               <option value="newest_interaction">Sort: Newest Activity</option>
@@ -359,76 +365,50 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          {/* Right Action Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              onClick={() => setIsCreateCustomerOpen(true)}
-              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <UserPlus className="text-cf-orange size-3.5" />
-              <span>Create</span>
-            </button>
-
-            <button
-              onClick={() => setIsSendMessageOpen(true)}
-              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <Send className="text-cf-orange size-3.5" />
-              <span>Send</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (selectedCustomerIds.size === 0) {
-                  toast.error(
-                    "Please select one or more customers from the list using checkboxes"
-                  );
-                  return;
-                }
-                setIsBulkMessageOpen(true);
-              }}
-              className="bg-cf-orange inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
-            >
-              <Users className="size-3.5" />
-              <span>
-                Bulk{" "}
-                {selectedCustomerIds.size > 0
-                  ? `(${selectedCustomerIds.size})`
-                  : ""}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (selectedCustomerIds.size === 0) {
-                  toast.error(
-                    "Please select one or more customers from the list using checkboxes"
-                  );
-                  return;
-                }
-                setIsBulkTemplateOpen(true);
-              }}
-              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <Layers className="text-cf-orange size-3.5" />
-              <span>Bulk</span>
-            </button>
-
-            <button
-              onClick={() => setIsTemplatesOpen(true)}
-              className="border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
-              title="Templates & Sync from Meta"
-            >
-              <Layers className="size-3.5" />
-            </button>
-
-            <button
-              onClick={() => setIsBulkJobsOpen(true)}
-              className="border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
-              title="Live Bulk Jobs Monitor"
-            >
-              <BarChart3 className="size-3.5" />
-            </button>
+          {/* Right Action Area */}
+          <div className="flex items-center gap-2">
+            {selectedCustomerIds.size > 0 ? (
+              <div className="bg-cf-orange/10 border-cf-orange/30 flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs">
+                <span className="text-cf-orange font-semibold whitespace-nowrap">
+                  {selectedCustomerIds.size} selected
+                </span>
+                <span className="text-muted-foreground/40">|</span>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkMessageOpen(true)}
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+                >
+                  <Users className="size-3.5" />
+                  <span>Send Bulk Message</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkTemplateOpen(true)}
+                  className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold shadow-2xs transition-colors"
+                >
+                  <Layers className="text-cf-orange size-3.5" />
+                  <span>Send Bulk Template</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer px-1 text-xs"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCustomerOpen(true)}
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+                >
+                  <UserPlus className="size-3.5" />
+                  <span>Add Contact</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -458,8 +438,15 @@ export default function DashboardPage() {
               customer={activeCustomer}
               messages={messages}
               isLoadingMessages={isLoadingMessages}
+              isRefreshingMessages={isFetchingMessages}
+              onRefreshMessages={handleRefreshMessages}
               onOpenDetails={() => setIsDetailsOpen(true)}
               onOpenTemplateDialog={() => setIsSendTemplateOpen(true)}
+              onCustomerDeleted={() => {
+                setSelectedCustomerId(null);
+                queryClient.invalidateQueries({ queryKey: ["customers"] });
+                queryClient.invalidateQueries({ queryKey: ["messages"] });
+              }}
             >
               <Composer
                 onSendText={async (text) => {
@@ -529,20 +516,6 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* 3. Send Message Dialog */}
-      <SendMessageDialog
-        isOpen={isSendMessageOpen}
-        onClose={() => setIsSendMessageOpen(false)}
-        customers={customers}
-        activeCustomer={activeCustomer}
-        onSent={() => {
-          queryClient.invalidateQueries({
-            queryKey: ["messages", activeConversationId]
-          });
-          queryClient.invalidateQueries({ queryKey: ["customers"] });
-        }}
-      />
-
       {/* 4. Send Template Dialog */}
       <SendTemplateDialog
         isOpen={isSendTemplateOpen}
@@ -580,17 +553,6 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* 7. Templates Viewer & Sync Dialog */}
-      <TemplatesDialog
-        isOpen={isTemplatesOpen}
-        onClose={() => setIsTemplatesOpen(false)}
-        templates={templates}
-        onSynced={() => {
-          queryClient.invalidateQueries({ queryKey: ["templates"] });
-        }}
-      />
-
-      {/* 8. Live Bulk Jobs Progress  itor Dialog */}
       <BulkJobsDialog
         isOpen={isBulkJobsOpen}
         onClose={() => setIsBulkJobsOpen(false)}

@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Users, Loader2, X, AlertTriangle } from "lucide-react";
+import { Users, Loader2, X, AlertTriangle, Search, Check } from "lucide-react";
 import type { DashboardCustomer } from "./types";
+import { formatDisplayPhone } from "@/utils/phone";
 
 interface BulkMessageDialogProps {
   isOpen: boolean;
@@ -21,15 +22,63 @@ export function BulkMessageDialog({
   const [content, setContent] = useState("");
   const [allowOverride, setAllowOverride] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+
+  // Manage individual contact selection inside the dialog
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(() => {
+    return new Set(selectedCustomers.map((c) => c.id));
+  });
+
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) {
+      setCheckedIds(new Set(selectedCustomers.map((c) => c.id)));
+      setSearch("");
+    }
+  }
 
   if (!isOpen) return null;
 
-  const total = selectedCustomers.length;
-  const blockedCount = selectedCustomers.filter((c) => c.state === "BLOCKED").length;
-  const optedOutCount = selectedCustomers.filter((c) => c.state === "OPTED_OUT").length;
-  const activeCount = selectedCustomers.filter((c) => c.state === "ACTIVE").length;
+  const filteredCustomers = selectedCustomers.filter((c) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const name = (c.customName || c.whatsappName || "").toLowerCase();
+    const phone = c.normalizedPhone.toLowerCase();
+    return name.includes(q) || phone.includes(q);
+  });
 
+  const checkedCustomers = selectedCustomers.filter((c) =>
+    checkedIds.has(c.id)
+  );
+  const total = checkedCustomers.length;
+  const blockedCount = checkedCustomers.filter(
+    (c) => c.state === "BLOCKED"
+  ).length;
+  const optedOutCount = checkedCustomers.filter(
+    (c) => c.state === "OPTED_OUT"
+  ).length;
+  const activeCount = checkedCustomers.filter(
+    (c) => c.state === "ACTIVE"
+  ).length;
   const eligibleCount = allowOverride ? total : activeCount;
+
+  function toggleContact(id: string) {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setCheckedIds(new Set(selectedCustomers.map((c) => c.id)));
+  }
+
+  function deselectAll() {
+    setCheckedIds(new Set());
+  }
 
   async function handleConfirm() {
     if (eligibleCount === 0) {
@@ -44,8 +93,8 @@ export function BulkMessageDialog({
     setIsSubmitting(true);
     try {
       const recipientIds = allowOverride
-        ? selectedCustomers.map((c) => c.id)
-        : selectedCustomers.filter((c) => c.state === "ACTIVE").map((c) => c.id);
+        ? checkedCustomers.map((c) => c.id)
+        : checkedCustomers.filter((c) => c.state === "ACTIVE").map((c) => c.id);
 
       const res = await fetch("/api/bulk/messages", {
         method: "POST",
@@ -67,7 +116,8 @@ export function BulkMessageDialog({
       onClose();
       setContent("");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to start bulk message";
+      const msg =
+        err instanceof Error ? err.message : "Failed to start bulk message";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
@@ -75,99 +125,202 @@ export function BulkMessageDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-card p-5 shadow-2xl space-y-4 text-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="border-border bg-card flex max-h-[90vh] w-full max-w-lg flex-col space-y-4 rounded-lg border p-5 text-xs shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
-            <Users className="size-4 text-cf-orange" />
+        <div className="border-border flex shrink-0 items-center justify-between border-b pb-3">
+          <div className="text-foreground flex items-center gap-2 text-sm font-semibold">
+            <Users className="text-cf-orange size-4" />
             <span>Send Bulk Message</span>
           </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded p-1"
           >
             <X className="size-4" />
           </button>
         </div>
 
-        {/* Recipients Breakdown Card */}
-        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1.5">
-          <div className="flex justify-between font-semibold text-foreground">
-            <span>Selected Recipients:</span>
-            <span>{total} customers</span>
-          </div>
-          <div className="flex justify-between text-muted-foreground text-[11px]">
-            <span>Active &amp; Eligible:</span>
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-              {activeCount}
-            </span>
-          </div>
-          {blockedCount > 0 && (
-            <div className="flex justify-between text-muted-foreground text-[11px]">
-              <span>Blocked (auto-excluded):</span>
-              <span className="font-medium text-red-600 dark:text-red-400">
-                {blockedCount}
+        {/* Scrollable Body */}
+        <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+          {/* Recipient Selection Panel */}
+          <div className="border-border bg-muted/20 space-y-2.5 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-foreground text-xs font-semibold">
+                Recipients ({checkedIds.size} of {selectedCustomers.length}{" "}
+                selected)
               </span>
+              <div className="flex items-center gap-2 text-[11px]">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-cf-orange cursor-pointer hover:underline"
+                >
+                  Select All
+                </button>
+                <span className="text-muted-foreground">•</span>
+                <button
+                  type="button"
+                  onClick={deselectAll}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
-          )}
-          {optedOutCount > 0 && (
-            <div className="flex justify-between text-muted-foreground text-[11px]">
-              <span>Opted Out (auto-excluded):</span>
-              <span className="font-medium text-amber-600 dark:text-amber-400">
-                {optedOutCount}
-              </span>
-            </div>
-          )}
 
-          {(blockedCount > 0 || optedOutCount > 0) && (
-            <div className="pt-2 border-t border-border/80 flex items-center gap-2 text-[11px]">
+            {/* Recipient Search Filter */}
+            <div className="relative">
+              <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
               <input
-                type="checkbox"
-                id="override-checkbox"
-                checked={allowOverride}
-                onChange={(e) => setAllowOverride(e.target.checked)}
-                className="rounded accent-cf-orange cursor-pointer"
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filter by name or phone..."
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground w-full rounded border py-1 pr-2.5 pl-7 text-xs focus:outline-none"
               />
-              <label htmlFor="override-checkbox" className="text-muted-foreground cursor-pointer">
-                Admin override: Send to blocked / opted-out contacts anyway
-              </label>
             </div>
-          )}
-        </div>
 
-        {/* Notice for 24h window */}
-        <div className="rounded bg-amber-50 dark:bg-amber-950/30 p-2.5 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-[11px] flex gap-2">
-          <AlertTriangle className="size-4 flex-shrink-0 mt-0.5 text-amber-600" />
-          <p>
-            Note: WhatsApp requires an active 24-hour service window for plain text messages. Any recipients whose customer window is closed will be rejected by Meta and marked as FAILED with the Meta reason.
-          </p>
-        </div>
+            {/* Contact Checkbox List */}
+            <div className="border-border bg-background divide-border/60 max-h-36 divide-y overflow-y-auto rounded border">
+              {filteredCustomers.length === 0 ? (
+                <div className="text-muted-foreground p-3 text-center text-[11px]">
+                  No matching contacts
+                </div>
+              ) : (
+                filteredCustomers.map((cust) => {
+                  const isChecked = checkedIds.has(cust.id);
+                  const name =
+                    cust.customName ||
+                    cust.whatsappName ||
+                    formatDisplayPhone(cust.normalizedPhone);
 
-        {/* Message Input */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between font-semibold text-foreground">
-            <label>Broadcast Text Message</label>
-            <span className="text-[11px] text-muted-foreground font-mono">
-              {content.length} chars
-            </span>
+                  return (
+                    <div
+                      key={cust.id}
+                      onClick={() => toggleContact(cust.id)}
+                      className={`flex cursor-pointer items-center justify-between px-2.5 py-1.5 transition-colors select-none ${
+                        isChecked ? "bg-accent/40" : "hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={isChecked}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleContact(cust.id);
+                          }}
+                          className={`flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                            isChecked
+                              ? "bg-cf-orange border-cf-orange text-white"
+                              : "border-border hover:border-foreground/50 bg-background"
+                          }`}
+                        >
+                          {isChecked && (
+                            <Check className="size-2.5 stroke-[3]" />
+                          )}
+                        </button>
+                        <span className="text-foreground truncate text-xs font-medium">
+                          {name}
+                        </span>
+                        <span className="text-muted-foreground font-mono text-[10px]">
+                          {formatDisplayPhone(cust.normalizedPhone)}
+                        </span>
+                      </div>
+
+                      {cust.state !== "ACTIVE" && (
+                        <span className="text-muted-foreground text-[10px] font-semibold uppercase">
+                          {cust.state}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Breakdown Status Info */}
+            <div className="text-muted-foreground flex justify-between pt-1 text-[11px]">
+              <span>
+                Eligible Active:{" "}
+                <strong className="font-mono text-emerald-600 dark:text-emerald-400">
+                  {activeCount}
+                </strong>
+              </span>
+              {blockedCount > 0 && (
+                <span>
+                  Blocked:{" "}
+                  <strong className="font-mono text-red-500">
+                    {blockedCount}
+                  </strong>
+                </span>
+              )}
+              {optedOutCount > 0 && (
+                <span>
+                  Opted out:{" "}
+                  <strong className="font-mono text-amber-500">
+                    {optedOutCount}
+                  </strong>
+                </span>
+              )}
+            </div>
+
+            {(blockedCount > 0 || optedOutCount > 0) && (
+              <div className="border-border flex items-center gap-2 border-t pt-2 text-[11px]">
+                <input
+                  type="checkbox"
+                  id="override-checkbox"
+                  checked={allowOverride}
+                  onChange={(e) => setAllowOverride(e.target.checked)}
+                  className="accent-cf-orange cursor-pointer rounded"
+                />
+                <label
+                  htmlFor="override-checkbox"
+                  className="text-muted-foreground cursor-pointer"
+                >
+                  Override: Include blocked / opted-out contacts
+                </label>
+              </div>
+            )}
           </div>
-          <textarea
-            rows={5}
-            required
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type the message to send to all eligible recipients..."
-            className="w-full resize-none rounded border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
-          />
+
+          {/* WhatsApp 24h Window Notice */}
+          <div className="bg-muted/40 border-border text-muted-foreground flex gap-2 rounded border p-2.5 text-[11px]">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
+            <p>
+              Note: Plain text messages require an active 24-hour WhatsApp
+              customer-service window. Meta will reject messages for recipients
+              outside the window.
+            </p>
+          </div>
+
+          {/* Broadcast Message Content */}
+          <div className="space-y-1.5">
+            <div className="text-foreground flex justify-between font-semibold">
+              <label>Message Content</label>
+              <span className="text-muted-foreground font-mono text-[11px]">
+                {content.length} chars
+              </span>
+            </div>
+            <textarea
+              rows={4}
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Type message to broadcast to selected recipients..."
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
+            />
+          </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        {/* Footer Actions */}
+        <div className="border-border flex shrink-0 justify-end gap-2 border-t pt-3">
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted cursor-pointer"
+            className="border-border bg-background text-muted-foreground hover:bg-muted cursor-pointer rounded border px-3 py-1.5 text-xs"
           >
             Cancel
           </button>
@@ -175,14 +328,14 @@ export function BulkMessageDialog({
             type="button"
             onClick={handleConfirm}
             disabled={eligibleCount === 0 || !content.trim() || isSubmitting}
-            className="inline-flex items-center gap-1.5 rounded bg-cf-orange px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] cursor-pointer disabled:opacity-50"
+            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
           >
             {isSubmitting ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Users className="size-3.5" />
             )}
-            <span>Send to {eligibleCount} customers</span>
+            <span>Send to {eligibleCount} recipients</span>
           </button>
         </div>
       </div>

@@ -5,5 +5,7 @@ import { Toaster, ToasterProps } from "sonner";
 
 export function InitToast(props: ToasterProps) {
   const { theme } = useTheme();
-  return <Toaster richColors theme={theme as any} {...props} />;
+  return (
+    <Toaster richColors theme={theme as ToasterProps["theme"]} {...props} />
+  );
 }

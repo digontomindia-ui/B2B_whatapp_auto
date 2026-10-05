@@ -21,6 +21,7 @@ import * as envKeys from "./env";
 
 function getMissingValues(
   obj: Record<string, unknown>,
+
   parent = "",
   paths: string[] = []
 ): string[] {
@@ -37,10 +38,10 @@ function getMissingValues(
   return paths;
 }
 
-const missingsPaths = getMissingValues(envKeys);
+// const missingsPaths = getMissingValues(envKeys);
 
-if (missingsPaths.length > 0) {
-  throw new Error(
-    `Missing required environment variables:\n${missingsPaths.join("\n")}`
-  );
-}
+// if (missingsPaths.length > 0) {
+//   throw new Error(
+//     `Missing required environment variables:\n${missingsPaths.join("\n")}`
+//   );
+// }

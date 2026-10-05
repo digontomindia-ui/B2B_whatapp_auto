@@ -94,7 +94,9 @@ export async function syncTemplatesFromMeta(wabaId?: string) {
             type: compType,
             format: comp.format || null,
             text: comp.text || null,
-            examples: comp.example ? (comp.example as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+            examples: comp.example
+              ? (comp.example as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
             rawJson: comp as unknown as Prisma.InputJsonValue,
             position: pos
           }
@@ -126,11 +128,13 @@ export async function syncTemplatesFromMeta(wabaId?: string) {
   return syncedResults;
 }
 
-export async function listTemplates(params: {
-  status?: string;
-  category?: string;
-  search?: string;
-} = {}) {
+export async function listTemplates(
+  params: {
+    status?: string;
+    category?: string;
+    search?: string;
+  } = {}
+) {
   const where: Record<string, unknown> = {};
 
   if (params.status && params.status !== "all") {

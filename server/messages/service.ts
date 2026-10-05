@@ -132,7 +132,9 @@ export async function sendOutboundTextMessage({
       data: {
         status: MessageStatus.FAILED,
         errorCode: metaResult.errorCode || "META_SEND_FAILED",
-        errorMessage: metaResult.errorMessage || "Failed to deliver message via WhatsApp API",
+        errorMessage:
+          metaResult.errorMessage ||
+          "Failed to deliver message via WhatsApp API",
         failedAt: now,
         rawPayload: metaResult.rawResponse as unknown as Prisma.InputJsonValue
       },
@@ -181,9 +183,8 @@ export async function sendOutboundMediaMessage({
   }
 
   const messageType = MessageType[type];
-  const buffer = base64Data ? Buffer.from(base64Data, "base64") : null;
 
-  // Create message with media attachment
+  // Create message with media attachment (store URL reference directly, no server binary storage)
   const message = await prisma.message.create({
     data: {
       customerId,
@@ -197,10 +198,9 @@ export async function sendOutboundMediaMessage({
           type: messageType,
           fileName: fileName || null,
           mimeType,
-          fileSize: buffer ? buffer.length : null,
+          fileSize: null,
           metaUrl: mediaLink || null,
-          caption: caption || null,
-          data: buffer || undefined
+          caption: caption || null
         }
       }
     },
@@ -212,7 +212,8 @@ export async function sendOutboundMediaMessage({
   // Send via Meta API
   const metaResult = await whatsappClient.sendMedia({
     to: customer.normalizedPhone,
-    type: type.toLowerCase() as "image" | "video" | "audio" | "document" | "sticker",
+    type: type.toLowerCase() as
+      "image" | "video" | "audio" | "document" | "sticker",
     link: mediaLink,
     caption,
     filename: fileName
@@ -254,7 +255,8 @@ export async function sendOutboundMediaMessage({
       data: {
         status: MessageStatus.FAILED,
         errorCode: metaResult.errorCode || "META_MEDIA_SEND_FAILED",
-        errorMessage: metaResult.errorMessage || "Failed to deliver media via WhatsApp API",
+        errorMessage:
+          metaResult.errorMessage || "Failed to deliver media via WhatsApp API",
         failedAt: now,
         rawPayload: metaResult.rawResponse as unknown as Prisma.InputJsonValue
       },
@@ -372,7 +374,8 @@ export async function sendOutboundTemplateMessage({
       data: {
         status: MessageStatus.FAILED,
         errorCode: metaResult.errorCode || "META_TEMPLATE_SEND_FAILED",
-        errorMessage: metaResult.errorMessage || "Failed to deliver template message",
+        errorMessage:
+          metaResult.errorMessage || "Failed to deliver template message",
         failedAt: now,
         rawPayload: metaResult.rawResponse as unknown as Prisma.InputJsonValue
       },

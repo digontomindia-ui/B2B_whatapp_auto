@@ -14,11 +14,24 @@ export interface FindOrCreateCustomerInput {
 
 export interface CustomerFilterParams {
   search?: string;
-  dateRange?: "all" | "today" | "yesterday" | "last7days" | "last30days" | "custom";
+  dateRange?:
+    "all" | "today" | "yesterday" | "last7days" | "last30days" | "custom";
   startDate?: string;
   endDate?: string;
-  communicationState?: "all" | "unread" | "read" | "blocked" | "opted_out" | "active" | "has_conversation" | "failed";
-  sort?: "newest_interaction" | "oldest_interaction" | "newest_customer" | "oldest_customer";
+  communicationState?:
+    | "all"
+    | "unread"
+    | "read"
+    | "blocked"
+    | "opted_out"
+    | "active"
+    | "has_conversation"
+    | "failed";
+  sort?:
+    | "newest_interaction"
+    | "oldest_interaction"
+    | "newest_customer"
+    | "oldest_customer";
   tag?: string;
   page?: number;
   limit?: number;
@@ -190,11 +203,23 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
   // 2. Date filters against lastInteractionAt or createdAt
   const now = new Date();
   if (dateRange === "today") {
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     where.lastInteractionAt = { gte: todayStart };
   } else if (dateRange === "yesterday") {
-    const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    const yesterdayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 1
+    );
+    const yesterdayEnd = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     where.lastInteractionAt = { gte: yesterdayStart, lt: yesterdayEnd };
   } else if (dateRange === "last7days") {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -304,22 +329,19 @@ export async function updateCustomer(
     tags?: string[];
   }
 ) {
-  const customer = await prisma.customer.findUniqueOrThrow({ where: { id } });
-
   const updatePayload: Record<string, unknown> = {};
   if (data.customName !== undefined) updatePayload.customName = data.customName;
-  if (data.profilePicUrl !== undefined) updatePayload.profilePicUrl = data.profilePicUrl;
+  if (data.profilePicUrl !== undefined)
+    updatePayload.profilePicUrl = data.profilePicUrl;
   if (data.notes !== undefined) updatePayload.notes = data.notes;
   if (data.state !== undefined) updatePayload.state = data.state;
 
-  const updated = await prisma.customer.update({
-    where: { id },
-    data: updatePayload,
-    include: {
-      tags: { include: { tag: true } },
-      conversations: { take: 1, orderBy: { createdAt: "desc" } }
-    }
-  });
+  if (Object.keys(updatePayload).length > 0) {
+    await prisma.customer.update({
+      where: { id },
+      data: updatePayload
+    });
+  }
 
   if (data.tags !== undefined) {
     // Replace tags
@@ -348,4 +370,43 @@ export async function updateCustomer(
 
   realtimeBroadcaster.broadcast("CUSTOMER_UPDATED", finalCustomer);
   return finalCustomer;
+}
+
+export async function deleteCustomer(id: string) {
+  const customer = await prisma.customer.findUniqueOrThrow({ where: { id } });
+
+  // Delete all related records and customer in transaction
+  await prisma.$transaction(async (tx) => {
+    // 1. Delete MediaAttachments linked to this customer's messages
+    const messageIds = (
+      await tx.message.findMany({
+        where: { customerId: id },
+        select: { id: true }
+      })
+    ).map((m) => m.id);
+
+    if (messageIds.length > 0) {
+      await tx.mediaAttachment.deleteMany({
+        where: { messageId: { in: messageIds } }
+      });
+    }
+
+    // 2. Delete messages
+    await tx.message.deleteMany({ where: { customerId: id } });
+
+    // 3. Delete conversations
+    await tx.conversation.deleteMany({ where: { customerId: id } });
+
+    // 4. Delete bulk message recipient rows
+    await tx.bulkMessageRecipient.deleteMany({ where: { customerId: id } });
+
+    // 5. Delete customer tags
+    await tx.customerTag.deleteMany({ where: { customerId: id } });
+
+    // 6. Delete customer record
+    await tx.customer.delete({ where: { id } });
+  });
+
+  realtimeBroadcaster.broadcast("CUSTOMERS_REFRESH", { deletedCustomerId: id });
+  return customer;
 }

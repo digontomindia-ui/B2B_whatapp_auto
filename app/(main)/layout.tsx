@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import prisma from "@/lib/prisma";
 import { Header } from "./header";
-import { Footer } from "./footer";
 
 async function logout() {
   "use server";
@@ -29,10 +28,10 @@ export default async function MainLayout({
 
   return (
     <AuthProvider admin={admin} logout={logout}>
-      <main className="flex h-screen overflow-hidden bg-background">
+      <main className="bg-background flex h-screen overflow-hidden">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
           <Header />
 
           <div className="min-h-0 flex-1 overflow-hidden">{children}</div>

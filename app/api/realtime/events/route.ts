@@ -11,12 +11,16 @@ export async function GET(request: NextRequest) {
     start(controller) {
       // Send initial connection event
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ type: "CONNECTED", timestamp: Date.now() })}\n\n`)
+        encoder.encode(
+          `data: ${JSON.stringify({ type: "CONNECTED", timestamp: Date.now() })}\n\n`
+        )
       );
 
       const onRealtimeEvent = (event: RealtimeEvent) => {
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
+          );
         } catch {
           // Stream is closed
         }

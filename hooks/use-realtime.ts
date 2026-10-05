@@ -21,7 +21,8 @@ export function useRealtime(activeConversationId?: string | null) {
       if (
         type === "CUSTOMER_CREATED" ||
         type === "CUSTOMER_UPDATED" ||
-        type === "CUSTOMER_UNREAD_UPDATED"
+        type === "CUSTOMER_UNREAD_UPDATED" ||
+        type === "CUSTOMERS_REFRESH"
       ) {
         queryClient.invalidateQueries({ queryKey: ["customers"] });
       }

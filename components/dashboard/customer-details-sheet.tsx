@@ -41,7 +41,9 @@ export function CustomerDetailsSheet({
   onUpdateCustomer
 }: CustomerDetailsSheetProps) {
   const [customName, setCustomName] = useState(customer?.customName || "");
-  const [profilePicUrl, setProfilePicUrl] = useState(customer?.profilePicUrl || "");
+  const [profilePicUrl, setProfilePicUrl] = useState(
+    customer?.profilePicUrl || ""
+  );
   const [notes, setNotes] = useState(customer?.notes || "");
   const [state, setState] = useState<CustomerState>(
     customer?.state || CustomerState.ACTIVE
@@ -52,7 +54,9 @@ export function CustomerDetailsSheet({
   const [newTagInput, setNewTagInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(customer?.id || null);
+  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(
+    customer?.id || null
+  );
 
   // Sync state during render when customer changes
   if (customer && customer.id !== prevCustomerId) {
@@ -98,56 +102,60 @@ export function CustomerDetailsSheet({
   }
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+    <div className="bg-card border-border animate-in slide-in-from-right fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l shadow-2xl duration-200 sm:w-96">
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4 bg-muted/40">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <User className="size-4 text-cf-orange" />
+      <div className="border-border bg-muted/40 flex h-14 items-center justify-between border-b px-4">
+        <div className="text-foreground flex items-center gap-2 text-sm font-semibold">
+          <User className="text-cf-orange size-4" />
           <span>Customer Profile</span>
         </div>
         <button
           onClick={onClose}
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded p-1"
         >
           <X className="size-4" />
         </button>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+      <div className="flex-1 space-y-5 overflow-y-auto p-4 text-xs">
         {/* Identity Overview with Profile Picture */}
-        <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
-          <div className="flex items-center gap-3 pb-2 border-b border-border/60">
+        <div className="border-border bg-muted/20 space-y-3 rounded-lg border p-3">
+          <div className="border-border/60 flex items-center gap-3 border-b pb-2">
             {profilePicUrl ? (
               <img
                 src={profilePicUrl}
                 alt={customer.customName || customer.whatsappName || "Profile"}
-                className="h-12 w-12 rounded-full object-cover border border-border flex-shrink-0"
+                className="border-border h-12 w-12 flex-shrink-0 rounded-full border object-cover"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted font-bold text-sm text-foreground border border-border flex-shrink-0">
-                {(customer.customName || customer.whatsappName || "WA").slice(0, 2).toUpperCase()}
+              <div className="bg-muted text-foreground border-border flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border text-sm font-bold">
+                {(customer.customName || customer.whatsappName || "WA")
+                  .slice(0, 2)
+                  .toUpperCase()}
               </div>
             )}
             <div className="truncate">
-              <p className="font-semibold text-foreground text-sm truncate">
-                {customer.customName || customer.whatsappName || formatDisplayPhone(customer.normalizedPhone)}
+              <p className="text-foreground truncate text-sm font-semibold">
+                {customer.customName ||
+                  customer.whatsappName ||
+                  formatDisplayPhone(customer.normalizedPhone)}
               </p>
-              <p className="text-[11px] text-muted-foreground font-mono">
+              <p className="text-muted-foreground font-mono text-[11px]">
                 {formatDisplayPhone(customer.normalizedPhone)}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2">
             <MessageSquare className="size-3.5" />
             <span>WhatsApp Profile: </span>
-            <span className="font-medium text-foreground">
+            <span className="text-foreground font-medium">
               {customer.whatsappName || "Not reported"}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2">
             <Calendar className="size-3.5" />
             <span>Added: </span>
             <span className="text-foreground">
@@ -158,10 +166,10 @@ export function CustomerDetailsSheet({
 
         {/* Profile Picture URL field */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-foreground">
+          <label className="text-foreground font-semibold">
             Profile Picture URL
           </label>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground text-[11px]">
             Automatically captured from Meta when available, or customized here.
           </p>
           <input
@@ -169,16 +177,16 @@ export function CustomerDetailsSheet({
             value={profilePicUrl}
             onChange={(e) => setProfilePicUrl(e.target.value)}
             placeholder="https://example.com/avatar.jpg"
-            className="w-full rounded border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
 
         {/* Custom Name field */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-foreground">
+          <label className="text-foreground font-semibold">
             Custom Name (Admin-defined)
           </label>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground text-[11px]">
             App-specific name, never overwritten by WhatsApp profile updates.
           </p>
           <input
@@ -186,31 +194,33 @@ export function CustomerDetailsSheet({
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="e.g. Principal Sharma (DPS Delhi)"
-            className="w-full rounded border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
 
         {/* Communication State */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-foreground flex items-center gap-1.5">
-            <Shield className="size-3.5 text-cf-orange" />
+          <label className="text-foreground flex items-center gap-1.5 font-semibold">
+            <Shield className="text-cf-orange size-3.5" />
             Communication State
           </label>
           <select
             value={state}
             onChange={(e) => setState(e.target.value as CustomerState)}
-            className="w-full rounded border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange cursor-pointer"
+            className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           >
             <option value="ACTIVE">ACTIVE (Normal messaging)</option>
             <option value="BLOCKED">BLOCKED (Excluded from bulk)</option>
-            <option value="OPTED_OUT">OPTED_OUT (Customer requested stop)</option>
+            <option value="OPTED_OUT">
+              OPTED_OUT (Customer requested stop)
+            </option>
           </select>
         </div>
 
         {/* Tags */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-foreground flex items-center gap-1.5">
-            <TagIcon className="size-3.5 text-cf-orange" />
+          <label className="text-foreground flex items-center gap-1.5 font-semibold">
+            <TagIcon className="text-cf-orange size-3.5" />
             Tags
           </label>
 
@@ -218,7 +228,7 @@ export function CustomerDetailsSheet({
             {tags.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium text-foreground border border-border"
+                className="bg-muted text-foreground border-border inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
               >
                 {t}
                 <button
@@ -244,12 +254,12 @@ export function CustomerDetailsSheet({
                 }
               }}
               placeholder="Add tag (e.g. VIP, School_Delhi)..."
-              className="flex-1 rounded border border-border bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange flex-1 rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
             />
             <button
               type="button"
               onClick={handleAddTag}
-              className="inline-flex items-center gap-1 rounded border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
+              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium"
             >
               <Plus className="size-3" /> Add
             </button>
@@ -258,7 +268,7 @@ export function CustomerDetailsSheet({
 
         {/* Administrative Notes */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-foreground">
+          <label className="text-foreground font-semibold">
             Administrative Notes
           </label>
           <textarea
@@ -266,23 +276,23 @@ export function CustomerDetailsSheet({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add internal notes about this school or coordinator..."
-            className="w-full resize-none rounded border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
       </div>
 
       {/* Footer Save */}
-      <div className="border-t border-border bg-muted/40 p-3 flex justify-end gap-2">
+      <div className="border-border bg-muted/40 flex justify-end gap-2 border-t p-3">
         <button
           onClick={onClose}
-          className="rounded border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted cursor-pointer"
+          className="border-border bg-background text-muted-foreground hover:bg-muted cursor-pointer rounded border px-3 py-1.5 text-xs"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="inline-flex items-center gap-1.5 rounded bg-cf-orange px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] transition-colors cursor-pointer disabled:opacity-50"
+          className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516] disabled:opacity-50"
         >
           {isSaving ? (
             <Loader2 className="size-3.5 animate-spin" />

@@ -22,12 +22,14 @@ export function SendMessageDialog({
   onSent
 }: SendMessageDialogProps) {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(
-    activeCustomer?.id || (customers[0]?.id || "")
+    activeCustomer?.id || customers[0]?.id || ""
   );
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const [prevActiveId, setPrevActiveId] = useState<string | null>(activeCustomer?.id || null);
+  const [prevActiveId, setPrevActiveId] = useState<string | null>(
+    activeCustomer?.id || null
+  );
   if (activeCustomer && activeCustomer.id !== prevActiveId) {
     setPrevActiveId(activeCustomer.id);
     setSelectedCustomerId(activeCustomer.id);
@@ -75,16 +77,16 @@ export function SendMessageDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-2xl space-y-4 text-xs">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
-            <MessageSquare className="size-4 text-cf-orange" />
+    <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 duration-150">
+      <div className="border-border bg-card w-full max-w-md space-y-4 rounded-lg border p-5 text-xs shadow-2xl">
+        <div className="border-border flex items-center justify-between border-b pb-3">
+          <div className="text-foreground flex items-center gap-2 text-sm font-semibold">
+            <MessageSquare className="text-cf-orange size-4" />
             <span>Send Direct Message</span>
           </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded p-1"
           >
             <X className="size-4" />
           </button>
@@ -92,44 +94,47 @@ export function SendMessageDialog({
 
         <form onSubmit={handleSend} className="space-y-3.5">
           <div>
-            <label className="font-semibold text-foreground">Select Recipient</label>
+            <label className="text-foreground font-semibold">
+              Select Recipient
+            </label>
             <select
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange cursor-pointer"
+              className="border-border bg-background text-foreground focus:ring-cf-orange mt-1 w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
             >
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.customName || c.whatsappName || "Customer"} ({formatDisplayPhone(c.normalizedPhone)})
+                  {c.customName || c.whatsappName || "Customer"} (
+                  {formatDisplayPhone(c.normalizedPhone)})
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="font-semibold text-foreground">Message</label>
+            <label className="text-foreground font-semibold">Message</label>
             <textarea
               rows={4}
               required
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Type your WhatsApp message..."
-              className="mt-1 w-full resize-none rounded border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cf-orange"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+          <div className="border-border flex justify-end gap-2 border-t pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted cursor-pointer"
+              className="border-border bg-background text-muted-foreground hover:bg-muted cursor-pointer rounded border px-3 py-1.5 text-xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSending}
-              className="inline-flex items-center gap-1.5 rounded bg-cf-orange px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] cursor-pointer disabled:opacity-50"
+              className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
             >
               {isSending ? (
                 <Loader2 className="size-3.5 animate-spin" />
