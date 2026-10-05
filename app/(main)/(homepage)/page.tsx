@@ -1,143 +1,602 @@
 "use client";
 
-import { useAuth } from "@/providers/auth";
+import { CustomerDetailsSheet } from "@/components/dashboard/customer-details-sheet";
+import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
+import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
+import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
+import { SendMessageDialog } from "@/components/dashboard/send-message-dialog";
+import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ConversationView } from "@/components/dashboard/conversation-view";
+import { TemplatesDialog } from "@/components/dashboard/templates-dialog";
+import { BulkJobsDialog } from "@/components/dashboard/bulk-jobs-dialog";
+import { CustomerList } from "@/components/dashboard/customer-list";
+import React, { useState, useMemo, useEffect } from "react";
+import { Composer } from "@/components/dashboard/composer";
+import { useRealtime } from "@/hooks/use-realtime";
+import { toast } from "sonner";
+import type {
+  DashboardCustomer,
+  DashboardMessage,
+  DashboardTemplate,
+  DashboardBulkJob
+} from "@/components/dashboard/types";
 import {
-  User,
-  Mail,
+  Search,
+  UserPlus,
+  Send,
   Users,
   Layers,
-  Briefcase,
-  Building2,
-  ShieldCheck
+  BarChart3,
+  MessageSquare
 } from "lucide-react";
 
-export default function Homepage() {
-  const { admin } = useAuth();
+export default function DashboardPage() {
+  const queryClient = useQueryClient();
+
+  // Search, filter, and sorting state
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [dateRange, setDateRange] = useState<
+    "all" | "today" | "yesterday" | "last7days" | "last30days"
+  >("all");
+  const [commState, setCommState] = useState<
+    "all" | "unread" | "read" | "blocked" | "opted_out" | "failed"
+  >("all");
+  const [sort, setSort] = useState<
+    | "newest_interaction"
+    | "oldest_interaction"
+    | "newest_customer"
+    | "oldest_customer"
+  >("newest_interaction");
+
+  // Selection & active state
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null
+  );
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Dialog & drawer visibility states
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCreateCustomerOpen, setIsCreateCustomerOpen] = useState(false);
+  const [isSendMessageOpen, setIsSendMessageOpen] = useState(false);
+  const [isSendTemplateOpen, setIsSendTemplateOpen] = useState(false);
+  const [isBulkMessageOpen, setIsBulkMessageOpen] = useState(false);
+  const [isBulkTemplateOpen, setIsBulkTemplateOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [isBulkJobsOpen, setIsBulkJobsOpen] = useState(false);
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // 1. Fetch Customers Query
+  const { data: customersData, isLoading: isLoadingCustomers } = useQuery<{
+    customers: DashboardCustomer[];
+    pagination: { total: number };
+  }>({
+    queryKey: ["customers", debouncedSearch, dateRange, commState, sort],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (dateRange !== "all") params.set("dateRange", dateRange);
+      if (commState !== "all") params.set("communicationState", commState);
+      params.set("sort", sort);
+      params.set("limit", "100");
+
+      const res = await fetch(`/api/customers?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.message);
+      return json.data;
+    }
+  });
+
+  const customers = useMemo(
+    () => customersData?.customers || [],
+    [customersData]
+  );
+
+  const effectiveCustomerId = selectedCustomerId ?? customers[0]?.id ?? null;
+
+  // Active customer
+  const activeCustomer = useMemo(() => {
+    if (!effectiveCustomerId) return null;
+    return customers.find((c) => c.id === effectiveCustomerId) || null;
+  }, [customers, effectiveCustomerId]);
+
+  const activeConversationId = activeCustomer?.conversations?.[0]?.id || null;
+
+  // Realtime hook subscription
+  useRealtime(activeConversationId);
+
+  // 2. Fetch Messages Query for active conversation
+  const { data: messages = [], isLoading: isLoadingMessages } = useQuery<
+    DashboardMessage[]
+  >({
+    queryKey: ["messages", activeConversationId],
+    queryFn: async () => {
+      if (!activeConversationId) return [];
+      const res = await fetch(
+        `/api/conversations/${activeConversationId}/messages?limit=100`
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.message);
+      return json.data;
+    },
+    enabled: !!activeConversationId
+  });
+
+  // Mark conversation as read when active customer has unread messages
+  useEffect(() => {
+    if (activeCustomer && activeCustomer.unreadCount > 0) {
+      fetch("/api/messages/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: activeCustomer.id,
+          conversationId: activeConversationId
+        })
+      }).catch(() => {});
+    }
+  }, [activeCustomer, activeConversationId]);
+
+  // 3. Fetch Templates Query
+  const { data: templates = [] } = useQuery<DashboardTemplate[]>({
+    queryKey: ["templates"],
+    queryFn: async () => {
+      const res = await fetch("/api/templates");
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.message);
+      return json.data;
+    }
+  });
+
+  // 4. Fetch Bulk Jobs Query
+  const { data: bulkJobsData, isLoading: isLoadingBulkJobs } = useQuery<{
+    jobs: DashboardBulkJob[];
+  }>({
+    queryKey: ["bulk-jobs"],
+    queryFn: async () => {
+      const res = await fetch("/api/bulk/jobs");
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.message);
+      return json.data;
+    }
+  });
+
+  const bulkJobs = bulkJobsData?.jobs || [];
+
+  // Mutations for sending
+  const sendTextMutation = useMutation({
+    mutationFn: async (text: string) => {
+      if (!activeCustomer) throw new Error("No customer selected");
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: activeCustomer.id,
+          conversationId: activeConversationId || undefined,
+          text
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      return json.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ["messages", activeConversationId]
+      });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      if (data?.status === "FAILED") {
+        toast.error(
+          `Message rejected by Meta: ${data.errorMessage || "Failed"}`
+        );
+      }
+    }
+  });
+
+  const sendMediaMutation = useMutation({
+    mutationFn: async (payload: {
+      type: "IMAGE" | "DOCUMENT" | "VIDEO" | "AUDIO";
+      mediaLink?: string;
+      caption?: string;
+      fileName?: string;
+    }) => {
+      if (!activeCustomer) throw new Error("No customer selected");
+      const res = await fetch("/api/messages/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: activeCustomer.id,
+          conversationId: activeConversationId || undefined,
+          ...payload
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      return json.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ["messages", activeConversationId]
+      });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      if (data?.status === "FAILED") {
+        toast.error(`Media rejected by Meta: ${data.errorMessage || "Failed"}`);
+      } else {
+        toast.success("Media message sent");
+      }
+    }
+  });
+
+  // Bulk recipient helpers
+  function toggleSelectCustomer(id: string) {
+    setSelectedCustomerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelectedCustomerIds(new Set(customers.map((c) => c.id)));
+  }
+
+  function clearSelection() {
+    setSelectedCustomerIds(new Set());
+  }
+
+  const selectedCustomersForBulk = useMemo(() => {
+    return customers.filter((c) => selectedCustomerIds.has(c.id));
+  }, [customers, selectedCustomerIds]);
 
   return (
-    <div className="bg-background text-foreground flex h-full flex-col">
-      {/* Main Content */}
-      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6 sm:px-6">
-        {/* Page Header */}
-        <div className="border-border flex flex-col gap-1 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-foreground text-lg font-semibold tracking-tight">
-              Dashboard Overview
-            </h1>
-            <p className="text-muted-foreground text-xs">
-              School branding campaigns, customer leads, and administrative
-              management
-            </p>
+    <div className="bg-background flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden">
+      {/* ------------------------------------------------------------- */}
+      {/* TOP COMMAND BAR */}
+      {/* ------------------------------------------------------------- */}
+      <div className="border-border bg-card shrink-0 border-b px-4 py-2.5 shadow-2xs">
+        <div className="flex flex-col items-stretch justify-between gap-2.5 lg:flex-row lg:items-center">
+          {/* Left search & filter controls */}
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="relative max-w-xs min-w-44 flex-1">
+              <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search phone, name, WA..."
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded-md border py-1.5 pr-3 pl-8 text-xs focus:ring-1 focus:outline-none"
+              />
+            </div>
+
+            {/* Date filter dropdown */}
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as any)}
+              className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            >
+              <option value="all">Date: All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7days">Last 7 Days</option>
+              <option value="last30days">Last 30 Days</option>
+            </select>
+
+            {/* Communication state filters */}
+            <div className="bg-muted/50 border-border flex items-center gap-1 rounded-md border p-0.5 text-[11px]">
+              <button
+                onClick={() => setCommState("all")}
+                className={`cursor-pointer rounded px-2 py-1 ${
+                  commState === "all"
+                    ? "bg-background text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setCommState("unread")}
+                className={`cursor-pointer rounded px-2 py-1 ${
+                  commState === "unread"
+                    ? "bg-background text-cf-orange font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Unread
+              </button>
+              <button
+                onClick={() => setCommState("blocked")}
+                className={`cursor-pointer rounded px-2 py-1 ${
+                  commState === "blocked"
+                    ? "bg-background font-semibold text-red-500 shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Blocked
+              </button>
+              <button
+                onClick={() => setCommState("opted_out")}
+                className={`cursor-pointer rounded px-2 py-1 ${
+                  commState === "opted_out"
+                    ? "bg-background font-semibold text-amber-500 shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Opted Out
+              </button>
+              <button
+                onClick={() => setCommState("failed")}
+                className={`cursor-pointer rounded px-2 py-1 ${
+                  commState === "failed"
+                    ? "bg-background text-destructive font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Failed
+              </button>
+            </div>
+
+            {/* Sort selector */}
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as any)}
+              className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            >
+              <option value="newest_interaction">Sort: Newest Activity</option>
+              <option value="oldest_interaction">Sort: Oldest Activity</option>
+              <option value="newest_customer">Sort: Newest Contact</option>
+              <option value="oldest_customer">Sort: Oldest Contact</option>
+            </select>
           </div>
-          <div className="border-border bg-card text-muted-foreground flex items-center gap-1.5 self-start rounded border px-2.5 py-1 text-xs sm:self-auto">
-            <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Session Active</span>
+
+          {/* Right Action Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              onClick={() => setIsCreateCustomerOpen(true)}
+              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
+            >
+              <UserPlus className="text-cf-orange size-3.5" />
+              <span>Create</span>
+            </button>
+
+            <button
+              onClick={() => setIsSendMessageOpen(true)}
+              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
+            >
+              <Send className="text-cf-orange size-3.5" />
+              <span>Send</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (selectedCustomerIds.size === 0) {
+                  toast.error(
+                    "Please select one or more customers from the list using checkboxes"
+                  );
+                  return;
+                }
+                setIsBulkMessageOpen(true);
+              }}
+              className="bg-cf-orange inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+            >
+              <Users className="size-3.5" />
+              <span>
+                Bulk{" "}
+                {selectedCustomerIds.size > 0
+                  ? `(${selectedCustomerIds.size})`
+                  : ""}
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (selectedCustomerIds.size === 0) {
+                  toast.error(
+                    "Please select one or more customers from the list using checkboxes"
+                  );
+                  return;
+                }
+                setIsBulkTemplateOpen(true);
+              }}
+              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
+            >
+              <Layers className="text-cf-orange size-3.5" />
+              <span>Bulk</span>
+            </button>
+
+            <button
+              onClick={() => setIsTemplatesOpen(true)}
+              className="border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+              title="Templates & Sync from Meta"
+            >
+              <Layers className="size-3.5" />
+            </button>
+
+            <button
+              onClick={() => setIsBulkJobsOpen(true)}
+              className="border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+              title="Live Bulk Jobs Monitor"
+            >
+              <BarChart3 className="size-3.5" />
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Quick Stat Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="border-border bg-card rounded-md border p-4 shadow-xs">
-            <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Partner Schools</span>
-              <Building2 className="size-4" />
-            </div>
-            <div className="text-foreground mt-2 font-mono text-2xl font-semibold tracking-tight">
-              24
-            </div>
-            <p className="text-muted-foreground mt-1 text-[11px]">
-              Active branding clients
-            </p>
-          </div>
-
-          <div className="border-border bg-card rounded-md border p-4 shadow-xs">
-            <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Inquiries &amp; Leads</span>
-              <Users className="size-4" />
-            </div>
-            <div className="text-foreground mt-2 font-mono text-2xl font-semibold tracking-tight">
-              142
-            </div>
-            <p className="text-muted-foreground mt-1 text-[11px]">
-              This academic quarter
-            </p>
-          </div>
-
-          <div className="border-border bg-card rounded-md border p-4 shadow-xs">
-            <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Active Campaigns</span>
-              <Briefcase className="size-4" />
-            </div>
-            <div className="text-foreground mt-2 font-mono text-2xl font-semibold tracking-tight">
-              18
-            </div>
-            <p className="text-muted-foreground mt-1 text-[11px]">
-              In progress across regions
-            </p>
-          </div>
-
-          <div className="border-border bg-card rounded-md border p-4 shadow-xs">
-            <div className="text-muted-foreground flex items-center justify-between text-xs">
-              <span>Branding Deliverables</span>
-              <Layers className="size-4" />
-            </div>
-            <div className="text-foreground mt-2 font-mono text-2xl font-semibold tracking-tight">
-              86
-            </div>
-            <p className="text-muted-foreground mt-1 text-[11px]">
-              Reviewed and published
-            </p>
-          </div>
+      {/* ------------------------------------------------------------- */}
+      {/* MAIN CRM INBOX SPLIT LAYOUT */}
+      {/* ------------------------------------------------------------- */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left Column: Customer List (WhatsApp Inbox) */}
+        <div className="flex h-full w-full shrink-0 flex-col sm:w-80 md:w-96">
+          <CustomerList
+            customers={customers}
+            selectedCustomerId={effectiveCustomerId}
+            onSelectCustomer={(cust) => setSelectedCustomerId(cust.id)}
+            isLoading={isLoadingCustomers}
+            selectedIds={selectedCustomerIds}
+            onToggleSelect={toggleSelectCustomer}
+            onSelectAllVisible={selectAllVisible}
+            onClearSelection={clearSelection}
+          />
         </div>
 
-        {/* Administrator Profile & Session Details Card */}
-        <div className="border-border bg-card rounded-md border shadow-xs">
-          <div className="border-border flex items-center justify-between border-b px-5 py-3">
-            <h2 className="text-foreground text-sm font-semibold">
-              Administrator Profile
-            </h2>
-            <span className="text-muted-foreground text-xs">
-              Authenticated Admin
-            </span>
-          </div>
-
-          <div className="divide-border divide-y text-xs">
-            <div className="grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-3">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <User className="size-3.5" />
-                Name
-              </span>
-              <span className="text-foreground font-medium sm:col-span-2">
-                {admin?.name || "Admin"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-3">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <Mail className="size-3.5" />
-                Email
-              </span>
-              <span className="text-foreground font-mono sm:col-span-2">
-                {admin?.email || "admin@school.com"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 items-center gap-1 px-5 py-3 sm:grid-cols-3">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <ShieldCheck className="size-3.5" />
-                Admin ID
-              </span>
-              <div className="flex items-center gap-2 sm:col-span-2">
-                <code className="bg-muted text-foreground border-border rounded border px-2 py-0.5 font-mono text-[11px]">
-                  {admin?.id || "N/A"}
-                </code>
+        {/* Center / Right Column: Active Conversation */}
+        <div className="bg-background hidden h-full min-w-0 flex-1 flex-col sm:flex">
+          {activeCustomer ? (
+            <ConversationView
+              customer={activeCustomer}
+              messages={messages}
+              isLoadingMessages={isLoadingMessages}
+              onOpenDetails={() => setIsDetailsOpen(true)}
+              onOpenTemplateDialog={() => setIsSendTemplateOpen(true)}
+            >
+              <Composer
+                onSendText={async (text) => {
+                  await sendTextMutation.mutateAsync(text);
+                }}
+                onSendMedia={async (payload) => {
+                  await sendMediaMutation.mutateAsync(payload);
+                }}
+                onOpenTemplate={() => setIsSendTemplateOpen(true)}
+                disabled={
+                  sendTextMutation.isPending || sendMediaMutation.isPending
+                }
+              />
+            </ConversationView>
+          ) : (
+            <div className="text-muted-foreground bg-muted/10 flex h-full flex-col items-center justify-center p-8 text-center">
+              <div className="bg-card border-border mb-3 rounded-full border p-4 shadow-sm">
+                <MessageSquare className="text-cf-orange size-8" />
               </div>
+              <h2 className="text-foreground text-base font-semibold">
+                No conversation selected
+              </h2>
+              <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+                Pick a contact from the customer list on the left, or create a
+                customer to initiate realtime WhatsApp communication.
+              </p>
+              <button
+                onClick={() => setIsCreateCustomerOpen(true)}
+                className="bg-cf-orange mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516]"
+              >
+                <UserPlus className="size-3.5" />
+                <span>Create New Customer</span>
+              </button>
             </div>
-          </div>
+          )}
         </div>
-      </main>
+      </div>
 
-      {/* Footer */}
+      {/* ------------------------------------------------------------- */}
+      {/* CONTEXTUAL SHEETS & DIALOGS */}
+      {/* ------------------------------------------------------------- */}
+
+      {/* 1. Customer Profile Details Drawer */}
+      <CustomerDetailsSheet
+        customer={activeCustomer}
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        onUpdateCustomer={async (id, data) => {
+          const res = await fetch(`/api/customers/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          });
+          const json = await res.json();
+          if (!res.ok || json.error) throw new Error(json.message);
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+        }}
+      />
+
+      {/* 2. Create Customer Dialog */}
+      <CreateCustomerDialog
+        isOpen={isCreateCustomerOpen}
+        onClose={() => setIsCreateCustomerOpen(false)}
+        onCustomerCreated={(cust) => {
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+          setSelectedCustomerId(cust.id);
+        }}
+      />
+
+      {/* 3. Send Message Dialog */}
+      <SendMessageDialog
+        isOpen={isSendMessageOpen}
+        onClose={() => setIsSendMessageOpen(false)}
+        customers={customers}
+        activeCustomer={activeCustomer}
+        onSent={() => {
+          queryClient.invalidateQueries({
+            queryKey: ["messages", activeConversationId]
+          });
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+        }}
+      />
+
+      {/* 4. Send Template Dialog */}
+      <SendTemplateDialog
+        isOpen={isSendTemplateOpen}
+        onClose={() => setIsSendTemplateOpen(false)}
+        customer={activeCustomer}
+        templates={templates}
+        onSent={() => {
+          queryClient.invalidateQueries({
+            queryKey: ["messages", activeConversationId]
+          });
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+        }}
+      />
+
+      {/* 5. Bulk Message Dialog */}
+      <BulkMessageDialog
+        isOpen={isBulkMessageOpen}
+        onClose={() => setIsBulkMessageOpen(false)}
+        selectedCustomers={selectedCustomersForBulk}
+        onStarted={() => {
+          queryClient.invalidateQueries({ queryKey: ["bulk-jobs"] });
+          setIsBulkJobsOpen(true);
+        }}
+      />
+
+      {/* 6. Bulk Template Dialog */}
+      <BulkTemplateDialog
+        isOpen={isBulkTemplateOpen}
+        onClose={() => setIsBulkTemplateOpen(false)}
+        selectedCustomers={selectedCustomersForBulk}
+        templates={templates}
+        onStarted={() => {
+          queryClient.invalidateQueries({ queryKey: ["bulk-jobs"] });
+          setIsBulkJobsOpen(true);
+        }}
+      />
+
+      {/* 7. Templates Viewer & Sync Dialog */}
+      <TemplatesDialog
+        isOpen={isTemplatesOpen}
+        onClose={() => setIsTemplatesOpen(false)}
+        templates={templates}
+        onSynced={() => {
+          queryClient.invalidateQueries({ queryKey: ["templates"] });
+        }}
+      />
+
+      {/* 8. Live Bulk Jobs Progress  itor Dialog */}
+      <BulkJobsDialog
+        isOpen={isBulkJobsOpen}
+        onClose={() => setIsBulkJobsOpen(false)}
+        jobs={bulkJobs}
+        isLoading={isLoadingBulkJobs}
+      />
     </div>
   );
 }

@@ -10,8 +10,12 @@ export const WHATSAPP_CONFIG = {
   APP_ID: env.WHATSAPP_APP_ID!,
   BUSINESS_ID: env.WHATSAPP_BUSINESS_ID!,
   PHONE_ID: env.WHATSAPP_PHONE_ID!,
-  ACCESS_TOKEN: env.WHATSAPP_ACCESS_TOKEN!
+  ACCESS_TOKEN: env.WHATSAPP_ACCESS_TOKEN!,
+  VERIFY_TOKEN: env.WHATSAPP_VERIFY_TOKEN!
 };
+
+export const WS_PORT = Number(env.WS_PORT);
+export const NEXT_RUNTIME = env.NEXT_RUNTIME!;
 
 import * as envKeys from "./env";
 
@@ -40,5 +44,3 @@ if (missingsPaths.length > 0) {
     `Missing required environment variables:\n${missingsPaths.join("\n")}`
   );
 }
-
-console.log("All envs found");

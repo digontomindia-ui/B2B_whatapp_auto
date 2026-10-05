@@ -2,12 +2,16 @@ import { InitToast } from "@/components/init-toast";
 import PaletteProvider from "@/providers/palette";
 import ThemeProvider from "@/providers/theme";
 import QueryProvider from "@/providers/query";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono"
+});
 
 export const metadata: Metadata = {
   title: "My School Branding",

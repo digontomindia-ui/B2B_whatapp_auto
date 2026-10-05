@@ -9,7 +9,6 @@ import { toast } from "sonner";
 export function Header() {
   const { admin, logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  console.log({ admin });
 
   async function handleLogout() {
     try {

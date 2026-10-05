@@ -29,14 +29,13 @@ export default async function MainLayout({
 
   return (
     <AuthProvider admin={admin} logout={logout}>
-      <main className="flex h-screen overflow-hidden">
+      <main className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
           <Header />
 
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-          <Footer />
+          <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
         </div>
       </main>
     </AuthProvider>

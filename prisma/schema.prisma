@@ -8,6 +8,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -------------------------------------------------------------
+// Authentication Models
+// -------------------------------------------------------------
+
 model Admin {
   id         String      @id @default(uuid())
   email      String      @unique
@@ -20,15 +24,382 @@ model Admin {
 
 model Credential {
   id           String @id @default(uuid())
-  admin        Admin  @relation(fields: [adminId], references: [id])
+  admin        Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId      String @unique
   passwordHash String
 }
 
 model Token {
   id      String @id
-  admin   Admin  @relation(fields: [adminId], references: [id])
+  admin   Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId String
 
   @@map("tokens")
+}
+
+// -------------------------------------------------------------
+// Customer & Tagging Models
+// -------------------------------------------------------------
+
+enum CustomerState {
+  ACTIVE
+  BLOCKED
+  OPTED_OUT
+}
+
+model Customer {
+  id                String        @id @default(uuid())
+  phoneNumber       String
+  normalizedPhone   String        @unique
+  whatsappName      String?
+  customName        String?
+  profilePicUrl     String?
+  about             String?
+  countryCode       String?
+  state             CustomerState @default(ACTIVE)
+  unreadCount       Int           @default(0)
+  lastInteractionAt DateTime?
+  lastInboundAt     DateTime?
+  lastOutboundAt    DateTime?
+  notes             String?       @db.Text
+  metadata          Json?
+
+  tags           CustomerTag[]
+  conversations  Conversation[]
+  messages       Message[]
+  bulkRecipients BulkMessageRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lastInteractionAt])
+  @@index([createdAt])
+  @@index([state])
+  @@index([customName])
+  @@index([whatsappName])
+  @@map("customers")
+}
+
+model Tag {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  color     String        @default("#f6821f")
+  customers CustomerTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tags")
+}
+
+model CustomerTag {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([customerId, tagId])
+  @@index([customerId])
+  @@index([tagId])
+  @@map("customer_tags")
+}
+
+// -------------------------------------------------------------
+// Conversation & Messaging Models
+// -------------------------------------------------------------
+
+model Conversation {
+  id            String    @id @default(uuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title         String?
+  lastMessageAt DateTime?
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STICKER
+  LOCATION
+  TEMPLATE
+  REACTION
+}
+
+enum MessageStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  customerId     String
+  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  type           MessageType      @default(TEXT)
+  body           String?          @db.Text
+
+  metaMessageId       String?        @unique
+  status              MessageStatus  @default(SENT)
+  errorCode           String?
+  errorMessage        String?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  failedAt            DateTime?
+  incomingAt          DateTime?
+  replyToMetaMessageId String?
+
+  templateId       String?
+  templateSnapshot Json?
+
+  bulkJobId       String?
+  bulkRecipientId String?
+
+  mediaAttachment MediaAttachment?
+  rawPayload      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@index([direction])
+  @@map("messages")
+}
+
+model MediaAttachment {
+  id          String      @id @default(uuid())
+  messageId   String      @unique
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  type        MessageType
+  fileName    String?
+  mimeType    String
+  fileSize    Int?
+  metaMediaId String?
+  metaUrl     String?
+  data        Bytes?
+  caption     String?     @db.Text
+  width       Int?
+  height      Int?
+  duration    Int?
+  rawMetadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("media_attachments")
+}
+
+// -------------------------------------------------------------
+// WhatsApp Templates
+// -------------------------------------------------------------
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  APPROVED
+  PENDING
+  REJECTED
+  PAUSED
+  DISABLED
+  IN_APPEAL
+  ARCHIVED
+  DELETED
+}
+
+model WhatsappTemplate {
+  id             String           @id @default(uuid())
+  metaTemplateId String?          @unique
+  wabaId         String
+  name           String
+  language       String           @default("en")
+  category       TemplateCategory @default(MARKETING)
+  status         TemplateStatus   @default(APPROVED)
+  quality        String?
+  rejectedReason String?
+  metaUpdatedAt  DateTime?
+  enabled        Boolean          @default(true)
+  rawResponse    Json?
+
+  components TemplateComponent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([wabaId, name, language])
+  @@index([status])
+  @@index([category])
+  @@map("whatsapp_templates")
+}
+
+enum ComponentType {
+  HEADER
+  BODY
+  FOOTER
+  BUTTONS
+}
+
+model TemplateComponent {
+  id         String           @id @default(uuid())
+  templateId String
+  template   WhatsappTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  type       ComponentType
+  format     String?
+  text       String?          @db.Text
+  examples   Json?
+  rawJson    Json?
+  position   Int              @default(0)
+
+  buttons TemplateButton[]
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId])
+  @@map("template_components")
+}
+
+model TemplateButton {
+  id          String            @id @default(uuid())
+  componentId String
+  component   TemplateComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  type        String
+  text        String
+  url         String?
+  phoneNumber String?
+  position    Int               @default(0)
+  rawJson     Json?
+
+  @@index([componentId])
+  @@map("template_buttons")
+}
+
+// -------------------------------------------------------------
+// Bulk Messaging Execution Models
+// -------------------------------------------------------------
+
+enum BulkJobType {
+  MESSAGE
+  TEMPLATE
+}
+
+enum BulkJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+model BulkMessageJob {
+  id               String        @id @default(uuid())
+  type             BulkJobType
+  status           BulkJobStatus @default(PENDING)
+  title            String?
+  content          String?       @db.Text
+  templateSnapshot Json?
+  createdByAdminId String?
+
+  totalRecipients Int @default(0)
+  queuedCount     Int @default(0)
+  sendingCount    Int @default(0)
+  sentCount       Int @default(0)
+  deliveredCount  Int @default(0)
+  readCount       Int @default(0)
+  failedCount     Int @default(0)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  rawMetadata Json?
+
+  recipients BulkMessageRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("bulk_message_jobs")
+}
+
+model BulkMessageRecipient {
+  id           String         @id @default(uuid())
+  bulkJobId    String
+  bulkJob      BulkMessageJob @relation(fields: [bulkJobId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  messageId    String?
+  status       MessageStatus  @default(QUEUED)
+  errorCode    String?
+  errorMessage String?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  failedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bulkJobId, status])
+  @@index([customerId])
+  @@map("bulk_message_recipients")
+}
+
+// -------------------------------------------------------------
+// Webhook Audit & Idempotency
+// -------------------------------------------------------------
+
+enum WebhookStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  DUPLICATE
+}
+
+model WebhookEvent {
+  id               String        @id @default(uuid())
+  eventType        String
+  metaId           String?
+  payload          Json
+  processingStatus WebhookStatus @default(PENDING)
+  errorMessage     String?
+  processedAt      DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([metaId])
+  @@index([processingStatus])
+  @@index([createdAt])
+  @@map("webhook_events")
 }
