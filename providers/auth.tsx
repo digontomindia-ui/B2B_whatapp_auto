@@ -1,9 +1,10 @@
 "use client";
 
+import { Admin } from "@prisma/client";
 import { createContext, useContext, type ReactNode } from "react";
 
 interface AuthContextType {
-  adminId: string;
+  admin: Admin;
   logout: () => Promise<void>;
 }
 
@@ -13,9 +14,9 @@ interface AuthProviderProps extends AuthContextType {
   children: ReactNode;
 }
 
-export function AuthProvider({ children, adminId, logout }: AuthProviderProps) {
+export function AuthProvider({ children, admin, logout }: AuthProviderProps) {
   return (
-    <AuthContext.Provider value={{ adminId, logout }}>
+    <AuthContext.Provider value={{ admin, logout }}>
       {children}
     </AuthContext.Provider>
   );

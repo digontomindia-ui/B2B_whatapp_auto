@@ -1,13 +1,18 @@
+import { checkAuth, logoutAdmin } from "@/utils/auth";
 import { AuthProvider } from "@/providers/auth";
 import { redirect } from "next/navigation";
-import { checkAuth } from "@/utils/auth";
+import { Sidebar } from "./sidebar";
+import prisma from "@/lib/prisma";
+import { Header } from "./header";
+import { Footer } from "./footer";
 
 async function logout() {
   "use server";
-  // logout here
+  await logoutAdmin();
+  redirect("/sign-in");
 }
 
-export default async function WithoutAuthLayout({
+export default async function MainLayout({
   children
 }: {
   children: React.ReactNode;
@@ -18,9 +23,22 @@ export default async function WithoutAuthLayout({
     redirect("/sign-in");
   }
 
+  const admin = await prisma.admin.findUniqueOrThrow({
+    where: { id: adminId }
+  });
+
   return (
-    <AuthProvider adminId={adminId} logout={logout}>
-      {children}
+    <AuthProvider admin={admin} logout={logout}>
+      <main className="flex h-screen overflow-hidden">
+        <Sidebar />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header />
+
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          <Footer />
+        </div>
+      </main>
     </AuthProvider>
   );
 }
