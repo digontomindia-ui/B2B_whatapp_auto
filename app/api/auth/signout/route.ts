@@ -1,10 +1,10 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
   verifyRefreshToken,
+  AUTH_COOKIE_OPTIONS,
   ACCESS_TOKEN_COOKIE_NAME,
-  REFRESH_TOKEN_COOKIE_NAME,
-  AUTH_COOKIE_OPTIONS
+  REFRESH_TOKEN_COOKIE_NAME
 } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -12,15 +12,16 @@ export async function POST(request: NextRequest) {
     const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
 
     if (refreshToken) {
-      const payload = verifyRefreshToken(refreshToken);
-      if (payload?.tokenId) {
-        await prisma.token
-          .deleteMany({
-            where: {
-              id: payload.tokenId
-            }
-          })
-          .catch(() => {});
+      try {
+        const payload = verifyRefreshToken(refreshToken);
+
+        if (payload?.tokenId) {
+          await prisma.token.deleteMany({
+            where: { id: payload.tokenId }
+          });
+        }
+      } catch {
+        // Token is invalid/expired. Still clear cookies.
       }
     }
 
@@ -33,7 +34,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-    // Clear authentication cookies
     response.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "", {
       ...AUTH_COOKIE_OPTIONS,
       maxAge: 0
@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Sign-out error:", error);
+    console.error("Sign out error:", error);
+
     return NextResponse.json(
       {
         error: true,

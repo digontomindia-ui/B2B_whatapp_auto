@@ -1,9 +1,9 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { signInSchema } from "@/lib/validation/auth";
 import crypto from "node:crypto";
 import prisma from "@/lib/prisma";
 import {
   verifyPassword,
-  hashPassword,
   generateAccessToken,
   generateRefreshToken,
   ACCESS_TOKEN_COOKIE_NAME,
@@ -15,73 +15,64 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const result = signInSchema.safeParse(body);
 
-    const email = body.email;
-    const password = body.password;
-
-    if (
-      !email ||
-      !password ||
-      typeof email !== "string" ||
-      typeof password !== "string"
-    ) {
+    if (!result.success) {
       return NextResponse.json(
         {
           error: true,
-          message: "Email and password is required",
+          message: result.error.issues[0].message,
           data: null
         },
         { status: 400 }
       );
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const { email, password } = result.data;
 
     const admin = await prisma.admin.findUnique({
-      where: {
-        email: trimmedEmail
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        credential: {
+          select: {
+            passwordHash: true
+          }
+        }
       }
     });
 
-    if (!admin) {
+    if (!admin?.credential) {
       return NextResponse.json(
         {
           error: true,
-          message: "No Registered",
+          message: "Invalid email or password",
           data: null
         },
         { status: 401 }
       );
     }
 
-    const isValidPassword = await verifyPassword(password, admin.passwordHash);
+    const validPassword = await verifyPassword(
+      password,
+      admin.credential.passwordHash
+    );
 
-    if (!isValidPassword) {
+    if (!validPassword) {
       return NextResponse.json(
         {
           error: true,
-          message: "Incorrect password",
+          message: "Invalid email or password",
           data: null
         },
         { status: 401 }
       );
     }
 
-    // Automatically upgrade legacy plain-text password to bcrypt hash
-    if (
-      !admin.passwordHash.startsWith("$2a$") &&
-      !admin.passwordHash.startsWith("$2b$") &&
-      !admin.passwordHash.startsWith("$2y$")
-    ) {
-      const newHash = await hashPassword(password);
-      await prisma.admin.update({
-        where: { id: admin.id },
-        data: { passwordHash: newHash }
-      });
-    }
-
-    // Create a new session token record in the database
     const tokenId = crypto.randomUUID();
+
     await prisma.token.create({
       data: {
         id: tokenId,
@@ -89,33 +80,28 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Create JWT tokens
     const accessToken = generateAccessToken(admin.id);
     const refreshToken = generateRefreshToken(admin.id, tokenId);
 
     const response = NextResponse.json(
       {
         error: false,
-        message: "Sign in successful",
+        message: "Signed in successfully",
         data: {
-          admin: {
-            id: admin.id,
-            email: admin.email,
-            name: admin.name
-          },
-          accessToken,
-          refreshToken
+          id: admin.id,
+          email: admin.email,
+          name: admin.name
         }
       },
       { status: 200 }
     );
 
-    // Set secure HTTP-only cookies
     response.cookies.set(
       ACCESS_TOKEN_COOKIE_NAME,
       accessToken,
       ACCESS_TOKEN_COOKIE_OPTIONS
     );
+
     response.cookies.set(
       REFRESH_TOKEN_COOKIE_NAME,
       refreshToken,
@@ -124,7 +110,8 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Sign-in error:", error);
+    console.error("Sign in error:", error);
+
     return NextResponse.json(
       {
         error: true,
