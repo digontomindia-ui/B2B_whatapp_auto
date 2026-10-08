@@ -5,7 +5,12 @@ import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dia
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
 import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
 import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient
+} from "@tanstack/react-query";
 import { Search, UserPlus, Users, Layers, MessageSquare } from "lucide-react";
 import { ConversationView } from "@/components/dashboard/conversation-view";
 import { BulkJobsDialog } from "@/components/dashboard/bulk-jobs-dialog";
@@ -15,10 +20,10 @@ import { useState, useMemo, useEffect } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
 import { toast } from "sonner";
 import type {
-  DashboardCustomer,
   DashboardMessage,
   DashboardTemplate,
-  DashboardBulkJob
+  DashboardBulkJob,
+  CustomersListResponse
 } from "@/components/dashboard/types";
 
 export default function DashboardPage() {
@@ -65,33 +70,53 @@ export default function DashboardPage() {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // 1. Fetch Customers Query
-  const { data: customersData, isLoading: isLoadingCustomers } = useQuery<{
-    customers: DashboardCustomer[];
-    pagination: { total: number };
-  }>({
+  // 1. Fetch Customers Infinite Query (with pagination & infinite scroll)
+  const {
+    data: customersData,
+    isLoading: isLoadingCustomers,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage
+  } = useInfiniteQuery<CustomersListResponse>({
     queryKey: ["customers", debouncedSearch, dateRange, commState, sort],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (dateRange !== "all") params.set("dateRange", dateRange);
       if (commState !== "all") params.set("communicationState", commState);
       params.set("sort", sort);
-      params.set("limit", "100");
+      params.set("page", String(pageParam));
+      params.set("limit", "50");
 
       const res = await fetch(`/api/customers?${params.toString()}`);
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.message);
       return json.data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage?.pagination?.page < lastPage?.pagination?.totalPages) {
+        return lastPage.pagination.page + 1;
+      }
+      return undefined;
     }
   });
 
   const customers = useMemo(
-    () => customersData?.customers || [],
+    () => customersData?.pages.flatMap((page) => page.customers) || [],
     [customersData]
   );
 
-  const effectiveCustomerId = selectedCustomerId ?? customers[0]?.id ?? null;
+  const totalCount =
+    customersData?.pages[0]?.pagination?.total ?? customers.length;
+
+  const effectiveCustomerId = useMemo(() => {
+    if (selectedCustomerId) {
+      const found = customers.find((c) => c.id === selectedCustomerId);
+      if (found) return found.id;
+    }
+    return customers[0]?.id ?? null;
+  }, [customers, selectedCustomerId]);
 
   // Active customer
   const activeCustomer = useMemo(() => {
@@ -428,6 +453,10 @@ export default function DashboardPage() {
             onToggleSelect={toggleSelectCustomer}
             onSelectAllVisible={selectAllVisible}
             onClearSelection={clearSelection}
+            totalCount={totalCount}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
           />
         </div>
 

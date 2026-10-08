@@ -124,3 +124,15 @@ export interface DashboardBulkJob {
   completedAt: string | null;
   createdAt: string;
 }
+
+export interface DashboardPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CustomersListResponse {
+  customers: DashboardCustomer[];
+  pagination: DashboardPagination;
+}

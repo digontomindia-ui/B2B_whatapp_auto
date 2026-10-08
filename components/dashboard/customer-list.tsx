@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useInView } from "react-intersection-observer";
 import { formatDisplayPhone } from "@/utils/phone";
 import type { DashboardCustomer } from "./types";
 import {
@@ -14,7 +15,8 @@ import {
   FileText,
   Image as ImageIcon,
   Video,
-  Music
+  Music,
+  Loader2
 } from "lucide-react";
 
 interface CustomerListProps {
@@ -26,6 +28,10 @@ interface CustomerListProps {
   onToggleSelect: (id: string) => void;
   onSelectAllVisible: () => void;
   onClearSelection: () => void;
+  totalCount?: number;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  fetchNextPage?: () => void;
 }
 
 function formatRelativeTime(dateString?: string | null): string {
@@ -58,10 +64,25 @@ export function CustomerList({
   selectedIds,
   onToggleSelect,
   onSelectAllVisible,
-  onClearSelection
+  onClearSelection,
+  totalCount,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage
 }: CustomerListProps) {
   const isAllVisibleSelected =
     customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
+
+  const { ref: sentinelRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: "200px"
+  });
+
+  React.useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="bg-card border-border flex h-full flex-col border-r">
@@ -97,7 +118,9 @@ export function CustomerList({
           <span className="text-muted-foreground font-medium">
             {selectedIds.size > 0
               ? `${selectedIds.size} of ${customers.length} selected`
-              : `${customers.length} contacts`}
+              : totalCount !== undefined && totalCount > customers.length
+                ? `${customers.length} of ${totalCount} contacts`
+                : `${customers.length} contact${customers.length === 1 ? "" : "s"}`}
           </span>
         </div>
 
@@ -115,8 +138,9 @@ export function CustomerList({
       {/* Customer items list */}
       <div className="divide-border/60 flex-1 divide-y overflow-y-auto">
         {isLoading && customers.length === 0 ? (
-          <div className="text-muted-foreground p-8 text-center text-sm">
-            Loading conversations...
+          <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 p-8 text-center text-sm">
+            <Loader2 className="text-cf-orange size-5 animate-spin" />
+            <span>Loading conversations...</span>
           </div>
         ) : customers.length === 0 ? (
           <div className="text-muted-foreground p-8 text-center text-sm">
@@ -316,7 +340,70 @@ export function CustomerList({
             );
           })
         )}
+
+        {/* Infinite scroll sentinel / loading indicator */}
+        {hasNextPage && (
+          <div
+            ref={sentinelRef}
+            className="border-border/40 text-muted-foreground flex items-center justify-center p-3 text-xs"
+          >
+            {isFetchingNextPage ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="text-cf-orange size-3.5 animate-spin" />
+                <span>Loading more contacts...</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fetchNextPage?.()}
+                className="text-muted-foreground hover:text-foreground cursor-pointer text-xs underline underline-offset-2"
+              >
+                Load more contacts
+              </button>
+            )}
+          </div>
+        )}
+
+        {!hasNextPage &&
+          customers.length > 0 &&
+          totalCount !== undefined &&
+          totalCount > 0 && (
+            <div className="border-border/30 text-muted-foreground/60 border-t p-3 text-center text-[11px]">
+              {customers.length >= totalCount
+                ? `All ${totalCount} contacts loaded`
+                : `Showing ${customers.length} of ${totalCount} contacts`}
+            </div>
+          )}
       </div>
+
+      {/* Pagination summary footer */}
+      {totalCount !== undefined && totalCount > 0 && (
+        <div className="border-border bg-card/60 text-muted-foreground flex shrink-0 items-center justify-between border-t px-3 py-1.5 text-[11px]">
+          <span>
+            {customers.length < totalCount
+              ? `Showing ${customers.length} of ${totalCount}`
+              : `${totalCount} contacts total`}
+          </span>
+          <div className="flex items-center gap-2">
+            {isFetchingNextPage ? (
+              <span className="text-cf-orange flex items-center gap-1 font-medium">
+                <Loader2 className="size-3 animate-spin" />
+                <span>Loading...</span>
+              </span>
+            ) : hasNextPage ? (
+              <button
+                type="button"
+                onClick={() => fetchNextPage?.()}
+                className="hover:text-cf-orange cursor-pointer font-medium underline underline-offset-2 transition-colors"
+              >
+                Load more
+              </button>
+            ) : (
+              <span className="text-muted-foreground/60">All loaded</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
