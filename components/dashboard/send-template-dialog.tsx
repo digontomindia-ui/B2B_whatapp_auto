@@ -185,7 +185,7 @@ export function SendTemplateDialog({
             <p className="text-[11px] text-amber-600">
               {!canSendUtility && !canSendMarketing
                 ? "You do not have permission to send utility or marketing templates."
-                : "No approved templates found in database. Use \"Templates & Sync\" to import from Meta."}
+                : 'No approved templates found in database. Use "Templates & Sync" to import from Meta.'}
             </p>
           )}
         </div>

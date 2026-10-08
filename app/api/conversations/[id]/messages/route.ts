@@ -30,9 +30,10 @@ export async function GET(
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
-    const msg =
-      err instanceof Error ? err.message : "Failed to fetch messages";
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
+    const msg = err instanceof Error ? err.message : "Failed to fetch messages";
     return NextResponse.json(
       { error: true, message: msg, data: null },
       { status }

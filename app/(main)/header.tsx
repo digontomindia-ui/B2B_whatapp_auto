@@ -52,7 +52,7 @@ export function Header() {
             <span className="text-foreground text-xs leading-none font-medium">
               {user?.name || "User"}
             </span>
-            <span className="bg-cf-orange/15 text-cf-orange rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+            <span className="bg-cf-orange/15 text-cf-orange rounded px-1.5 py-0.5 text-[10px] leading-none font-semibold">
               {user?.roleName || (user?.isOwner ? "Admin" : "Staff")}
             </span>
           </div>

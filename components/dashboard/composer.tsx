@@ -285,7 +285,9 @@ export function Composer({
           ) : (
             <div className="border-border bg-muted/40 text-muted-foreground flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs italic">
               <Lock className="size-3.5" />
-              <span>You do not have permission to send conversation messages.</span>
+              <span>
+                You do not have permission to send conversation messages.
+              </span>
             </div>
           )}
         </div>

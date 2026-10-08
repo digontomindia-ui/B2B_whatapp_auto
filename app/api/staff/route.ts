@@ -26,8 +26,11 @@ export async function GET(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
-    const msg = err instanceof Error ? err.message : "Failed to fetch staff list";
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
+    const msg =
+      err instanceof Error ? err.message : "Failed to fetch staff list";
 
     return NextResponse.json(
       { error: true, message: msg, data: null },
@@ -66,8 +69,11 @@ export async function POST(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
-    const msg = err instanceof Error ? err.message : "Failed to create staff member";
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 400;
+    const msg =
+      err instanceof Error ? err.message : "Failed to create staff member";
 
     return NextResponse.json(
       { error: true, message: msg, data: null },

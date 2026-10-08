@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
     const msg = err instanceof Error ? err.message : "Failed to send message";
     return NextResponse.json(
       { error: true, message: msg, data: null },

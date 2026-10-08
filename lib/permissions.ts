@@ -1,40 +1,40 @@
 export enum PERMISSIONS {
   // ── Customers (1-19) ──────────────────────────────────────────────────────
-  CUSTOMER_VIEW = 1,     // View customer profiles and contact list
-  CUSTOMER_CREATE = 2,   // Create new customer records
-  CUSTOMER_EDIT = 3,     // Edit customer details, notes, state, and tags
-  CUSTOMER_DELETE = 4,   // Permanently delete customer records
-  CUSTOMER_IMPORT = 5,   // Import customers via CSV
-  CUSTOMER_EXPORT = 6,   // Export customer data to CSV
+  CUSTOMER_VIEW = 1, // View customer profiles and contact list
+  CUSTOMER_CREATE = 2, // Create new customer records
+  CUSTOMER_EDIT = 3, // Edit customer details, notes, state, and tags
+  CUSTOMER_DELETE = 4, // Permanently delete customer records
+  CUSTOMER_IMPORT = 5, // Import customers via CSV
+  CUSTOMER_EXPORT = 6, // Export customer data to CSV
 
   // ── Conversations & 1-on-1 Messaging (20-39) ─────────────────────────────
-  CONVERSATION_VIEW = 20,       // View chat conversations and message history
-  MESSAGE_SEND = 21,            // Send custom session text & media messages
-  MESSAGE_SEND_UTILITY = 22,    // Send utility template messages
-  MESSAGE_SEND_MARKETING = 23,  // Send marketing template messages
+  CONVERSATION_VIEW = 20, // View chat conversations and message history
+  MESSAGE_SEND = 21, // Send custom session text & media messages
+  MESSAGE_SEND_UTILITY = 22, // Send utility template messages
+  MESSAGE_SEND_MARKETING = 23, // Send marketing template messages
 
   // ── Templates (40-59) ────────────────────────────────────────────────────
-  TEMPLATE_VIEW = 40,    // View approved WhatsApp templates
-  TEMPLATE_CREATE = 41,  // Add / create / sync new message templates
-  TEMPLATE_EDIT = 42,    // Edit message templates
-  TEMPLATE_DELETE = 43,  // Delete message templates
+  TEMPLATE_VIEW = 40, // View approved WhatsApp templates
+  TEMPLATE_CREATE = 41, // Add / create / sync new message templates
+  TEMPLATE_EDIT = 42, // Edit message templates
+  TEMPLATE_DELETE = 43, // Delete message templates
 
   // ── Bulk & Broadcast (60-79) ─────────────────────────────────────────────
-  BULK_JOB_VIEW = 60,         // View broadcast jobs & recipient logs
-  BULK_MESSAGE_SEND = 61,     // Send bulk custom messages
-  BULK_UTILITY_SEND = 62,     // Send bulk utility template messages
-  BULK_MARKETING_SEND = 63,   // Send bulk marketing template messages
-  BULK_JOB_CANCEL = 64,       // Cancel ongoing broadcast jobs
+  BULK_JOB_VIEW = 60, // View broadcast jobs & recipient logs
+  BULK_MESSAGE_SEND = 61, // Send bulk custom messages
+  BULK_UTILITY_SEND = 62, // Send bulk utility template messages
+  BULK_MARKETING_SEND = 63, // Send bulk marketing template messages
+  BULK_JOB_CANCEL = 64, // Cancel ongoing broadcast jobs
 
   // ── Staff & Roles Management (80-99) ─────────────────────────────────────
-  STAFF_VIEW = 80,       // View staff members list and profiles
-  STAFF_MANAGE = 81,     // Create, update, or deactivate staff accounts
-  ROLE_VIEW = 82,        // View roles and their permission assignments
-  ROLE_MANAGE = 83,      // Create, update, or delete roles
+  STAFF_VIEW = 80, // View staff members list and profiles
+  STAFF_MANAGE = 81, // Create, update, or deactivate staff accounts
+  ROLE_VIEW = 82, // View roles and their permission assignments
+  ROLE_MANAGE = 83, // Create, update, or delete roles
 
   // ── Settings (100-119) ───────────────────────────────────────────────────
-  SETTINGS_VIEW = 100,   // View business & WhatsApp settings
-  SETTINGS_MANAGE = 101  // Manage business & integration settings
+  SETTINGS_VIEW = 100, // View business & WhatsApp settings
+  SETTINGS_MANAGE = 101 // Manage business & integration settings
 }
 
 export const PERMISSION_LABELS: Record<PERMISSIONS, string> = {
@@ -132,10 +132,7 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
   },
   {
     name: "Settings",
-    permissions: [
-      PERMISSIONS.SETTINGS_VIEW,
-      PERMISSIONS.SETTINGS_MANAGE
-    ]
+    permissions: [PERMISSIONS.SETTINGS_VIEW, PERMISSIONS.SETTINGS_MANAGE]
   }
 ];
 
@@ -148,12 +145,14 @@ export interface PermissionPreset {
 export const PERMISSIONS_PRESETS: PermissionPreset[] = [
   {
     label: "Administrator",
-    description: "Unrestricted access across all CRM features, staff, and roles",
+    description:
+      "Unrestricted access across all CRM features, staff, and roles",
     perms: "all"
   },
   {
     label: "Manager",
-    description: "Manage customers, messages, templates, broadcasts, and view staff",
+    description:
+      "Manage customers, messages, templates, broadcasts, and view staff",
     perms: [
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
@@ -179,7 +178,8 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
   },
   {
     label: "Support Agent",
-    description: "View customers, send session messages and utility notifications",
+    description:
+      "View customers, send session messages and utility notifications",
     perms: [
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
@@ -192,7 +192,8 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
   },
   {
     label: "Marketing Agent",
-    description: "Manage marketing broadcasts, templates, and view customer contacts",
+    description:
+      "Manage marketing broadcasts, templates, and view customer contacts",
     perms: [
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CONVERSATION_VIEW,
@@ -205,7 +206,8 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
   },
   {
     label: "Auditor / Read-Only",
-    description: "Read-only access to customer logs, conversations, and reports",
+    description:
+      "Read-only access to customer logs, conversations, and reports",
     perms: [
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CONVERSATION_VIEW,

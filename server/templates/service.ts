@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { whatsappClient, type MetaTemplateSyncItem } from "@/clients/whatsapp";
+import { whatsappClient } from "@/clients/whatsapp";
 import { WHATSAPP_CONFIG } from "@/lib/env";
 import {
   TemplateCategory,
@@ -96,7 +96,7 @@ export async function syncTemplatesFromMeta(wabaId?: string) {
             text: comp.text || null,
             examples: comp.example
               ? (comp.example as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
+              : null,
             rawJson: comp as unknown as Prisma.InputJsonValue,
             position: pos
           }

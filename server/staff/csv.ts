@@ -28,9 +28,15 @@ export interface ImportStaffResult {
   }>;
 }
 
-function findField(row: Record<string, unknown>, aliases: string[]): string | undefined {
+function findField(
+  row: Record<string, unknown>,
+  aliases: string[]
+): string | undefined {
   for (const key of Object.keys(row)) {
-    const cleanKey = key.trim().toLowerCase().replace(/[\s_-]+/g, "");
+    const cleanKey = key
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
     for (const alias of aliases) {
       if (cleanKey === alias.toLowerCase().replace(/[\s_-]+/g, "")) {
         const val = row[key];
@@ -50,7 +56,7 @@ export async function importStaffFromCsv(
 
   // Fetch all existing roles and build normalized lookup map
   const allRoles = await prisma.role.findMany();
-  const roleMap = new Map<string, typeof allRoles[0]>();
+  const roleMap = new Map<string, (typeof allRoles)[0]>();
   for (const r of allRoles) {
     roleMap.set(r.name.trim().toLowerCase(), r);
   }
@@ -69,11 +75,33 @@ export async function importStaffFromCsv(
     const rowNum = i + 1;
     const row = rows[i];
 
-    const email = findField(row, ["email", "mail", "emailaddress", "staffemail"]);
-    const name = findField(row, ["name", "fullname", "staffname", "displayname"]);
-    const phone = findField(row, ["phone", "phonenumber", "mobile", "contact", "contactnumber"]);
-    const password = findField(row, ["password", "pass", "pwd"]) || "Staff@12345";
-    const roleInput = findField(row, ["role", "rolename", "designation", "accesslevel"]);
+    const email = findField(row, [
+      "email",
+      "mail",
+      "emailaddress",
+      "staffemail"
+    ]);
+    const name = findField(row, [
+      "name",
+      "fullname",
+      "staffname",
+      "displayname"
+    ]);
+    const phone = findField(row, [
+      "phone",
+      "phonenumber",
+      "mobile",
+      "contact",
+      "contactnumber"
+    ]);
+    const password =
+      findField(row, ["password", "pass", "pwd"]) || "Staff@12345";
+    const roleInput = findField(row, [
+      "role",
+      "rolename",
+      "designation",
+      "accesslevel"
+    ]);
 
     if (!email) {
       result.errorCount++;

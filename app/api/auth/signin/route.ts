@@ -132,17 +132,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: true,
-            message: "Account has been deactivated. Please contact an Administrator.",
+            message:
+              "Account has been deactivated. Please contact an Administrator.",
             data: null
           },
           { status: 403 }
         );
       }
 
-      const validPassword = await verifyPassword(
-        password,
-        staff.passwordHash
-      );
+      const validPassword = await verifyPassword(password, staff.passwordHash);
 
       if (!validPassword) {
         return NextResponse.json(

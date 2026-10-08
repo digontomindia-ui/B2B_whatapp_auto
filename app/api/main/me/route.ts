@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
     const status = isAuthError
       ? (error as { statusCode?: number }).statusCode || 401
       : 500;
-    const msg = error instanceof Error ? error.message : "Internal server error";
+    const msg =
+      error instanceof Error ? error.message : "Internal server error";
 
     return NextResponse.json(
       {

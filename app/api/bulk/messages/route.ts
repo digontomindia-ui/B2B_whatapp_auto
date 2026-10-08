@@ -15,7 +15,10 @@ const bulkMessageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const actor = await requirePermission(request, PERMISSIONS.BULK_MESSAGE_SEND);
+    const actor = await requirePermission(
+      request,
+      PERMISSIONS.BULK_MESSAGE_SEND
+    );
 
     const body = await request.json();
     const parsed = bulkMessageSchema.safeParse(body);
@@ -50,7 +53,9 @@ export async function POST(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to initiate bulk broadcast";
     return NextResponse.json(

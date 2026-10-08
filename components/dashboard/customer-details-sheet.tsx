@@ -196,7 +196,7 @@ export function CustomerDetailsSheet({
             value={profilePicUrl}
             onChange={(e) => setProfilePicUrl(e.target.value)}
             placeholder="https://example.com/avatar.jpg"
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
 
@@ -214,7 +214,7 @@ export function CustomerDetailsSheet({
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="e.g. Principal Sharma (DPS Delhi)"
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
 
@@ -228,7 +228,7 @@ export function CustomerDetailsSheet({
             disabled={!canEdit}
             value={state}
             onChange={(e) => setState(e.target.value as CustomerState)}
-            className="border-border bg-background text-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           >
             <option value="ACTIVE">ACTIVE (Normal messaging)</option>
             <option value="BLOCKED">BLOCKED (Excluded from bulk)</option>
@@ -264,7 +264,9 @@ export function CustomerDetailsSheet({
               </span>
             ))}
             {tags.length === 0 && (
-              <span className="text-muted-foreground text-[11px] italic">No tags assigned</span>
+              <span className="text-muted-foreground text-[11px] italic">
+                No tags assigned
+              </span>
             )}
           </div>
 
@@ -305,7 +307,7 @@ export function CustomerDetailsSheet({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add internal notes about this school or coordinator..."
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
       </div>

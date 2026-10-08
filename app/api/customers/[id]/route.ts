@@ -48,7 +48,9 @@ export async function GET(
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 404;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 404;
     const msg = err instanceof Error ? err.message : "Customer not found";
     return NextResponse.json(
       { error: true, message: msg, data: null },
@@ -90,7 +92,9 @@ export async function PATCH(
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 400;
     const msg =
       err instanceof Error ? err.message : "Failed to update customer";
     return NextResponse.json(
@@ -119,7 +123,9 @@ export async function DELETE(
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 400;
     const msg =
       err instanceof Error ? err.message : "Failed to delete customer";
     return NextResponse.json(

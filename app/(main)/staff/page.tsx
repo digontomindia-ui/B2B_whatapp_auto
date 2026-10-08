@@ -181,8 +181,8 @@ export default function StaffAndRolesPage() {
           Access Restricted
         </h2>
         <p className="text-muted-foreground mt-1 max-w-sm text-xs">
-          You do not have permission to view staff accounts or roles. Contact your
-          administrator if you need access.
+          You do not have permission to view staff accounts or roles. Contact
+          your administrator if you need access.
         </p>
       </div>
     );
@@ -240,7 +240,7 @@ export default function StaffAndRolesPage() {
                 size="sm"
                 className="cursor-pointer gap-1.5 text-xs font-semibold"
               >
-                <Plus className="size-3.5 text-cf-orange" />
+                <Plus className="text-cf-orange size-3.5" />
                 <span>Create Role</span>
               </Button>
             )}
@@ -255,7 +255,7 @@ export default function StaffAndRolesPage() {
               className={`cursor-pointer border-b-2 px-3 py-2 font-medium transition-colors ${
                 activeTab === "staff"
                   ? "border-cf-orange text-cf-orange font-bold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground border-transparent"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export default function StaffAndRolesPage() {
               className={`cursor-pointer border-b-2 px-3 py-2 font-medium transition-colors ${
                 activeTab === "roles"
                   ? "border-cf-orange text-cf-orange font-bold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground border-transparent"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -333,7 +333,7 @@ export default function StaffAndRolesPage() {
             <div className="border-border bg-card overflow-hidden rounded-lg border shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/50 border-border border-b text-[11px] font-semibold text-muted-foreground uppercase">
+                  <thead className="bg-muted/50 border-border text-muted-foreground border-b text-[11px] font-semibold uppercase">
                     <tr>
                       <th className="px-4 py-3">Staff Member</th>
                       <th className="px-4 py-3">Phone</th>
@@ -422,7 +422,7 @@ export default function StaffAndRolesPage() {
                                       isActive: !staff.isActive
                                     });
                                   }}
-                                  className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-1 hover:bg-muted"
+                                  className="text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer rounded p-1"
                                   title={
                                     staff.isActive ? "Deactivate" : "Activate"
                                   }
@@ -439,7 +439,7 @@ export default function StaffAndRolesPage() {
                                     setEditingStaff(staff);
                                     setIsCreateStaffOpen(true);
                                   }}
-                                  className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-1 hover:bg-muted"
+                                  className="text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer rounded p-1"
                                   title="Edit staff details"
                                 >
                                   <Edit2 className="size-3.5" />
@@ -455,7 +455,7 @@ export default function StaffAndRolesPage() {
                                       deleteStaffMutation.mutate(staff.id);
                                     }
                                   }}
-                                  className="text-muted-foreground hover:text-destructive cursor-pointer rounded p-1 hover:bg-muted"
+                                  className="text-muted-foreground hover:text-destructive hover:bg-muted cursor-pointer rounded p-1"
                                   title="Delete staff"
                                 >
                                   <Trash2 className="size-3.5" />
@@ -511,7 +511,7 @@ export default function StaffAndRolesPage() {
                                 setEditingRole(role);
                                 setIsRoleModalOpen(true);
                               }}
-                              className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-1 hover:bg-muted"
+                              className="text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer rounded p-1"
                               title="Edit role permissions"
                             >
                               <Edit2 className="size-3.5" />
@@ -531,13 +531,13 @@ export default function StaffAndRolesPage() {
                                     deleteRoleMutation.mutate(role.id);
                                   }
                                 }}
-                                disabled={
-                                  Boolean(role._count?.staff && role._count.staff > 0)
-                                }
+                                disabled={Boolean(
+                                  role._count?.staff && role._count.staff > 0
+                                )}
                                 className={`rounded p-1 ${
                                   role._count?.staff && role._count.staff > 0
                                     ? "text-muted-foreground/30 cursor-not-allowed"
-                                    : "text-muted-foreground hover:text-destructive cursor-pointer hover:bg-muted"
+                                    : "text-muted-foreground hover:text-destructive hover:bg-muted cursor-pointer"
                                 }`}
                                 title={
                                   role._count?.staff && role._count.staff > 0
@@ -675,7 +675,8 @@ function CreateOrEditStaffDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return toast.error("Please enter staff member's name");
-    if (!staff && !email.trim()) return toast.error("Please enter email address");
+    if (!staff && !email.trim())
+      return toast.error("Please enter email address");
     if (!staff && (!password || password.length < 6)) {
       return toast.error("Password must be at least 6 characters long");
     }
@@ -740,7 +741,7 @@ function CreateOrEditStaffDialog({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3.5 text-xs">
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Full Name *
             </label>
             <input
@@ -754,7 +755,7 @@ function CreateOrEditStaffDialog({
           </div>
 
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Email Address *
             </label>
             <input
@@ -765,13 +766,13 @@ function CreateOrEditStaffDialog({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. rahul@school.com"
               className={`border-border bg-background text-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 focus:ring-1 focus:outline-none ${
-                staff ? "opacity-60 cursor-not-allowed" : ""
+                staff ? "cursor-not-allowed opacity-60" : ""
               }`}
             />
           </div>
 
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Phone Number
             </label>
             <input
@@ -784,13 +785,13 @@ function CreateOrEditStaffDialog({
           </div>
 
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Assign Role *
             </label>
             <select
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
-              className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer w-full rounded border px-3 py-1.5 focus:ring-1 focus:outline-none"
+              className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 focus:ring-1 focus:outline-none"
             >
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -801,7 +802,7 @@ function CreateOrEditStaffDialog({
           </div>
 
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               {staff ? "Change Password (optional)" : "Password *"}
             </label>
             <input
@@ -809,13 +810,15 @@ function CreateOrEditStaffDialog({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={
-                staff ? "Leave blank to keep current password" : "At least 6 characters"
+                staff
+                  ? "Leave blank to keep current password"
+                  : "At least 6 characters"
               }
               className="border-border bg-background text-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 focus:ring-1 focus:outline-none"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t">
+          <div className="flex items-center justify-end gap-2 border-t pt-3">
             <Button
               type="button"
               variant="outline"
@@ -829,11 +832,11 @@ function CreateOrEditStaffDialog({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="bg-cf-orange text-white cursor-pointer hover:bg-[#e87516]"
+              className="bg-cf-orange cursor-pointer text-white hover:bg-[#e87516]"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                   Saving...
                 </>
               ) : staff ? (
@@ -976,7 +979,8 @@ function ImportStaffDialog({
               Import Staff from CSV
             </h2>
             <p className="text-muted-foreground text-xs">
-              Upload a CSV file with staff accounts and automatic role name mapping.
+              Upload a CSV file with staff accounts and automatic role name
+              mapping.
             </p>
           </div>
           <button
@@ -1004,21 +1008,21 @@ function ImportStaffDialog({
               onClick={downloadSampleCsv}
               className="cursor-pointer gap-1.5 text-xs"
             >
-              <Download className="size-3.5 text-cf-orange" />
+              <Download className="text-cf-orange size-3.5" />
               <span>Sample CSV</span>
             </Button>
           </div>
 
           {/* File input */}
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Select CSV File
             </label>
             <input
               type="file"
               accept=".csv"
               onChange={handleFileChange}
-              className="border-border bg-background text-foreground file:bg-cf-orange file:text-white file:border-0 file:rounded file:px-2.5 file:py-1 file:text-xs file:cursor-pointer w-full rounded border p-2"
+              className="border-border bg-background text-foreground file:bg-cf-orange w-full rounded border p-2 file:cursor-pointer file:rounded file:border-0 file:px-2.5 file:py-1 file:text-xs file:text-white"
             />
             {csvFile && (
               <p className="text-muted-foreground mt-1 text-[11px]">
@@ -1031,13 +1035,13 @@ function ImportStaffDialog({
 
           {/* Default fallback role */}
           <div>
-            <label className="text-foreground block font-semibold mb-1">
+            <label className="text-foreground mb-1 block font-semibold">
               Fallback Role (for rows missing role column)
             </label>
             <select
               value={defaultRoleName}
               onChange={(e) => setDefaultRoleName(e.target.value)}
-              className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer w-full rounded border px-3 py-1.5 focus:ring-1 focus:outline-none"
+              className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 focus:ring-1 focus:outline-none"
             >
               {roles.map((r) => (
                 <option key={r.id} value={r.name}>
@@ -1050,7 +1054,7 @@ function ImportStaffDialog({
           {/* Preview table */}
           {parsedRows.length > 0 && (
             <div>
-              <div className="text-foreground font-semibold mb-1 flex items-center justify-between">
+              <div className="text-foreground mb-1 flex items-center justify-between font-semibold">
                 <span>Preview Detected Rows ({parsedRows.length})</span>
                 <span className="text-muted-foreground text-[11px]">
                   Roles will be verified and mapped automatically
@@ -1076,16 +1080,16 @@ function ImportStaffDialog({
 
                       return (
                         <tr key={idx}>
-                          <td className="px-2.5 py-1 text-muted-foreground">
+                          <td className="text-muted-foreground px-2.5 py-1">
                             #{idx + 1}
                           </td>
-                          <td className="px-2.5 py-1 text-foreground font-medium">
+                          <td className="text-foreground px-2.5 py-1 font-medium">
                             {row.name || "—"}
                           </td>
-                          <td className="px-2.5 py-1 text-muted-foreground font-mono">
+                          <td className="text-muted-foreground px-2.5 py-1 font-mono">
                             {row.email || "—"}
                           </td>
-                          <td className="px-2.5 py-1 font-semibold text-foreground">
+                          <td className="text-foreground px-2.5 py-1 font-semibold">
                             {rowRole || (
                               <span className="text-muted-foreground italic">
                                 Uses fallback ({defaultRoleName})
@@ -1094,17 +1098,17 @@ function ImportStaffDialog({
                           </td>
                           <td className="px-2.5 py-1">
                             {isMatched ? (
-                              <span className="text-emerald-500 font-semibold inline-flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-500">
                                 <Check className="size-3" />
                                 Mapped to &quot;{rowRole}&quot;
                               </span>
                             ) : rowRole ? (
-                              <span className="text-destructive font-semibold inline-flex items-center gap-1">
+                              <span className="text-destructive inline-flex items-center gap-1 font-semibold">
                                 <AlertCircle className="size-3" />
                                 Role &quot;{rowRole}&quot; not found
                               </span>
                             ) : (
-                              <span className="text-amber-500 font-semibold inline-flex items-center gap-1">
+                              <span className="inline-flex items-center gap-1 font-semibold text-amber-500">
                                 Default to &quot;{defaultRoleName}&quot;
                               </span>
                             )}
@@ -1118,7 +1122,7 @@ function ImportStaffDialog({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t">
+          <div className="flex items-center justify-end gap-2 border-t pt-3">
             <Button
               type="button"
               variant="outline"
@@ -1133,11 +1137,11 @@ function ImportStaffDialog({
               size="sm"
               disabled={isImporting || parsedRows.length === 0}
               onClick={handleImport}
-              className="bg-cf-orange text-white cursor-pointer hover:bg-[#e87516]"
+              className="bg-cf-orange cursor-pointer text-white hover:bg-[#e87516]"
             >
               {isImporting ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                   Importing...
                 </>
               ) : (
@@ -1251,7 +1255,7 @@ function RoleModal({
             {/* Role details */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-foreground block font-semibold mb-1">
+                <label className="text-foreground mb-1 block font-semibold">
                   Role Name *
                 </label>
                 <input
@@ -1265,7 +1269,7 @@ function RoleModal({
               </div>
 
               <div>
-                <label className="text-foreground block font-semibold mb-1">
+                <label className="text-foreground mb-1 block font-semibold">
                   Description
                 </label>
                 <input
@@ -1280,7 +1284,7 @@ function RoleModal({
 
             {/* Presets shortcut buttons */}
             <div>
-              <div className="text-muted-foreground font-semibold mb-1.5 text-[11px] uppercase tracking-wider">
+              <div className="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wider uppercase">
                 Quick Apply Preset
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -1313,7 +1317,7 @@ function RoleModal({
                   key={cat.name}
                   className="border-border bg-card/60 rounded-md border p-3"
                 >
-                  <div className="text-foreground font-semibold mb-2 flex items-center justify-between">
+                  <div className="text-foreground mb-2 flex items-center justify-between font-semibold">
                     <span>{cat.name}</span>
                     <button
                       type="button"
@@ -1330,7 +1334,7 @@ function RoleModal({
                           return next;
                         });
                       }}
-                      className="text-cf-orange hover:underline cursor-pointer text-[10px]"
+                      className="text-cf-orange cursor-pointer text-[10px] hover:underline"
                     >
                       {cat.permissions.every((p) => selectedPerms.has(p))
                         ? "Deselect Category"
@@ -1372,7 +1376,7 @@ function RoleModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t">
+          <div className="flex items-center justify-end gap-2 border-t pt-3">
             <Button
               type="button"
               variant="outline"
@@ -1386,11 +1390,11 @@ function RoleModal({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="bg-cf-orange text-white cursor-pointer hover:bg-[#e87516]"
+              className="bg-cf-orange cursor-pointer text-white hover:bg-[#e87516]"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                   Saving...
                 </>
               ) : role ? (

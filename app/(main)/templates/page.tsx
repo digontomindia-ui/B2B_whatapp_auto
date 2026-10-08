@@ -389,8 +389,8 @@ export default function TemplatesPage() {
                             !isApproved
                               ? "Only approved templates can be sent"
                               : !canSendCategory
-                              ? `You do not have permission to send ${template.category.toLowerCase()} templates`
-                              : "Send to a customer"
+                                ? `You do not have permission to send ${template.category.toLowerCase()} templates`
+                                : "Send to a customer"
                           }
                         >
                           <Send className="size-3" />

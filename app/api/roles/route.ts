@@ -24,7 +24,9 @@ export async function GET(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
     const msg = err instanceof Error ? err.message : "Failed to fetch roles";
 
     return NextResponse.json(
@@ -62,7 +64,9 @@ export async function POST(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 400;
     const msg = err instanceof Error ? err.message : "Failed to create role";
 
     return NextResponse.json(

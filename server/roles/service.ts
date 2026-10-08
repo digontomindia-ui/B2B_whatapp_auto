@@ -14,7 +14,9 @@ export async function ensureDefaultRoles() {
     if (preset.perms === "none") continue;
 
     const perms =
-      preset.perms === "all" ? ALL_PERMISSIONS : (preset.perms as PERMISSIONS[]);
+      preset.perms === "all"
+        ? ALL_PERMISSIONS
+        : (preset.perms as PERMISSIONS[]);
 
     await prisma.role.upsert({
       where: { name: preset.label },

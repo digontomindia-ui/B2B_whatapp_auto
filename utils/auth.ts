@@ -156,7 +156,10 @@ export async function checkAuth(): Promise<CheckAuthResponse> {
             }
           };
         }
-      } else if (refreshPayload.staffId || refreshPayload.actorType === "staff") {
+      } else if (
+        refreshPayload.staffId ||
+        refreshPayload.actorType === "staff"
+      ) {
         const staffTokenRecord = await prisma.staffToken.findFirst({
           where: {
             id: refreshPayload.tokenId,

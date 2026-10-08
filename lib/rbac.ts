@@ -1,10 +1,7 @@
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import {
-  ACCESS_TOKEN_COOKIE_NAME,
-  verifyAccessToken
-} from "@/lib/auth";
+import { ACCESS_TOKEN_COOKIE_NAME, verifyAccessToken } from "@/lib/auth";
 import {
   PERMISSIONS,
   ALL_PERMISSIONS,

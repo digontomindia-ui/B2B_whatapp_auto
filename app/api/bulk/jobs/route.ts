@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
-    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
+    const status = isRbac
+      ? (err as { statusCode?: number }).statusCode || 403
+      : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to fetch bulk jobs";
     return NextResponse.json(
