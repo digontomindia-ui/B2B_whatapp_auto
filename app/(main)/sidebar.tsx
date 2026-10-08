@@ -1,35 +1,70 @@
 "use client";
 
-import { MessageSquare, Layers, Radio, FileSpreadsheet } from "lucide-react";
+import {
+  MessageSquare,
+  Layers,
+  Radio,
+  FileSpreadsheet,
+  ShieldCheck
+} from "lucide-react";
 import { ToggleTheme } from "@/components/theme-toggle";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import Link from "next/link";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { hasPermission, hasAnyPermission, isOwner } = useAuth();
 
-  const navItems = [
+  const allNavItems = [
     {
       label: "Inbox",
       href: "/",
-      icon: MessageSquare
+      icon: MessageSquare,
+      visible: true
     },
     {
       label: "Templates",
       href: "/templates",
-      icon: Layers
+      icon: Layers,
+      visible: isOwner || hasPermission(PERMISSIONS.TEMPLATE_VIEW)
     },
     {
       label: "Broadcast",
       href: "/broadcast",
-      icon: Radio
+      icon: Radio,
+      visible:
+        isOwner ||
+        hasAnyPermission([
+          PERMISSIONS.BULK_JOB_VIEW,
+          PERMISSIONS.BULK_MESSAGE_SEND,
+          PERMISSIONS.BULK_UTILITY_SEND,
+          PERMISSIONS.BULK_MARKETING_SEND
+        ])
     },
     {
       label: "Import & Export",
       href: "/import-export",
-      icon: FileSpreadsheet
+      icon: FileSpreadsheet,
+      visible:
+        isOwner ||
+        hasAnyPermission([
+          PERMISSIONS.CUSTOMER_IMPORT,
+          PERMISSIONS.CUSTOMER_EXPORT
+        ])
+    },
+    {
+      label: "Staff & Roles",
+      href: "/staff",
+      icon: ShieldCheck,
+      visible:
+        isOwner ||
+        hasAnyPermission([PERMISSIONS.STAFF_VIEW, PERMISSIONS.ROLE_VIEW])
     }
   ];
+
+  const visibleNavItems = allNavItems.filter((item) => item.visible);
 
   return (
     <aside className="border-border bg-card relative z-30 flex w-14 shrink-0 flex-col items-center justify-between border-r py-3 select-none">
@@ -58,7 +93,7 @@ export function Sidebar() {
 
         {/* Nav Items */}
         <nav className="flex w-full flex-col items-center gap-1.5">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               item.href === "/"
@@ -99,7 +134,7 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Empty bottom section to preserve layout structure */}
+      {/* Theme toggle at bottom */}
       <ToggleTheme />
     </aside>
   );

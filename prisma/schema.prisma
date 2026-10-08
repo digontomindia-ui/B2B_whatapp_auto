@@ -1,10 +1,9 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -13,7 +12,7 @@ datasource db {
 // -------------------------------------------------------------
 
 model Admin {
-  id         String      @id @default(uuid())
+  id         String      @id @default(uuid()) @map("_id")
   email      String      @unique
   name       String
   tokens     Token[]
@@ -23,18 +22,60 @@ model Admin {
 }
 
 model Credential {
-  id           String @id @default(uuid())
+  id           String @id @default(uuid()) @map("_id")
   admin        Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId      String @unique
   passwordHash String
 }
 
 model Token {
-  id      String @id
+  id      String @id @default(uuid()) @map("_id")
   admin   Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId String
 
   @@map("tokens")
+}
+
+model Role {
+  id          String  @id @default(uuid()) @map("_id")
+  name        String  @unique
+  description String?
+  permissions Int[]
+  isSystem    Boolean @default(false)
+  staff       Staff[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Staff {
+  id           String  @id @default(uuid()) @map("_id")
+  email        String  @unique
+  name         String
+  phone        String?
+  passwordHash String
+  isActive     Boolean @default(true)
+
+  roleId String
+  role   Role         @relation(fields: [roleId], references: [id])
+  tokens StaffToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roleId])
+  @@map("staff")
+}
+
+model StaffToken {
+  id        String   @id @default(uuid()) @map("_id")
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("staff_tokens")
 }
 
 // -------------------------------------------------------------
@@ -48,7 +89,7 @@ enum CustomerState {
 }
 
 model Customer {
-  id                String        @id @default(uuid())
+  id                String        @id @default(uuid()) @map("_id")
   phoneNumber       String
   normalizedPhone   String        @unique
   whatsappName      String?
@@ -61,7 +102,7 @@ model Customer {
   lastInteractionAt DateTime?
   lastInboundAt     DateTime?
   lastOutboundAt    DateTime?
-  notes             String?       @db.Text
+  notes             String?
   metadata          Json?
 
   tags           CustomerTag[]
@@ -81,7 +122,7 @@ model Customer {
 }
 
 model Tag {
-  id        String        @id @default(uuid())
+  id        String        @id @default(uuid()) @map("_id")
   name      String        @unique
   color     String        @default("#f6821f")
   customers CustomerTag[]
@@ -93,7 +134,7 @@ model Tag {
 }
 
 model CustomerTag {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid()) @map("_id")
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tagId      String
@@ -112,7 +153,7 @@ model CustomerTag {
 // -------------------------------------------------------------
 
 model Conversation {
-  id            String    @id @default(uuid())
+  id            String    @id @default(uuid()) @map("_id")
   customerId    String
   customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   title         String?
@@ -155,24 +196,24 @@ enum MessageStatus {
 }
 
 model Message {
-  id             String           @id @default(uuid())
+  id             String           @id @default(uuid()) @map("_id")
   customerId     String
   customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   direction      MessageDirection
   type           MessageType      @default(TEXT)
-  body           String?          @db.Text
+  body           String?
 
-  metaMessageId       String?        @unique
-  status              MessageStatus  @default(SENT)
-  errorCode           String?
-  errorMessage        String?
-  sentAt              DateTime?
-  deliveredAt         DateTime?
-  readAt              DateTime?
-  failedAt            DateTime?
-  incomingAt          DateTime?
+  metaMessageId        String?       @unique
+  status               MessageStatus @default(SENT)
+  errorCode            String?
+  errorMessage         String?
+  sentAt               DateTime?
+  deliveredAt          DateTime?
+  readAt               DateTime?
+  failedAt             DateTime?
+  incomingAt           DateTime?
   replyToMetaMessageId String?
 
   templateId       String?
@@ -195,7 +236,7 @@ model Message {
 }
 
 model MediaAttachment {
-  id          String      @id @default(uuid())
+  id          String      @id @default(uuid()) @map("_id")
   messageId   String      @unique
   message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
   type        MessageType
@@ -205,7 +246,7 @@ model MediaAttachment {
   metaMediaId String?
   metaUrl     String?
   data        Bytes?
-  caption     String?     @db.Text
+  caption     String?
   width       Int?
   height      Int?
   duration    Int?
@@ -238,7 +279,7 @@ enum TemplateStatus {
 }
 
 model WhatsappTemplate {
-  id             String           @id @default(uuid())
+  id             String           @id @default(uuid()) @map("_id")
   metaTemplateId String?          @unique
   wabaId         String
   name           String
@@ -270,12 +311,12 @@ enum ComponentType {
 }
 
 model TemplateComponent {
-  id         String           @id @default(uuid())
+  id         String           @id @default(uuid()) @map("_id")
   templateId String
   template   WhatsappTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   type       ComponentType
   format     String?
-  text       String?          @db.Text
+  text       String?
   examples   Json?
   rawJson    Json?
   position   Int              @default(0)
@@ -289,7 +330,7 @@ model TemplateComponent {
 }
 
 model TemplateButton {
-  id          String            @id @default(uuid())
+  id          String            @id @default(uuid()) @map("_id")
   componentId String
   component   TemplateComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
   type        String
@@ -322,11 +363,11 @@ enum BulkJobStatus {
 }
 
 model BulkMessageJob {
-  id               String        @id @default(uuid())
+  id               String        @id @default(uuid()) @map("_id")
   type             BulkJobType
   status           BulkJobStatus @default(PENDING)
   title            String?
-  content          String?       @db.Text
+  content          String?
   templateSnapshot Json?
   createdByAdminId String?
 
@@ -353,7 +394,7 @@ model BulkMessageJob {
 }
 
 model BulkMessageRecipient {
-  id           String         @id @default(uuid())
+  id           String         @id @default(uuid()) @map("_id")
   bulkJobId    String
   bulkJob      BulkMessageJob @relation(fields: [bulkJobId], references: [id], onDelete: Cascade)
   customerId   String
@@ -388,7 +429,7 @@ enum WebhookStatus {
 }
 
 model WebhookEvent {
-  id               String        @id @default(uuid())
+  id               String        @id @default(uuid()) @map("_id")
   eventType        String
   metaId           String?
   payload          Json

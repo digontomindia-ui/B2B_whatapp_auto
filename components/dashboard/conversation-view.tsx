@@ -22,6 +22,8 @@ import {
   Video,
   Music
 } from "lucide-react";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -85,11 +87,25 @@ export function ConversationView({
   isRefreshingMessages = false,
   children
 }: ConversationViewProps) {
+  const { hasPermission, hasAnyPermission, isOwner } = useAuth();
+  const canSendTemplate =
+    isOwner ||
+    hasAnyPermission([
+      PERMISSIONS.MESSAGE_SEND_UTILITY,
+      PERMISSIONS.MESSAGE_SEND_MARKETING
+    ]);
+  const canDeleteCustomer =
+    isOwner || hasPermission(PERMISSIONS.CUSTOMER_DELETE);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   async function handleDeleteCustomer() {
+    if (!canDeleteCustomer) {
+      toast.error("You do not have permission to delete contacts");
+      return;
+    }
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/customers/${customer.id}`, {
@@ -217,23 +233,27 @@ export function ConversationView({
             </button>
           )}
 
-          <button
-            onClick={onOpenTemplateDialog}
-            className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-            title="Send Approved Template"
-          >
-            <Layers className="text-cf-orange size-3.5" />
-            <span className="hidden sm:inline">Send Template</span>
-          </button>
+          {canSendTemplate && (
+            <button
+              onClick={onOpenTemplateDialog}
+              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+              title="Send Approved Template"
+            >
+              <Layers className="text-cf-orange size-3.5" />
+              <span className="hidden sm:inline">Send Template</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="border-border bg-background text-destructive hover:bg-destructive/10 hover:border-destructive/30 inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-            title="Delete this contact and all related data"
-          >
-            <Trash2 className="size-3.5" />
-            <span className="hidden sm:inline">Delete Contact</span>
-          </button>
+          {canDeleteCustomer && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="border-border bg-background text-destructive hover:bg-destructive/10 hover:border-destructive/30 inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+              title="Delete this contact and all related data"
+            >
+              <Trash2 className="size-3.5" />
+              <span className="hidden sm:inline">Delete Contact</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenDetails}

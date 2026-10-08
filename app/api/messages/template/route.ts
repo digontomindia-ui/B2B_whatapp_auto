@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendOutboundTemplateMessage } from "@/server/messages/service";
+import prisma from "@/lib/prisma";
+import { requirePermission, requireAnyPermission } from "@/lib/rbac";
+import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
 const sendTemplateSchema = z.object({
@@ -28,6 +31,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine if utility or marketing template permission is required
+    const tmpl = await prisma.whatsappTemplate.findFirst({
+      where: { name: parsed.data.templateName }
+    });
+
+    if (tmpl?.category === "MARKETING") {
+      await requirePermission(request, PERMISSIONS.MESSAGE_SEND_MARKETING);
+    } else if (tmpl?.category === "UTILITY") {
+      await requirePermission(request, PERMISSIONS.MESSAGE_SEND_UTILITY);
+    } else {
+      await requireAnyPermission(request, [
+        PERMISSIONS.MESSAGE_SEND_UTILITY,
+        PERMISSIONS.MESSAGE_SEND_MARKETING
+      ]);
+    }
+
     const message = await sendOutboundTemplateMessage(parsed.data);
 
     return NextResponse.json({
@@ -39,11 +58,15 @@ export async function POST(request: NextRequest) {
       data: message
     });
   } catch (err: unknown) {
+    const isRbac =
+      err instanceof Error &&
+      (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
+    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to send template message";
     return NextResponse.json(
       { error: true, message: msg, data: null },
-      { status: 500 }
+      { status }
     );
   }
 }

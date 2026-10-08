@@ -21,7 +21,8 @@ export async function createBulkMessageJob({
   components = [],
   customerIds,
   allowOverrideBlocked = false,
-  adminId
+  adminId,
+  createdByAdminId
 }: {
   type: "MESSAGE" | "TEMPLATE";
   title?: string;
@@ -33,6 +34,7 @@ export async function createBulkMessageJob({
   customerIds: string[];
   allowOverrideBlocked?: boolean;
   adminId?: string;
+  createdByAdminId?: string;
 }) {
   if (!customerIds || customerIds.length === 0) {
     throw new Error("No customer recipients selected");
@@ -80,7 +82,7 @@ export async function createBulkMessageJob({
               JSON.stringify({ templateId, templateName, language, components })
             )
           : undefined,
-        createdByAdminId: adminId || null,
+        createdByAdminId: createdByAdminId || adminId || null,
         totalRecipients: total,
         queuedCount: total
       }

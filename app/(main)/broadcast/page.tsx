@@ -14,16 +14,31 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from "lucide-react";
 import type {
   DashboardBulkJob,
   DashboardCustomer,
   DashboardTemplate
 } from "@/components/dashboard/types";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export default function BroadcastPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, hasAnyPermission, isOwner } = useAuth();
+
+  const canViewJobs = isOwner || hasPermission(PERMISSIONS.BULK_JOB_VIEW);
+  const canBroadcastText =
+    isOwner || hasPermission(PERMISSIONS.BULK_MESSAGE_SEND);
+  const canBroadcastTemplate =
+    isOwner ||
+    hasAnyPermission([
+      PERMISSIONS.BULK_UTILITY_SEND,
+      PERMISSIONS.BULK_MARKETING_SEND
+    ]);
+
   useRealtime();
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -47,6 +62,7 @@ export default function BroadcastPage() {
       if (!res.ok || json.error) throw new Error(json.message);
       return json.data;
     },
+    enabled: canViewJobs,
     refetchInterval: 3000 // Poll progress every 3s
   });
 
@@ -127,6 +143,23 @@ export default function BroadcastPage() {
     return { total, running, completed, failed, totalRecipients, totalSent };
   }, [jobs]);
 
+  if (!canViewJobs) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+        <div className="bg-destructive/10 text-destructive mb-3 rounded-full p-3">
+          <Lock className="size-6" />
+        </div>
+        <h2 className="text-foreground text-base font-semibold">
+          Access Restricted
+        </h2>
+        <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          You do not have permission to view broadcast jobs. Contact your
+          administrator if you need access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
       {/* Top Header Bar */}
@@ -172,21 +205,25 @@ export default function BroadcastPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsBulkMessageOpen(true)}
-              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <Send className="text-cf-orange size-3.5" />
-              <span>Broadcast Text</span>
-            </button>
+            {canBroadcastText && (
+              <button
+                onClick={() => setIsBulkMessageOpen(true)}
+                className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
+              >
+                <Send className="text-cf-orange size-3.5" />
+                <span>Broadcast Text</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setIsBulkTemplateOpen(true)}
-              className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
-            >
-              <Layers className="size-3.5" />
-              <span>Broadcast Template</span>
-            </button>
+            {canBroadcastTemplate && (
+              <button
+                onClick={() => setIsBulkTemplateOpen(true)}
+                className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+              >
+                <Layers className="size-3.5" />
+                <span>Broadcast Template</span>
+              </button>
+            )}
           </div>
         </div>
 

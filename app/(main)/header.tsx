@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export function Header() {
   const pathname = usePathname();
-  const { admin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   let section = "Inbox";
@@ -19,6 +19,8 @@ export function Header() {
     section = "Broadcast";
   } else if (pathname.startsWith("/import-export")) {
     section = "Import & Export";
+  } else if (pathname.startsWith("/staff")) {
+    section = "Staff & Roles";
   }
 
   async function handleLogout() {
@@ -43,14 +45,19 @@ export function Header() {
         <span className="text-muted-foreground font-normal">{section}</span>
       </div>
 
-      {/* Right Controls: User info, Theme, Sign Out */}
+      {/* Right Controls: User info with Role, Sign Out */}
       <div className="flex items-center gap-3">
         <div className="hidden flex-col text-right sm:flex">
-          <span className="text-foreground text-xs leading-none font-medium">
-            {admin?.name || "Admin"}
-          </span>
-          <span className="text-muted-foreground mt-0.5 font-mono text-[11px] leading-tight">
-            {admin?.email || "admin@school.com"}
+          <div className="flex items-center justify-end gap-1.5">
+            <span className="text-foreground text-xs leading-none font-medium">
+              {user?.name || "User"}
+            </span>
+            <span className="bg-cf-orange/15 text-cf-orange rounded px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+              {user?.roleName || (user?.isOwner ? "Admin" : "Staff")}
+            </span>
+          </div>
+          <span className="text-muted-foreground mt-1 font-mono text-[11px] leading-tight">
+            {user?.email || ""}
           </span>
         </div>
 

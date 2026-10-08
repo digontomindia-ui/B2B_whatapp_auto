@@ -9,8 +9,11 @@ import {
   Image as ImageIcon,
   FileText,
   Video,
-  Music
+  Music,
+  Lock
 } from "lucide-react";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "sonner";
 
 interface ComposerProps {
@@ -31,6 +34,15 @@ export function Composer({
   onOpenTemplate,
   disabled = false
 }: ComposerProps) {
+  const { hasPermission, hasAnyPermission, isOwner } = useAuth();
+  const canSendMessage = isOwner || hasPermission(PERMISSIONS.MESSAGE_SEND);
+  const canSendTemplate =
+    isOwner ||
+    hasAnyPermission([
+      PERMISSIONS.MESSAGE_SEND_UTILITY,
+      PERMISSIONS.MESSAGE_SEND_MARKETING
+    ]);
+
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
@@ -42,7 +54,7 @@ export function Composer({
   const [mediaFileName, setMediaFileName] = useState("");
 
   async function handleSend() {
-    if (!text.trim() || isSending || disabled) return;
+    if (!text.trim() || isSending || disabled || !canSendMessage) return;
     const toSend = text.trim();
     setText("");
     setIsSending(true);
@@ -66,6 +78,7 @@ export function Composer({
 
   async function handleMediaSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canSendMessage) return;
     if (!mediaUrl.trim()) {
       toast.error("Please enter a media URL");
       return;
@@ -94,7 +107,7 @@ export function Composer({
   return (
     <div className="relative">
       {/* Media Attachment Modal */}
-      {showMediaModal && (
+      {showMediaModal && canSendMessage && (
         <div className="border-border bg-card absolute bottom-14 left-0 z-30 w-80 space-y-3 rounded-lg border p-4 text-xs shadow-lg">
           <div className="border-border flex items-center justify-between border-b pb-2">
             <span className="text-foreground font-semibold">Attach Media</span>
@@ -233,52 +246,65 @@ export function Composer({
       {/* Main Composer Row */}
       <div className="flex items-end gap-2">
         <div className="flex items-center gap-1 pb-1">
-          <button
-            type="button"
-            onClick={() => setShowMediaModal((prev) => !prev)}
-            disabled={disabled || isSending}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
-            title="Attach Media"
-          >
-            <Paperclip className="size-4" />
-          </button>
+          {canSendMessage && (
+            <button
+              type="button"
+              onClick={() => setShowMediaModal((prev) => !prev)}
+              disabled={disabled || isSending}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
+              title="Attach Media"
+            >
+              <Paperclip className="size-4" />
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onOpenTemplate}
-            disabled={disabled || isSending}
-            className="text-muted-foreground hover:bg-muted hover:text-cf-orange flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
-            title="Send WhatsApp Template"
-          >
-            <Layers className="size-4" />
-          </button>
+          {canSendTemplate && (
+            <button
+              type="button"
+              onClick={onOpenTemplate}
+              disabled={disabled || isSending}
+              className="text-muted-foreground hover:bg-muted hover:text-cf-orange flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50"
+              title="Send WhatsApp Template"
+            >
+              <Layers className="size-4" />
+            </button>
+          )}
         </div>
 
         <div className="relative flex-1">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={disabled || isSending}
-            rows={1}
-            placeholder="Type a message (Enter to send, Shift+Enter for new line)..."
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-cf-orange focus:ring-cf-orange max-h-32 min-h-[38px] w-full resize-none rounded-lg border px-3 py-2 text-xs focus:ring-1 focus:outline-none disabled:opacity-50"
-          />
+          {canSendMessage ? (
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={disabled || isSending}
+              rows={1}
+              placeholder="Type a message (Enter to send, Shift+Enter for new line)..."
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-cf-orange focus:ring-cf-orange max-h-32 min-h-[38px] w-full resize-none rounded-lg border px-3 py-2 text-xs focus:ring-1 focus:outline-none disabled:opacity-50"
+            />
+          ) : (
+            <div className="border-border bg-muted/40 text-muted-foreground flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs italic">
+              <Lock className="size-3.5" />
+              <span>You do not have permission to send conversation messages.</span>
+            </div>
+          )}
         </div>
 
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!text.trim() || isSending || disabled}
-          className="bg-cf-orange flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-2xs transition-colors hover:bg-[#e87516] active:bg-[#d96b13] disabled:cursor-not-allowed disabled:opacity-50"
-          title="Send"
-        >
-          {isSending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="ml-0.5 size-4" />
-          )}
-        </button>
+        {canSendMessage && (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!text.trim() || isSending || disabled}
+            className="bg-cf-orange flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-2xs transition-colors hover:bg-[#e87516] active:bg-[#d96b13] disabled:cursor-not-allowed disabled:opacity-50"
+            title="Send"
+          >
+            {isSending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="ml-0.5 size-4" />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

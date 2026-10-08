@@ -21,12 +21,22 @@ import { toast } from "sonner";
 import { EXPORTABLE_COLUMNS, type ImportResult } from "@/server/customers/csv";
 import type { DashboardCustomer } from "@/components/dashboard/types";
 import { formatDisplayPhone } from "@/utils/phone";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
+import { Lock } from "lucide-react";
 
 export default function ImportExportPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, isOwner } = useAuth();
+
+  const canImport = isOwner || hasPermission(PERMISSIONS.CUSTOMER_IMPORT);
+  const canExport = isOwner || hasPermission(PERMISSIONS.CUSTOMER_EXPORT);
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<"import" | "export">("import");
+  const [activeTab, setActiveTab] = useState<"import" | "export">(() => {
+    if (!canImport && canExport) return "export";
+    return "import";
+  });
 
   // -------------------------------------------------------------
   // IMPORT STATE
@@ -179,6 +189,11 @@ export default function ImportExportPage() {
   }
 
   async function handleExecuteImport() {
+    if (!canImport) {
+      toast.error("You do not have permission to import contacts");
+      return;
+    }
+
     const rowsToImport = parsedRows.filter((_, idx) =>
       selectedImportRowIndices.has(idx)
     );
@@ -274,6 +289,11 @@ export default function ImportExportPage() {
     Object.values(selectedColumns).filter(Boolean).length;
 
   async function handleExecuteExport() {
+    if (!canExport) {
+      toast.error("You do not have permission to export contacts");
+      return;
+    }
+
     if (activeColumnCount === 0) {
       toast.error("Please select at least one column to export");
       return;
@@ -381,6 +401,23 @@ export default function ImportExportPage() {
   ]);
   const stateHeader = findMatchingHeader(["state", "status"]);
 
+  if (!canImport && !canExport) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+        <div className="bg-destructive/10 text-destructive mb-3 rounded-full p-3">
+          <Lock className="size-6" />
+        </div>
+        <h2 className="text-foreground text-base font-semibold">
+          Access Restricted
+        </h2>
+        <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          You do not have permission to import or export contacts. Contact your
+          administrator if you need access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
       {/* Top Tab Bar & Summary Header */}
@@ -388,29 +425,33 @@ export default function ImportExportPage() {
         <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           {/* Tabs */}
           <div className="border-border bg-muted/40 flex items-center gap-1.5 rounded-lg border p-1">
-            <button
-              onClick={() => setActiveTab("import")}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                activeTab === "import"
-                  ? "bg-background text-cf-orange shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Upload className="size-3.5" />
-              <span>Import Contacts</span>
-            </button>
+            {canImport && (
+              <button
+                onClick={() => setActiveTab("import")}
+                className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  activeTab === "import"
+                    ? "bg-background text-cf-orange shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Upload className="size-3.5" />
+                <span>Import Contacts</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab("export")}
-              className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-                activeTab === "export"
-                  ? "bg-background text-cf-orange shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Download className="size-3.5" />
-              <span>Export Contacts</span>
-            </button>
+            {canExport && (
+              <button
+                onClick={() => setActiveTab("export")}
+                className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  activeTab === "export"
+                    ? "bg-background text-cf-orange shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Download className="size-3.5" />
+                <span>Export Contacts</span>
+              </button>
+            )}
           </div>
 
           {/* Database Total Pill */}
@@ -428,7 +469,7 @@ export default function ImportExportPage() {
 
       {/* Main Tabbed Area */}
       <div className="bg-muted/10 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
-        {activeTab === "import" ? (
+        {activeTab === "import" && canImport ? (
           /* ========================================================= */
           /* IMPORT TAB CONTENT */
           /* ========================================================= */

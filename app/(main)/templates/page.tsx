@@ -13,7 +13,8 @@ import {
   Phone,
   MessageSquare,
   Send,
-  Loader2
+  Loader2,
+  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -21,9 +22,19 @@ import type {
   DashboardCustomer
 } from "@/components/dashboard/types";
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export default function TemplatesPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, isOwner } = useAuth();
+
+  const canView = isOwner || hasPermission(PERMISSIONS.TEMPLATE_VIEW);
+  const canSync = isOwner || hasPermission(PERMISSIONS.TEMPLATE_CREATE);
+  const canSendUtility =
+    isOwner || hasPermission(PERMISSIONS.MESSAGE_SEND_UTILITY);
+  const canSendMarketing =
+    isOwner || hasPermission(PERMISSIONS.MESSAGE_SEND_MARKETING);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -46,7 +57,8 @@ export default function TemplatesPage() {
       const json = await res.json();
       if (!res.ok || json.error) throw new Error(json.message);
       return json.data;
-    }
+    },
+    enabled: canView
   });
 
   // 2. Fetch customers (for the send dialog target picker)
@@ -111,6 +123,23 @@ export default function TemplatesPage() {
     return { total, approved, pending, rejected };
   }, [templates]);
 
+  if (!canView) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+        <div className="bg-destructive/10 text-destructive mb-3 rounded-full p-3">
+          <Lock className="size-6" />
+        </div>
+        <h2 className="text-foreground text-base font-semibold">
+          Access Restricted
+        </h2>
+        <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          You do not have permission to view WhatsApp templates. Contact your
+          administrator if you need access.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
       {/* Top Controls Bar */}
@@ -156,16 +185,18 @@ export default function TemplatesPage() {
           </div>
 
           {/* Sync Button */}
-          <button
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || isFetching}
-            className="bg-cf-orange inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`size-3.5 ${syncMutation.isPending || isFetching ? "animate-spin" : ""}`}
-            />
-            <span>Sync with Meta</span>
-          </button>
+          {canSync && (
+            <button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending || isFetching}
+              className="bg-cf-orange inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`size-3.5 ${syncMutation.isPending || isFetching ? "animate-spin" : ""}`}
+              />
+              <span>Sync with Meta</span>
+            </button>
+          )}
         </div>
 
         {/* Row 2: Stat Pills */}
@@ -340,22 +371,33 @@ export default function TemplatesPage() {
                       ID: {template.metaTemplateId || template.id.slice(0, 8)}
                     </span>
 
-                    <button
-                      disabled={!isApproved}
-                      onClick={() => {
-                        setSelectedTemplateForSend(template);
-                        setIsSendDialogOpen(true);
-                      }}
-                      className="bg-cf-orange inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:cursor-not-allowed disabled:opacity-40"
-                      title={
-                        isApproved
-                          ? "Send to a customer"
-                          : "Only approved templates can be sent"
-                      }
-                    >
-                      <Send className="size-3" />
-                      <span>Send Template</span>
-                    </button>
+                    {(() => {
+                      const canSendCategory =
+                        template.category === "MARKETING"
+                          ? canSendMarketing
+                          : canSendUtility;
+                      const canSend = isApproved && canSendCategory;
+                      return (
+                        <button
+                          disabled={!canSend}
+                          onClick={() => {
+                            setSelectedTemplateForSend(template);
+                            setIsSendDialogOpen(true);
+                          }}
+                          className="bg-cf-orange inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            !isApproved
+                              ? "Only approved templates can be sent"
+                              : !canSendCategory
+                              ? `You do not have permission to send ${template.category.toLowerCase()} templates`
+                              : "Send to a customer"
+                          }
+                        >
+                          <Send className="size-3" />
+                          <span>Send Template</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               );

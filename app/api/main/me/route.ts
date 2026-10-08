@@ -1,46 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminId } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { getAuthActor } from "@/lib/rbac";
 
 export async function GET(request: NextRequest) {
   try {
-    const adminId = getAdminId(request);
-
-    const admin = await prisma.admin.findUnique({
-      where: { id: adminId },
-      select: {
-        id: true,
-        email: true,
-        name: true
-      }
-    });
-
-    if (!admin) {
-      return NextResponse.json(
-        {
-          error: true,
-          message: "Admin not found",
-          data: null
-        },
-        { status: 404 }
-      );
-    }
+    const actor = await getAuthActor(request);
 
     return NextResponse.json({
       error: false,
       message: "Profile retrieved successfully",
-      data: admin
+      data: {
+        id: actor.id,
+        email: actor.email,
+        name: actor.name,
+        phone: actor.phone || null,
+        isOwner: actor.isOwner,
+        actorType: actor.actorType,
+        roleId: actor.roleId || null,
+        roleName: actor.roleName || (actor.isOwner ? "Administrator" : "Staff"),
+        permissions: actor.permissions
+      }
     });
-  } catch (error) {
-    console.error("Get me error:", error);
+  } catch (error: unknown) {
+    const isAuthError =
+      error instanceof Error &&
+      (error.name === "UnauthorizedError" || error.name === "ForbiddenError");
+
+    const status = isAuthError
+      ? (error as { statusCode?: number }).statusCode || 401
+      : 500;
+    const msg = error instanceof Error ? error.message : "Internal server error";
 
     return NextResponse.json(
       {
         error: true,
-        message: "Internal server error",
+        message: msg,
         data: null
       },
-      { status: 500 }
+      { status }
     );
   }
 }

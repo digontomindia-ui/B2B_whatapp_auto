@@ -3,6 +3,8 @@ import {
   listCustomers,
   findOrCreateCustomerByPhone
 } from "@/server/customers/service";
+import { requirePermission } from "@/lib/rbac";
+import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
 const createCustomerSchema = z.object({
@@ -22,6 +24,8 @@ const createCustomerSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission(request, PERMISSIONS.CUSTOMER_VIEW);
+
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || undefined;
@@ -69,17 +73,23 @@ export async function GET(request: NextRequest) {
       data: result
     });
   } catch (err: unknown) {
+    const isRbac =
+      err instanceof Error &&
+      (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
+    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to fetch customers";
     return NextResponse.json(
       { error: true, message: msg, data: null },
-      { status: 500 }
+      { status }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission(request, PERMISSIONS.CUSTOMER_CREATE);
+
     const body = await request.json();
     const parsed = createCustomerSchema.safeParse(body);
 
@@ -105,11 +115,15 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (err: unknown) {
+    const isRbac =
+      err instanceof Error &&
+      (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
+    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to create customer";
     return NextResponse.json(
       { error: true, message: msg, data: null },
-      { status: 500 }
+      { status }
     );
   }
 }

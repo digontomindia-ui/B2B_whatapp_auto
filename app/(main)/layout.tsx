@@ -2,7 +2,6 @@ import { checkAuth, logoutAdmin } from "@/utils/auth";
 import { AuthProvider } from "@/providers/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "./sidebar";
-import prisma from "@/lib/prisma";
 import { Header } from "./header";
 
 async function logout() {
@@ -16,18 +15,14 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { authenticated, adminId } = await checkAuth();
+  const auth = await checkAuth();
 
-  if (!authenticated) {
+  if (!auth.authenticated || !auth.actor) {
     redirect("/sign-in");
   }
 
-  const admin = await prisma.admin.findUniqueOrThrow({
-    where: { id: adminId }
-  });
-
   return (
-    <AuthProvider admin={admin} logout={logout}>
+    <AuthProvider user={auth.actor} logout={logout}>
       <main className="bg-background flex h-screen overflow-hidden">
         <Sidebar />
 

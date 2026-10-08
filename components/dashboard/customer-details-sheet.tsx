@@ -15,8 +15,11 @@ import {
   Save,
   Loader2,
   Calendar,
-  Plus
+  Plus,
+  Lock
 } from "lucide-react";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface CustomerDetailsSheetProps {
   customer: DashboardCustomer | null;
@@ -40,6 +43,9 @@ export function CustomerDetailsSheet({
   onClose,
   onUpdateCustomer
 }: CustomerDetailsSheetProps) {
+  const { hasPermission, isOwner } = useAuth();
+  const canEdit = isOwner || hasPermission(PERMISSIONS.CUSTOMER_EDIT);
+
   const [customName, setCustomName] = useState(customer?.customName || "");
   const [profilePicUrl, setProfilePicUrl] = useState(
     customer?.profilePicUrl || ""
@@ -71,6 +77,10 @@ export function CustomerDetailsSheet({
   if (!isOpen || !customer) return null;
 
   async function handleSave() {
+    if (!canEdit) {
+      toast.error("You do not have permission to edit customer details");
+      return;
+    }
     setIsSaving(true);
     try {
       await onUpdateCustomer(customer!.id, {
@@ -89,6 +99,7 @@ export function CustomerDetailsSheet({
   }
 
   function handleAddTag() {
+    if (!canEdit) return;
     const clean = newTagInput.trim();
     if (!clean) return;
     if (!tags.includes(clean)) {
@@ -98,6 +109,7 @@ export function CustomerDetailsSheet({
   }
 
   function handleRemoveTag(tagToRemove: string) {
+    if (!canEdit) return;
     setTags(tags.filter((t) => t !== tagToRemove));
   }
 
@@ -108,6 +120,12 @@ export function CustomerDetailsSheet({
         <div className="text-foreground flex items-center gap-2 text-sm font-semibold">
           <User className="text-cf-orange size-4" />
           <span>Customer Profile</span>
+          {!canEdit && (
+            <span className="bg-muted text-muted-foreground border-border inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-normal">
+              <Lock className="size-2.5" />
+              Read-Only
+            </span>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -174,10 +192,11 @@ export function CustomerDetailsSheet({
           </p>
           <input
             type="url"
+            disabled={!canEdit}
             value={profilePicUrl}
             onChange={(e) => setProfilePicUrl(e.target.value)}
             placeholder="https://example.com/avatar.jpg"
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
 
@@ -191,10 +210,11 @@ export function CustomerDetailsSheet({
           </p>
           <input
             type="text"
+            disabled={!canEdit}
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             placeholder="e.g. Principal Sharma (DPS Delhi)"
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
 
@@ -205,9 +225,10 @@ export function CustomerDetailsSheet({
             Communication State
           </label>
           <select
+            disabled={!canEdit}
             value={state}
             onChange={(e) => setState(e.target.value as CustomerState)}
-            className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
           >
             <option value="ACTIVE">ACTIVE (Normal messaging)</option>
             <option value="BLOCKED">BLOCKED (Excluded from bulk)</option>
@@ -231,39 +252,46 @@ export function CustomerDetailsSheet({
                 className="bg-muted text-foreground border-border inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
               >
                 {t}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(t)}
-                  className="text-muted-foreground hover:text-destructive cursor-pointer"
-                >
-                  ✕
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(t)}
+                    className="text-muted-foreground hover:text-destructive cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
               </span>
             ))}
+            {tags.length === 0 && (
+              <span className="text-muted-foreground text-[11px] italic">No tags assigned</span>
+            )}
           </div>
 
-          <div className="flex gap-1.5 pt-1">
-            <input
-              type="text"
-              value={newTagInput}
-              onChange={(e) => setNewTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddTag();
-                }
-              }}
-              placeholder="Add tag (e.g. VIP, School_Delhi)..."
-              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange flex-1 rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={handleAddTag}
-              className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium"
-            >
-              <Plus className="size-3" /> Add
-            </button>
-          </div>
+          {canEdit && (
+            <div className="flex gap-1.5 pt-1">
+              <input
+                type="text"
+                value={newTagInput}
+                onChange={(e) => setNewTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Add tag (e.g. VIP, School_Delhi)..."
+                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange flex-1 rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium"
+              >
+                <Plus className="size-3" /> Add
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Administrative Notes */}
@@ -273,10 +301,11 @@ export function CustomerDetailsSheet({
           </label>
           <textarea
             rows={4}
+            disabled={!canEdit}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add internal notes about this school or coordinator..."
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange disabled:opacity-60 disabled:cursor-not-allowed w-full resize-none rounded border px-3 py-2 text-xs focus:ring-1 focus:outline-none"
           />
         </div>
       </div>
@@ -287,20 +316,22 @@ export function CustomerDetailsSheet({
           onClick={onClose}
           className="border-border bg-background text-muted-foreground hover:bg-muted cursor-pointer rounded border px-3 py-1.5 text-xs"
         >
-          Cancel
+          {canEdit ? "Cancel" : "Close"}
         </button>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516] disabled:opacity-50"
-        >
-          {isSaving ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Save className="size-3.5" />
-          )}
-          <span>Save Changes</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516] disabled:opacity-50"
+          >
+            {isSaving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Save className="size-3.5" />
+            )}
+            <span>Save Changes</span>
+          </button>
+        )}
       </div>
     </div>
   );

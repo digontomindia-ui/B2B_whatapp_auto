@@ -1,55 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateCustomer, deleteCustomer } from "@/server/customers/service";
-import prisma from "@/lib/prisma";
-import { CustomerState } from "@prisma/client";
+import { getRoleById, updateRole, deleteRole } from "@/server/roles/service";
 import { requirePermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
-const updateCustomerSchema = z.object({
-  customName: z.string().trim().optional().nullable(),
-  profilePicUrl: z
-    .string()
-    .trim()
-    .url()
-    .or(z.literal(""))
-    .optional()
-    .nullable(),
-  notes: z.string().trim().optional().nullable(),
-  state: z.nativeEnum(CustomerState).optional(),
-  tags: z.array(z.string()).optional()
+const updateRoleSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional().nullable(),
+  permissions: z.array(z.number()).optional()
 });
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_VIEW);
-
-    const { id } = await context.params;
-    const customer = await prisma.customer.findUniqueOrThrow({
-      where: { id },
-      include: {
-        tags: { include: { tag: true } },
-        conversations: {
-          take: 1,
-          orderBy: { createdAt: "desc" }
-        }
-      }
-    });
+    await requirePermission(request, PERMISSIONS.ROLE_VIEW);
+    const { id } = await params;
+    const role = await getRoleById(id);
 
     return NextResponse.json({
       error: false,
-      message: "Customer retrieved",
-      data: customer
+      message: "Role fetched successfully",
+      data: role
     });
   } catch (err: unknown) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
     const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 404;
-    const msg = err instanceof Error ? err.message : "Customer not found";
+    const msg = err instanceof Error ? err.message : "Role not found";
+
     return NextResponse.json(
       { error: true, message: msg, data: null },
       { status }
@@ -59,14 +40,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_EDIT);
-
-    const { id } = await context.params;
+    await requirePermission(request, PERMISSIONS.ROLE_MANAGE);
+    const { id } = await params;
     const body = await request.json();
-    const parsed = updateCustomerSchema.safeParse(body);
+    const parsed = updateRoleSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -79,11 +59,11 @@ export async function PATCH(
       );
     }
 
-    const updated = await updateCustomer(id, parsed.data);
+    const updated = await updateRole(id, parsed.data);
 
     return NextResponse.json({
       error: false,
-      message: "Customer updated successfully",
+      message: "Role updated successfully",
       data: updated
     });
   } catch (err: unknown) {
@@ -91,8 +71,8 @@ export async function PATCH(
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
     const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
-    const msg =
-      err instanceof Error ? err.message : "Failed to update customer";
+    const msg = err instanceof Error ? err.message : "Failed to update role";
+
     return NextResponse.json(
       { error: true, message: msg, data: null },
       { status }
@@ -102,26 +82,25 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_DELETE);
-
-    const { id } = await context.params;
-    const deleted = await deleteCustomer(id);
+    await requirePermission(request, PERMISSIONS.ROLE_MANAGE);
+    const { id } = await params;
+    await deleteRole(id);
 
     return NextResponse.json({
       error: false,
-      message: "Customer and all associated records deleted successfully",
-      data: { id: deleted.id, phone: deleted.normalizedPhone }
+      message: "Role deleted successfully",
+      data: null
     });
   } catch (err: unknown) {
     const isRbac =
       err instanceof Error &&
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
     const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 400;
-    const msg =
-      err instanceof Error ? err.message : "Failed to delete customer";
+    const msg = err instanceof Error ? err.message : "Failed to delete role";
+
     return NextResponse.json(
       { error: true, message: msg, data: null },
       { status }

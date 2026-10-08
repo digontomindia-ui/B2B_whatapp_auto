@@ -4,6 +4,8 @@ import {
   EXPORTABLE_COLUMNS,
   type ExportOptions
 } from "@/server/customers/csv";
+import { requirePermission } from "@/lib/rbac";
+import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
 const exportSchema = z.object({
@@ -21,6 +23,7 @@ const exportSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    await requirePermission(request, PERMISSIONS.CUSTOMER_EXPORT);
     const body = await request.json().catch(() => ({}));
     const parsed = exportSchema.safeParse(body);
 
@@ -48,11 +51,15 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (err: unknown) {
+    const isRbac =
+      err instanceof Error &&
+      (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
+    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to export contacts";
     return NextResponse.json(
       { error: true, message: msg, data: null },
-      { status: 500 }
+      { status }
     );
   }
 }

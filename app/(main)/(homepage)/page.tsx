@@ -18,6 +18,8 @@ import { CustomerList } from "@/components/dashboard/customer-list";
 import { Composer } from "@/components/dashboard/composer";
 import { useState, useMemo, useEffect } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "sonner";
 import type {
   DashboardMessage,
@@ -28,6 +30,18 @@ import type {
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const { hasPermission, hasAnyPermission, isOwner } = useAuth();
+
+  const canCreateCustomer =
+    isOwner || hasPermission(PERMISSIONS.CUSTOMER_CREATE);
+  const canSendBulkMessage =
+    isOwner || hasPermission(PERMISSIONS.BULK_MESSAGE_SEND);
+  const canSendBulkTemplate =
+    isOwner ||
+    hasAnyPermission([
+      PERMISSIONS.BULK_UTILITY_SEND,
+      PERMISSIONS.BULK_MARKETING_SEND
+    ]);
 
   // Search, filter, and sorting state
   const [search, setSearch] = useState("");
@@ -398,22 +412,26 @@ export default function DashboardPage() {
                   {selectedCustomerIds.size} selected
                 </span>
                 <span className="text-muted-foreground/40">|</span>
-                <button
-                  type="button"
-                  onClick={() => setIsBulkMessageOpen(true)}
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
-                >
-                  <Users className="size-3.5" />
-                  <span>Send Bulk Message</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsBulkTemplateOpen(true)}
-                  className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold shadow-2xs transition-colors"
-                >
-                  <Layers className="text-cf-orange size-3.5" />
-                  <span>Send Bulk Template</span>
-                </button>
+                {canSendBulkMessage && (
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkMessageOpen(true)}
+                    className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+                  >
+                    <Users className="size-3.5" />
+                    <span>Send Bulk Message</span>
+                  </button>
+                )}
+                {canSendBulkTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkTemplateOpen(true)}
+                    className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold shadow-2xs transition-colors"
+                  >
+                    <Layers className="text-cf-orange size-3.5" />
+                    <span>Send Bulk Template</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={clearSelection}
@@ -423,16 +441,18 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateCustomerOpen(true)}
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-white shadow-2xs transition-colors hover:bg-[#e87516]"
-                >
-                  <UserPlus className="size-3.5" />
-                  <span>Add Contact</span>
-                </button>
-              </div>
+              canCreateCustomer && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateCustomerOpen(true)}
+                    className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+                  >
+                    <UserPlus className="size-3.5" />
+                    <span>Add Contact</span>
+                  </button>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -502,13 +522,15 @@ export default function DashboardPage() {
                 Pick a contact from the customer list on the left, or create a
                 customer to initiate realtime WhatsApp communication.
               </p>
-              <button
-                onClick={() => setIsCreateCustomerOpen(true)}
-                className="bg-cf-orange mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516]"
-              >
-                <UserPlus className="size-3.5" />
-                <span>Create New Customer</span>
-              </button>
+              {canCreateCustomer && (
+                <button
+                  onClick={() => setIsCreateCustomerOpen(true)}
+                  className="bg-cf-orange mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516]"
+                >
+                  <UserPlus className="size-3.5" />
+                  <span>Create New Customer</span>
+                </button>
+              )}
             </div>
           )}
         </div>

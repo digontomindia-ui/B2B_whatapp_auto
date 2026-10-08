@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Layers, Loader2, X } from "lucide-react";
 import type { DashboardCustomer, DashboardTemplate } from "./types";
 import { formatDisplayPhone } from "@/utils/phone";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface SendTemplateDialogProps {
   isOpen: boolean;
@@ -21,6 +23,12 @@ export function SendTemplateDialog({
   templates,
   onSent
 }: SendTemplateDialogProps) {
+  const { hasPermission, isOwner } = useAuth();
+  const canSendUtility =
+    isOwner || hasPermission(PERMISSIONS.MESSAGE_SEND_UTILITY);
+  const canSendMarketing =
+    isOwner || hasPermission(PERMISSIONS.MESSAGE_SEND_MARKETING);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
     {}
@@ -29,9 +37,15 @@ export function SendTemplateDialog({
 
   if (!isOpen || !customer) return null;
 
-  const approvedTemplates = templates.filter(
-    (t) => t.status === "APPROVED" || t.status === "PENDING"
-  );
+  const approvedTemplates = templates.filter((t) => {
+    const isApprovedOrPending =
+      t.status === "APPROVED" || t.status === "PENDING";
+    if (!isApprovedOrPending) return false;
+
+    if (t.category === "MARKETING") return canSendMarketing;
+    if (t.category === "UTILITY") return canSendUtility;
+    return canSendUtility || canSendMarketing;
+  });
 
   const selectedTemplate = approvedTemplates.find(
     (t) => t.id === selectedTemplateId
@@ -169,8 +183,9 @@ export function SendTemplateDialog({
           </select>
           {approvedTemplates.length === 0 && (
             <p className="text-[11px] text-amber-600">
-              No approved templates found in database. Use &quot;Templates &amp;
-              Sync&quot; to import from Meta.
+              {!canSendUtility && !canSendMarketing
+                ? "You do not have permission to send utility or marketing templates."
+                : "No approved templates found in database. Use \"Templates & Sync\" to import from Meta."}
             </p>
           )}
         </div>

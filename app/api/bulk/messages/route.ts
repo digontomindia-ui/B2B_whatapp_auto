@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createBulkMessageJob } from "@/server/bulk/service";
+import { requirePermission } from "@/lib/rbac";
+import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
 const bulkMessageSchema = z.object({
@@ -13,6 +15,8 @@ const bulkMessageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const actor = await requirePermission(request, PERMISSIONS.BULK_MESSAGE_SEND);
+
     const body = await request.json();
     const parsed = bulkMessageSchema.safeParse(body);
 
@@ -33,7 +37,8 @@ export async function POST(request: NextRequest) {
       title: parsed.data.title,
       content: parsed.data.content,
       customerIds: parsed.data.customerIds,
-      allowOverrideBlocked: parsed.data.allowOverrideBlocked
+      allowOverrideBlocked: parsed.data.allowOverrideBlocked,
+      createdByAdminId: actor.id
     });
 
     return NextResponse.json({
@@ -42,11 +47,15 @@ export async function POST(request: NextRequest) {
       data: result
     });
   } catch (err: unknown) {
+    const isRbac =
+      err instanceof Error &&
+      (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
+    const status = isRbac ? (err as { statusCode?: number }).statusCode || 403 : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to initiate bulk broadcast";
     return NextResponse.json(
       { error: true, message: msg, data: null },
-      { status: 500 }
+      { status }
     );
   }
 }

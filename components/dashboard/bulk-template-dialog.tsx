@@ -5,6 +5,8 @@ import { Layers, Loader2, X, Search, Check } from "lucide-react";
 import { formatDisplayPhone } from "@/utils/phone";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface BulkTemplateDialogProps {
   isOpen: boolean;
@@ -21,6 +23,12 @@ export function BulkTemplateDialog({
   templates,
   onStarted
 }: BulkTemplateDialogProps) {
+  const { hasPermission, isOwner } = useAuth();
+  const canBulkUtility =
+    isOwner || hasPermission(PERMISSIONS.BULK_UTILITY_SEND);
+  const canBulkMarketing =
+    isOwner || hasPermission(PERMISSIONS.BULK_MARKETING_SEND);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [variableValues, setVariableValues] = useState<Record<string, string>>(
     {}
@@ -85,9 +93,15 @@ export function BulkTemplateDialog({
     setCheckedIds(new Set());
   }
 
-  const approvedTemplates = templates.filter(
-    (t) => t.status === "APPROVED" || t.status === "PENDING"
-  );
+  const approvedTemplates = templates.filter((t) => {
+    const isApprovedOrPending =
+      t.status === "APPROVED" || t.status === "PENDING";
+    if (!isApprovedOrPending) return false;
+
+    if (t.category === "MARKETING") return canBulkMarketing;
+    if (t.category === "UTILITY") return canBulkUtility;
+    return canBulkUtility || canBulkMarketing;
+  });
   const selectedTemplate = approvedTemplates.find(
     (t) => t.id === selectedTemplateId
   );
