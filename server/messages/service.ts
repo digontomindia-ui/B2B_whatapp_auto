@@ -269,6 +269,71 @@ export async function sendOutboundMediaMessage({
   }
 }
 
+export function resolveCustomerTemplateVariable(
+  customer: {
+    phoneNumber?: string | null;
+    normalizedPhone: string;
+    whatsappName?: string | null;
+    customName?: string | null;
+    about?: string | null;
+    notes?: string | null;
+    metadata?: unknown;
+  },
+  mapping?: {
+    type?: string;
+    field?: string;
+    customField?: string;
+    fallback?: string;
+    staticValue?: string;
+    sample?: string;
+  }
+): string {
+  if (!mapping) return "";
+  if (mapping.type === "static") {
+    return mapping.staticValue || mapping.sample || "";
+  }
+  const fieldKey =
+    mapping.field === "custom" && mapping.customField
+      ? mapping.customField
+      : mapping.field || "customer.customName";
+
+  const fallback = mapping.fallback || "";
+
+  if (fieldKey === "customer.name" || fieldKey === "name") {
+    return customer.customName || customer.whatsappName || fallback;
+  }
+  if (fieldKey === "customer.customName" || fieldKey === "customName") {
+    return customer.customName || customer.whatsappName || fallback;
+  }
+  if (fieldKey === "customer.whatsappName" || fieldKey === "whatsappName") {
+    return customer.whatsappName || customer.customName || fallback;
+  }
+  if (
+    fieldKey === "customer.phoneNumber" ||
+    fieldKey === "phoneNumber" ||
+    fieldKey === "phone"
+  ) {
+    return customer.phoneNumber || customer.normalizedPhone || fallback;
+  }
+  if (fieldKey === "customer.about" || fieldKey === "about") {
+    return customer.about || fallback;
+  }
+  if (fieldKey === "customer.notes" || fieldKey === "notes") {
+    return customer.notes || fallback;
+  }
+
+  // Check customer metadata for custom attributes
+  if (customer.metadata && typeof customer.metadata === "object") {
+    const clean = fieldKey.replace(/^customer\./, "");
+    const val = (customer.metadata as Record<string, unknown>)[clean];
+    if (val !== undefined && val !== null) {
+      return String(val);
+    }
+  }
+
+  return fallback;
+}
+
 export async function sendOutboundTemplateMessage({
   customerId,
   conversationId,
@@ -304,12 +369,109 @@ export async function sendOutboundTemplateMessage({
     activeConvId = conv.id;
   }
 
+  // Resolve dynamic placeholders in components if any
+  let resolvedComponents: unknown[] = components;
+
+  if (Array.isArray(components) && components.length > 0) {
+    resolvedComponents = components.map((comp: unknown) => {
+      const c = comp as Record<string, unknown>;
+      if (c && c.type === "body" && Array.isArray(c.parameters)) {
+        return {
+          ...c,
+          parameters: c.parameters.map((param: unknown) => {
+            const p = param as Record<string, unknown>;
+            if (p && p.type === "text" && typeof p.text === "string") {
+              let text = p.text;
+              if (text.includes("{{customer.") || text.includes("{{custom.")) {
+                text = text
+                  .replace(
+                    /\{\{customer\.customName\}\}/g,
+                    customer.customName || customer.whatsappName || "Customer"
+                  )
+                  .replace(
+                    /\{\{customer\.name\}\}/g,
+                    customer.customName || customer.whatsappName || "Customer"
+                  )
+                  .replace(
+                    /\{\{customer\.whatsappName\}\}/g,
+                    customer.whatsappName || customer.customName || "Customer"
+                  )
+                  .replace(
+                    /\{\{customer\.phoneNumber\}\}/g,
+                    customer.phoneNumber || customer.normalizedPhone
+                  )
+                  .replace(/\{\{customer\.about\}\}/g, customer.about || "")
+                  .replace(/\{\{customer\.notes\}\}/g, customer.notes || "");
+              }
+              return { ...p, text };
+            }
+            return p;
+          })
+        };
+      }
+      return c;
+    });
+  } else if (
+    (!resolvedComponents || resolvedComponents.length === 0) &&
+    (templateId || templateName)
+  ) {
+    // Attempt auto-resolution from template's stored variableMappings
+    const tmpl = await prisma.whatsappTemplate.findFirst({
+      where: templateId ? { id: templateId } : { name: templateName },
+      include: { components: true }
+    });
+    const bodyComp = tmpl?.components.find((c) => c.type === "BODY");
+    if (bodyComp) {
+      const bText = bodyComp.text || "";
+      const matches = Array.from(bText.matchAll(/\{\{(\d+)\}\}/g));
+      const varKeys = Array.from(new Set(matches.map((m) => m[1]))).sort(
+        (a, b) => parseInt(a, 10) - parseInt(b, 10)
+      );
+
+      const rawMappings =
+        ((bodyComp.examples as Record<string, unknown>)
+          ?.variableMappings as Record<
+          string,
+          {
+            type?: string;
+            field?: string;
+            customField?: string;
+            fallback?: string;
+            staticValue?: string;
+            sample?: string;
+          }
+        >) ||
+        ((bodyComp.rawJson as Record<string, unknown>)
+          ?.variableMappings as Record<
+          string,
+          {
+            type?: string;
+            field?: string;
+            customField?: string;
+            fallback?: string;
+            staticValue?: string;
+            sample?: string;
+          }
+        >) ||
+        {};
+
+      if (varKeys.length > 0) {
+        const parameters = varKeys.map((k) => {
+          const mapping = rawMappings[k];
+          const textVal = resolveCustomerTemplateVariable(customer, mapping);
+          return { type: "text", text: textVal || "Valued Customer" };
+        });
+        resolvedComponents = [{ type: "body", parameters }];
+      }
+    }
+  }
+
   // Snapshot the template config so historical messages remain immutable
   const templateSnapshot = {
     templateId,
     templateName,
     language,
-    components
+    components: resolvedComponents
   };
 
   const message = await prisma.message.create({
@@ -335,7 +497,7 @@ export async function sendOutboundTemplateMessage({
     to: customer.normalizedPhone,
     name: templateName,
     language,
-    components
+    components: resolvedComponents
   });
 
   const now = new Date();

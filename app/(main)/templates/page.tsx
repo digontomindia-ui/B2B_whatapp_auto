@@ -14,8 +14,10 @@ import {
   MessageSquare,
   Send,
   Loader2,
-  Lock
+  Lock,
+  Plus
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import type {
   DashboardTemplate,
@@ -184,19 +186,31 @@ export default function TemplatesPage() {
             </select>
           </div>
 
-          {/* Sync Button */}
-          {canSync && (
-            <button
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending || isFetching}
-              className="bg-cf-orange inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`size-3.5 ${syncMutation.isPending || isFetching ? "animate-spin" : ""}`}
-              />
-              <span>Sync with Meta</span>
-            </button>
-          )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {canSync && (
+              <Link
+                href="/templates/new"
+                className="bg-cf-orange inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516]"
+              >
+                <Plus className="size-3.5" />
+                <span>Create Template</span>
+              </Link>
+            )}
+
+            {canSync && (
+              <button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending || isFetching}
+                className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`size-3.5 ${syncMutation.isPending || isFetching ? "animate-spin" : ""}`}
+                />
+                <span>Sync with Meta</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Row 2: Stat Pills */}

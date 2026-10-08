@@ -113,9 +113,67 @@ export function BulkTemplateDialog({
   const variableMatches = Array.from(bodyText.matchAll(/\{\{(\d+)\}\}/g));
   const variableKeys = Array.from(new Set(variableMatches.map((m) => m[1])));
 
+  interface VariableMappingInfo {
+    type?: "static" | "dynamic";
+    field?: string;
+    customField?: string;
+    sample?: string;
+    fallback?: string;
+    staticValue?: string;
+  }
+
+  const rawMappings =
+    ((bodyComponent?.examples as Record<string, unknown>)
+      ?.variableMappings as Record<string, VariableMappingInfo>) ||
+    (
+      (bodyComponent as unknown as Record<string, unknown>)?.rawJson as {
+        variableMappings?: Record<string, VariableMappingInfo>;
+      }
+    )?.variableMappings ||
+    {};
+
   function handleSelectTemplate(id: string) {
     setSelectedTemplateId(id);
-    setVariableValues({});
+    const tmpl = approvedTemplates.find((t) => t.id === id);
+    if (!tmpl) {
+      setVariableValues({});
+      return;
+    }
+    const bComp = tmpl.components.find((c) => c.type === "BODY");
+    const tmplMappings =
+      ((bComp?.examples as Record<string, unknown>)?.variableMappings as Record<
+        string,
+        VariableMappingInfo
+      >) ||
+      (
+        (bComp as unknown as Record<string, unknown>)?.rawJson as {
+          variableMappings?: Record<string, VariableMappingInfo>;
+        }
+      )?.variableMappings ||
+      {};
+
+    const bText = bComp?.text || "";
+    const matches = Array.from(bText.matchAll(/\{\{(\d+)\}\}/g));
+    const keys = Array.from(new Set(matches.map((m) => m[1])));
+
+    const initial: Record<string, string> = {};
+    for (const k of keys) {
+      const mapping = tmplMappings[k];
+      if (mapping) {
+        if (mapping.type === "static") {
+          initial[k] = mapping.staticValue || mapping.sample || "";
+        } else {
+          const fieldKey =
+            mapping.field === "custom" && mapping.customField
+              ? mapping.customField
+              : mapping.field || "customer.customName";
+          initial[k] = `{{${fieldKey}}}`;
+        }
+      } else {
+        initial[k] = "";
+      }
+    }
+    setVariableValues(initial);
   }
 
   function handleVariableChange(key: string, val: string) {
@@ -385,21 +443,35 @@ export function BulkTemplateDialog({
                 Broadcast Variables
               </label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {variableKeys.map((k) => (
-                  <div key={k} className="space-y-1">
-                    <span className="text-muted-foreground font-mono text-[11px]">
-                      Variable &#123;&#123;{k}&#125;&#125;
-                    </span>
-                    <input
-                      type="text"
-                      required
-                      value={variableValues[k] || ""}
-                      onChange={(e) => handleVariableChange(k, e.target.value)}
-                      placeholder={`Value for {{${k}}}`}
-                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
-                    />
-                  </div>
-                ))}
+                {variableKeys.map((k) => {
+                  const mapping = rawMappings[k];
+                  return (
+                    <div key={k} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground font-mono text-[11px]">
+                          Variable &#123;&#123;{k}&#125;&#125;
+                        </span>
+                        {mapping && (
+                          <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium">
+                            {mapping.type === "static"
+                              ? "📌 Static"
+                              : `⚡ ${mapping.field === "custom" ? mapping.customField : mapping.field}`}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={variableValues[k] || ""}
+                        onChange={(e) =>
+                          handleVariableChange(k, e.target.value)
+                        }
+                        placeholder={`Value for {{${k}}}`}
+                        className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

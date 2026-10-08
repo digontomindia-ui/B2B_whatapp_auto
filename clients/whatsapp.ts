@@ -100,10 +100,13 @@ export class WhatsAppClient {
         code?: number | string;
         message?: string;
         error_subcode?: number;
+        error_user_msg?: string;
+        error_user_title?: string;
       };
     };
     if (d.error) {
-      let msg = d.error.message || "Meta API Error";
+      let msg =
+        d.error.error_user_msg || d.error.message || "Meta WhatsApp API Error";
       if (d.error.code === 131047) {
         msg =
           "Customer service window closed (24 hours elapsed since last customer response). A template message is required.";

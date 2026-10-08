@@ -1,14 +1,14 @@
+import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { InitToast } from "@/components/init-toast";
 import PaletteProvider from "@/providers/palette";
 import ThemeProvider from "@/providers/theme";
 import QueryProvider from "@/providers/query";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const jetbrains = JetBrains_Mono({
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-sans" });
+const mono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono"
 });
@@ -27,7 +27,11 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("h-full", "antialiased", "font-sans", inter.variable)}
+      className={cn(
+        "h-full font-sans antialiased",
+        sans.variable,
+        mono.variable
+      )}
     >
       <body className="bg-background text-foreground flex min-h-full flex-col antialiased">
         <ThemeProvider>

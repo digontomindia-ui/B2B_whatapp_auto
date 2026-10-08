@@ -16,32 +16,3 @@ export const WHATSAPP_CONFIG = {
 
 export const WS_PORT = Number(env.WS_PORT);
 export const NEXT_RUNTIME = env.NEXT_RUNTIME!;
-
-import * as envKeys from "./env";
-
-function getMissingValues(
-  obj: Record<string, unknown>,
-
-  parent = "",
-  paths: string[] = []
-): string[] {
-  for (const [key, value] of Object.entries(obj)) {
-    const path = parent ? `${parent}.${key}` : key;
-
-    if (value !== null && typeof value === "object") {
-      getMissingValues(value as Record<string, unknown>, path, paths);
-    } else if (value === null || value === undefined || value === "") {
-      paths.push(path);
-    }
-  }
-
-  return paths;
-}
-
-// const missingsPaths = getMissingValues(envKeys);
-
-// if (missingsPaths.length > 0) {
-//   throw new Error(
-//     `Missing required environment variables:\n${missingsPaths.join("\n")}`
-//   );
-// }

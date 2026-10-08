@@ -7,13 +7,19 @@ import { useAuth } from "@/providers/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import Link from "next/link";
+
 export function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   let section = "Inbox";
-  if (pathname.startsWith("/templates")) {
+  let subSection: string | null = null;
+  if (pathname === "/templates/new") {
+    section = "Templates";
+    subSection = "Create Template";
+  } else if (pathname.startsWith("/templates")) {
     section = "Templates";
   } else if (pathname.startsWith("/broadcast")) {
     section = "Broadcast";
@@ -42,7 +48,20 @@ export function Header() {
           My School Branding
         </span>
         <span className="text-muted-foreground/50">/</span>
-        <span className="text-muted-foreground font-normal">{section}</span>
+        {subSection ? (
+          <>
+            <Link
+              href="/templates"
+              className="text-muted-foreground hover:text-foreground font-normal transition-colors"
+            >
+              {section}
+            </Link>
+            <span className="text-muted-foreground/50">/</span>
+            <span className="text-foreground font-medium">{subSection}</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground font-normal">{section}</span>
+        )}
       </div>
 
       {/* Right Controls: User info with Role, Sign Out */}
