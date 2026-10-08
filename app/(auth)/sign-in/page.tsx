@@ -78,7 +78,7 @@ export default function SignInPage() {
               Sign in to CRM
             </h1>
             <p className="text-muted-foreground text-xs">
-              Enter your credentials to access the admin portal
+              Enter your admin or staff credentials to access the CRM
             </p>
           </div>
 

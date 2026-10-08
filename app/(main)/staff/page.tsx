@@ -1251,7 +1251,7 @@ function RoleModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto py-4 text-xs">
+          <div className="flex-1 space-y-4 overflow-y-auto p-1 py-4 text-xs">
             {/* Role details */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
