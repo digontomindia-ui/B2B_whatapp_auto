@@ -96,7 +96,7 @@ export async function syncTemplatesFromMeta(wabaId?: string) {
             text: comp.text || null,
             examples: comp.example
               ? (comp.example as unknown as Prisma.InputJsonValue)
-              : null,
+              : Prisma.JsonNull,
             rawJson: comp as unknown as Prisma.InputJsonValue,
             position: pos
           }

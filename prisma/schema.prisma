@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,7 +13,7 @@ datasource db {
 // -------------------------------------------------------------
 
 model Admin {
-  id         String      @id @default(uuid()) @map("_id")
+  id         String      @id @default(uuid())
   email      String      @unique
   name       String
   tokens     Token[]
@@ -22,14 +23,14 @@ model Admin {
 }
 
 model Credential {
-  id           String @id @default(uuid()) @map("_id")
+  id           String @id @default(uuid())
   admin        Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId      String @unique
   passwordHash String
 }
 
 model Token {
-  id      String @id @default(uuid()) @map("_id")
+  id      String @id
   admin   Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId String
 
@@ -37,7 +38,7 @@ model Token {
 }
 
 model Role {
-  id          String  @id @default(uuid()) @map("_id")
+  id          String  @id @default(uuid())
   name        String  @unique
   description String?
   permissions Int[]
@@ -51,7 +52,7 @@ model Role {
 }
 
 model Staff {
-  id           String  @id @default(uuid()) @map("_id")
+  id           String  @id @default(uuid())
   email        String  @unique
   name         String
   phone        String?
@@ -70,7 +71,7 @@ model Staff {
 }
 
 model StaffToken {
-  id        String   @id @default(uuid()) @map("_id")
+  id        String   @id
   staffId   String
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -89,7 +90,7 @@ enum CustomerState {
 }
 
 model Customer {
-  id                String        @id @default(uuid()) @map("_id")
+  id                String        @id @default(uuid())
   phoneNumber       String
   normalizedPhone   String        @unique
   whatsappName      String?
@@ -102,7 +103,7 @@ model Customer {
   lastInteractionAt DateTime?
   lastInboundAt     DateTime?
   lastOutboundAt    DateTime?
-  notes             String?
+  notes             String?       @db.Text
   metadata          Json?
 
   tags           CustomerTag[]
@@ -122,7 +123,7 @@ model Customer {
 }
 
 model Tag {
-  id        String        @id @default(uuid()) @map("_id")
+  id        String        @id @default(uuid())
   name      String        @unique
   color     String        @default("#f6821f")
   customers CustomerTag[]
@@ -134,7 +135,7 @@ model Tag {
 }
 
 model CustomerTag {
-  id         String   @id @default(uuid()) @map("_id")
+  id         String   @id @default(uuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tagId      String
@@ -153,7 +154,7 @@ model CustomerTag {
 // -------------------------------------------------------------
 
 model Conversation {
-  id            String    @id @default(uuid()) @map("_id")
+  id            String    @id @default(uuid())
   customerId    String
   customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   title         String?
@@ -196,14 +197,14 @@ enum MessageStatus {
 }
 
 model Message {
-  id             String           @id @default(uuid()) @map("_id")
+  id             String           @id @default(uuid())
   customerId     String
   customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   direction      MessageDirection
   type           MessageType      @default(TEXT)
-  body           String?
+  body           String?          @db.Text
 
   metaMessageId        String?       @unique
   status               MessageStatus @default(SENT)
@@ -236,7 +237,7 @@ model Message {
 }
 
 model MediaAttachment {
-  id          String      @id @default(uuid()) @map("_id")
+  id          String      @id @default(uuid())
   messageId   String      @unique
   message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
   type        MessageType
@@ -246,7 +247,7 @@ model MediaAttachment {
   metaMediaId String?
   metaUrl     String?
   data        Bytes?
-  caption     String?
+  caption     String?     @db.Text
   width       Int?
   height      Int?
   duration    Int?
@@ -279,7 +280,7 @@ enum TemplateStatus {
 }
 
 model WhatsappTemplate {
-  id             String           @id @default(uuid()) @map("_id")
+  id             String           @id @default(uuid())
   metaTemplateId String?          @unique
   wabaId         String
   name           String
@@ -311,12 +312,12 @@ enum ComponentType {
 }
 
 model TemplateComponent {
-  id         String           @id @default(uuid()) @map("_id")
+  id         String           @id @default(uuid())
   templateId String
   template   WhatsappTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   type       ComponentType
   format     String?
-  text       String?
+  text       String?          @db.Text
   examples   Json?
   rawJson    Json?
   position   Int              @default(0)
@@ -330,7 +331,7 @@ model TemplateComponent {
 }
 
 model TemplateButton {
-  id          String            @id @default(uuid()) @map("_id")
+  id          String            @id @default(uuid())
   componentId String
   component   TemplateComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
   type        String
@@ -363,11 +364,11 @@ enum BulkJobStatus {
 }
 
 model BulkMessageJob {
-  id               String        @id @default(uuid()) @map("_id")
+  id               String        @id @default(uuid())
   type             BulkJobType
   status           BulkJobStatus @default(PENDING)
   title            String?
-  content          String?
+  content          String?       @db.Text
   templateSnapshot Json?
   createdByAdminId String?
 
@@ -394,7 +395,7 @@ model BulkMessageJob {
 }
 
 model BulkMessageRecipient {
-  id           String         @id @default(uuid()) @map("_id")
+  id           String         @id @default(uuid())
   bulkJobId    String
   bulkJob      BulkMessageJob @relation(fields: [bulkJobId], references: [id], onDelete: Cascade)
   customerId   String
@@ -429,7 +430,7 @@ enum WebhookStatus {
 }
 
 model WebhookEvent {
-  id               String        @id @default(uuid()) @map("_id")
+  id               String        @id @default(uuid())
   eventType        String
   metaId           String?
   payload          Json
