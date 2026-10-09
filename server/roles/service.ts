@@ -1,10 +1,10 @@
-import prisma from "@/lib/prisma";
 import {
   PERMISSIONS_PRESETS,
   ALL_PERMISSIONS,
   normalizePermissions,
   PERMISSIONS
 } from "@/lib/permissions";
+import prisma from "@/lib/prisma";
 
 export async function ensureDefaultRoles() {
   const count = await prisma.role.count();

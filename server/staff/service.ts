@@ -34,6 +34,11 @@ export async function listStaff() {
           permissions: true
         }
       },
+      _count: {
+        select: {
+          assignedCustomers: true
+        }
+      },
       createdAt: true,
       updatedAt: true
     }
@@ -55,6 +60,11 @@ export async function getStaffById(id: string) {
           id: true,
           name: true,
           permissions: true
+        }
+      },
+      _count: {
+        select: {
+          assignedCustomers: true
         }
       },
       createdAt: true,
@@ -175,4 +185,84 @@ export async function deleteStaff(id: string) {
   return prisma.staff.delete({
     where: { id }
   });
+}
+
+export async function getStaffAssignedCustomers(
+  staffId: string,
+  options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  } = {}
+) {
+  const { page = 1, limit = 20, search = "" } = options;
+  const skip = (page - 1) * limit;
+
+  const where: Record<string, unknown> = {
+    assignedStaffId: staffId
+  };
+
+  if (search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { customName: { contains: q, mode: "insensitive" } },
+      { whatsappName: { contains: q, mode: "insensitive" } },
+      { phoneNumber: { contains: q } },
+      { normalizedPhone: { contains: q } }
+    ];
+  }
+
+  const [total, customers] = await Promise.all([
+    prisma.customer.count({ where }),
+    prisma.customer.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { updatedAt: "desc" },
+      include: {
+        tags: {
+          include: { tag: true }
+        }
+      }
+    })
+  ]);
+
+  return {
+    customers,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
+}
+
+export async function reassignStaffCustomers({
+  fromStaffId,
+  toStaffId,
+  customerIds
+}: {
+  fromStaffId?: string;
+  toStaffId: string | null;
+  customerIds?: string[];
+}) {
+  const where: Record<string, unknown> = {};
+
+  if (customerIds && customerIds.length > 0) {
+    where.id = { in: customerIds };
+  } else if (fromStaffId) {
+    where.assignedStaffId = fromStaffId;
+  } else {
+    throw new Error("Must provide customerIds or fromStaffId to reassign");
+  }
+
+  const result = await prisma.customer.updateMany({
+    where,
+    data: {
+      assignedStaffId: toStaffId
+    }
+  });
+
+  return { count: result.count };
 }

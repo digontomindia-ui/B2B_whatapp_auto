@@ -1,8 +1,8 @@
 "use client";
 
+import type { RealtimeEvent } from "@/server/realtime/events";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { RealtimeEvent } from "@/server/realtime/events";
 import { WS_PORT_CLIENT } from "@/lib/constant";
 
 export function useRealtime(activeConversationId?: string | null) {

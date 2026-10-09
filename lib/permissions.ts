@@ -6,6 +6,7 @@ export enum PERMISSIONS {
   CUSTOMER_DELETE = 4, // Permanently delete customer records
   CUSTOMER_IMPORT = 5, // Import customers via CSV
   CUSTOMER_EXPORT = 6, // Export customer data to CSV
+  CUSTOMER_ASSIGN = 7, // Distribute and assign customers to staff members
 
   // ── Conversations & 1-on-1 Messaging (20-39) ─────────────────────────────
   CONVERSATION_VIEW = 20, // View chat conversations and message history
@@ -34,7 +35,11 @@ export enum PERMISSIONS {
 
   // ── Settings (100-119) ───────────────────────────────────────────────────
   SETTINGS_VIEW = 100, // View business & WhatsApp settings
-  SETTINGS_MANAGE = 101 // Manage business & integration settings
+  SETTINGS_MANAGE = 101, // Manage business & integration settings
+
+  // ── Workflows & Automation (120-139) ──────────────────────────────────────
+  WORKFLOW_VIEW = 120, // View interactive workflows & executions
+  WORKFLOW_MANAGE = 121 // Create, update, toggle and delete workflows
 }
 
 export const PERMISSION_LABELS: Record<PERMISSIONS, string> = {
@@ -45,6 +50,7 @@ export const PERMISSION_LABELS: Record<PERMISSIONS, string> = {
   [PERMISSIONS.CUSTOMER_DELETE]: "Delete Customer",
   [PERMISSIONS.CUSTOMER_IMPORT]: "Import Customers",
   [PERMISSIONS.CUSTOMER_EXPORT]: "Export Customers",
+  [PERMISSIONS.CUSTOMER_ASSIGN]: "Distribute & Assign Customers",
 
   // Messaging
   [PERMISSIONS.CONVERSATION_VIEW]: "View Conversations",
@@ -73,7 +79,11 @@ export const PERMISSION_LABELS: Record<PERMISSIONS, string> = {
 
   // Settings
   [PERMISSIONS.SETTINGS_VIEW]: "View Settings",
-  [PERMISSIONS.SETTINGS_MANAGE]: "Manage Settings"
+  [PERMISSIONS.SETTINGS_MANAGE]: "Manage Settings",
+
+  // Workflows & Automation
+  [PERMISSIONS.WORKFLOW_VIEW]: "View Workflows",
+  [PERMISSIONS.WORKFLOW_MANAGE]: "Manage Workflows"
 };
 
 export interface PermissionCategory {
@@ -90,7 +100,8 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       PERMISSIONS.CUSTOMER_EDIT,
       PERMISSIONS.CUSTOMER_DELETE,
       PERMISSIONS.CUSTOMER_IMPORT,
-      PERMISSIONS.CUSTOMER_EXPORT
+      PERMISSIONS.CUSTOMER_EXPORT,
+      PERMISSIONS.CUSTOMER_ASSIGN
     ]
   },
   {
@@ -120,6 +131,10 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       PERMISSIONS.BULK_MARKETING_SEND,
       PERMISSIONS.BULK_JOB_CANCEL
     ]
+  },
+  {
+    name: "Workflows & Automation",
+    permissions: [PERMISSIONS.WORKFLOW_VIEW, PERMISSIONS.WORKFLOW_MANAGE]
   },
   {
     name: "Staff & Roles",
@@ -159,6 +174,7 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
       PERMISSIONS.CUSTOMER_EDIT,
       PERMISSIONS.CUSTOMER_EXPORT,
       PERMISSIONS.CUSTOMER_IMPORT,
+      PERMISSIONS.CUSTOMER_ASSIGN,
       PERMISSIONS.CONVERSATION_VIEW,
       PERMISSIONS.MESSAGE_SEND,
       PERMISSIONS.MESSAGE_SEND_UTILITY,
@@ -173,7 +189,9 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
       PERMISSIONS.BULK_JOB_CANCEL,
       PERMISSIONS.STAFF_VIEW,
       PERMISSIONS.ROLE_VIEW,
-      PERMISSIONS.SETTINGS_VIEW
+      PERMISSIONS.SETTINGS_VIEW,
+      PERMISSIONS.WORKFLOW_VIEW,
+      PERMISSIONS.WORKFLOW_MANAGE
     ]
   },
   {

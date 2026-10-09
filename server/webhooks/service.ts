@@ -1,7 +1,3 @@
-import prisma from "@/lib/prisma";
-import { whatsappClient } from "@/clients/whatsapp";
-import { findOrCreateCustomerByPhone } from "@/server/customers/service";
-import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 import {
   MessageDirection,
   MessageStatus,
@@ -9,6 +5,11 @@ import {
   WebhookStatus,
   Prisma
 } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { whatsappClient } from "@/clients/whatsapp";
+import { findOrCreateCustomerByPhone } from "@/server/customers/service";
+import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
+import { processIncomingMessageForWorkflows } from "@/server/workflows/engine";
 
 interface MetaWebhookMessage {
   from: string;
@@ -33,6 +34,15 @@ interface MetaWebhookMessage {
     address?: string;
   };
   reaction?: { message_id: string; emoji: string };
+  interactive?: {
+    type?: string;
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string; description?: string };
+  };
+  button?: {
+    payload?: string;
+    text?: string;
+  };
   context?: { id?: string };
   errors?: Array<{ code: number; title: string; message?: string }>;
 }
@@ -172,6 +182,7 @@ async function handleIncomingMessage(
   // Parse message content & type
   let type: MessageType = MessageType.TEXT;
   let body: string | null = null;
+  let buttonId: string | undefined = undefined;
   let mediaData: {
     type: MessageType;
     metaMediaId?: string;
@@ -182,7 +193,22 @@ async function handleIncomingMessage(
     fileName?: string;
   } | null = null;
 
-  if (msg.type === "text" && msg.text) {
+  if (msg.type === "interactive" && msg.interactive) {
+    if (msg.interactive.button_reply) {
+      type = MessageType.TEXT;
+      body =
+        msg.interactive.button_reply.title || msg.interactive.button_reply.id;
+      buttonId = msg.interactive.button_reply.id;
+    } else if (msg.interactive.list_reply) {
+      type = MessageType.TEXT;
+      body = msg.interactive.list_reply.title || msg.interactive.list_reply.id;
+      buttonId = msg.interactive.list_reply.id;
+    }
+  } else if (msg.type === "button" && msg.button) {
+    type = MessageType.TEXT;
+    body = msg.button.text || msg.button.payload || null;
+    buttonId = msg.button.payload;
+  } else if (msg.type === "text" && msg.text) {
     type = MessageType.TEXT;
     body = msg.text.body;
   } else if (msg.type === "image" && msg.image) {
@@ -312,6 +338,18 @@ async function handleIncomingMessage(
     customerId: customer.id,
     unreadCount: updatedCustomer.unreadCount
   });
+
+  // Execute interactive workflows (process button clicks or keyword triggers)
+  try {
+    await processIncomingMessageForWorkflows(
+      customer.id,
+      body || "",
+      buttonId,
+      conversation.id
+    );
+  } catch (wfErr) {
+    console.error("Workflow processing error on incoming message:", wfErr);
+  }
 }
 
 async function handleStatusUpdate(st: MetaWebhookStatus) {

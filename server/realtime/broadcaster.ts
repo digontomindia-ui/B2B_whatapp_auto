@@ -1,6 +1,6 @@
-import { EventEmitter } from "node:events";
-import type { WebSocket } from "ws";
 import type { RealtimeEvent, RealtimeEventType } from "./events";
+import type { WebSocket } from "ws";
+import { EventEmitter } from "node:events";
 
 class RealtimeBroadcaster {
   private static instance: RealtimeBroadcaster;

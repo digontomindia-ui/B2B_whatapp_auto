@@ -1,6 +1,6 @@
+import type { RealtimeEvent } from "@/server/realtime/events";
 import { NextRequest } from "next/server";
 import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
-import type { RealtimeEvent } from "@/server/realtime/events";
 
 export const dynamic = "force-dynamic";
 

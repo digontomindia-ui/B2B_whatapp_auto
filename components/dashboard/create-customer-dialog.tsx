@@ -1,8 +1,8 @@
 "use client";
 
+import { UserPlus, Loader2, X } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { UserPlus, Loader2, X } from "lucide-react";
 
 interface CreateCustomerDialogProps {
   isOpen: boolean;

@@ -1,16 +1,16 @@
 "use server";
 
-import { cookies } from "next/headers";
-import prisma from "@/lib/prisma";
 import {
   verifyAccessToken,
   verifyRefreshToken,
-  generateAccessToken,
   ACCESS_TOKEN_COOKIE_OPTIONS,
   ACCESS_TOKEN_COOKIE_NAME,
   REFRESH_TOKEN_COOKIE_NAME
 } from "@/lib/auth";
 import { ALL_PERMISSIONS, PERMISSIONS } from "@/lib/permissions";
+import { cookies } from "next/headers";
+import prisma from "@/lib/prisma";
+import { refreshSessionFromToken } from "@/server/auth/service";
 
 export interface CurrentUserSession {
   id: string;
@@ -109,109 +109,45 @@ export async function checkAuth(): Promise<CheckAuthResponse> {
 
   // 2. Check refresh token if access token missing or expired
   if (refreshToken) {
-    const refreshPayload = verifyRefreshToken(refreshToken);
-    if (refreshPayload) {
-      if (refreshPayload.adminId || refreshPayload.actorType === "admin") {
-        const tokenRecord = await prisma.token.findFirst({
-          where: {
-            id: refreshPayload.tokenId,
-            adminId: refreshPayload.adminId
-          },
-          include: { admin: true }
-        });
-
-        if (tokenRecord) {
-          const newAccessToken = generateAccessToken({
-            adminId: tokenRecord.admin.id,
-            actorType: "admin",
-            email: tokenRecord.admin.email,
-            name: tokenRecord.admin.name,
-            roleName: "Administrator",
-            permissions: ALL_PERMISSIONS
-          });
-
-          try {
-            cookieSet.set(
-              ACCESS_TOKEN_COOKIE_NAME,
-              newAccessToken,
-              ACCESS_TOKEN_COOKIE_OPTIONS
-            );
-          } catch {
-            // RSC render context
-          }
-
-          return {
-            authenticated: true,
-            error: null,
-            adminId: tokenRecord.admin.id,
-            actorType: "admin",
-            actor: {
-              id: tokenRecord.admin.id,
-              email: tokenRecord.admin.email,
-              name: tokenRecord.admin.name,
-              isOwner: true,
-              actorType: "admin",
-              roleName: "Administrator",
-              permissions: ALL_PERMISSIONS
-            }
-          };
-        }
-      } else if (
-        refreshPayload.staffId ||
-        refreshPayload.actorType === "staff"
-      ) {
-        const staffTokenRecord = await prisma.staffToken.findFirst({
-          where: {
-            id: refreshPayload.tokenId,
-            staffId: refreshPayload.staffId
-          },
-          include: {
-            staff: {
-              include: { role: true }
-            }
-          }
-        });
-
-        if (staffTokenRecord && staffTokenRecord.staff.isActive) {
-          const staff = staffTokenRecord.staff;
-          const newAccessToken = generateAccessToken({
-            staffId: staff.id,
-            actorType: "staff",
-            email: staff.email,
-            name: staff.name,
-            roleId: staff.role.id,
-            roleName: staff.role.name,
-            permissions: staff.role.permissions
-          });
-
-          try {
-            cookieSet.set(
-              ACCESS_TOKEN_COOKIE_NAME,
-              newAccessToken,
-              ACCESS_TOKEN_COOKIE_OPTIONS
-            );
-          } catch {
-            // RSC render context
-          }
-
-          return {
-            authenticated: true,
-            error: null,
-            staffId: staff.id,
-            actorType: "staff",
-            actor: {
-              id: staff.id,
-              email: staff.email,
-              name: staff.name,
-              phone: staff.phone,
-              isOwner: false,
-              actorType: "staff",
-              roleName: staff.role.name,
-              permissions: staff.role.permissions as PERMISSIONS[]
-            }
-          };
-        }
+    const refreshResult = await refreshSessionFromToken(refreshToken);
+    if (
+      refreshResult.success &&
+      refreshResult.actor &&
+      refreshResult.newAccessToken
+    ) {
+      try {
+        cookieSet.set(
+          ACCESS_TOKEN_COOKIE_NAME,
+          refreshResult.newAccessToken,
+          ACCESS_TOKEN_COOKIE_OPTIONS
+        );
+      } catch {
+        // RSC render context cannot mutate cookies directly
       }
+
+      return {
+        authenticated: true,
+        error: null,
+        adminId:
+          refreshResult.actor.actorType === "admin"
+            ? refreshResult.actor.id
+            : undefined,
+        staffId:
+          refreshResult.actor.actorType === "staff"
+            ? refreshResult.actor.id
+            : undefined,
+        actorType: refreshResult.actor.actorType,
+        actor: {
+          id: refreshResult.actor.id,
+          email: refreshResult.actor.email,
+          name: refreshResult.actor.name,
+          phone: refreshResult.actor.phone,
+          isOwner: refreshResult.actor.isOwner,
+          actorType: refreshResult.actor.actorType,
+          roleName: refreshResult.actor.roleName || "Staff",
+          permissions: refreshResult.actor.permissions
+        }
+      };
     }
   }
 

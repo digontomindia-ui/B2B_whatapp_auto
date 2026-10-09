@@ -1,12 +1,12 @@
-import prisma from "@/lib/prisma";
-import { whatsappClient } from "@/clients/whatsapp";
-import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 import {
   MessageDirection,
   MessageStatus,
   MessageType,
   Prisma
 } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { whatsappClient } from "@/clients/whatsapp";
+import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 
 export async function getConversationMessages(
   conversationId: string,
@@ -155,7 +155,7 @@ export async function sendOutboundMediaMessage({
   fileName,
   mimeType,
   mediaLink,
-  base64Data
+  base64Data: _base64Data
 }: {
   customerId: string;
   conversationId?: string;
@@ -166,6 +166,7 @@ export async function sendOutboundMediaMessage({
   mediaLink?: string;
   base64Data?: string;
 }) {
+  void _base64Data;
   const customer = await prisma.customer.findUniqueOrThrow({
     where: { id: customerId }
   });
@@ -259,6 +260,124 @@ export async function sendOutboundMediaMessage({
           metaResult.errorMessage || "Failed to deliver media via WhatsApp API",
         failedAt: now,
         rawPayload: metaResult.rawResponse as unknown as Prisma.InputJsonValue
+      },
+      include: { mediaAttachment: true }
+    });
+
+    realtimeBroadcaster.broadcast("MESSAGE_FAILED", failedMsg);
+    realtimeBroadcaster.broadcast("MESSAGE_UPDATED", failedMsg);
+    return failedMsg;
+  }
+}
+
+export async function sendOutboundInteractiveButtonsMessage({
+  customerId,
+  conversationId,
+  bodyText,
+  buttons,
+  headerText,
+  footerText
+}: {
+  customerId: string;
+  conversationId?: string;
+  bodyText: string;
+  buttons: Array<{ id: string; title: string }>;
+  headerText?: string;
+  footerText?: string;
+}) {
+  const customer = await prisma.customer.findUniqueOrThrow({
+    where: { id: customerId }
+  });
+
+  let activeConvId = conversationId;
+  if (!activeConvId) {
+    let conv = await prisma.conversation.findFirst({
+      where: { customerId },
+      orderBy: { createdAt: "desc" }
+    });
+    if (!conv) {
+      conv = await prisma.conversation.create({ data: { customerId } });
+    }
+    activeConvId = conv.id;
+  }
+
+  const interactiveSnapshot = {
+    type: "button",
+    buttons,
+    headerText: headerText || null,
+    footerText: footerText || null
+  };
+
+  const message = await prisma.message.create({
+    data: {
+      customerId,
+      conversationId: activeConvId,
+      direction: MessageDirection.OUTBOUND,
+      type: MessageType.INTERACTIVE,
+      body: bodyText,
+      status: MessageStatus.SENDING,
+      rawPayload: interactiveSnapshot as unknown as Prisma.InputJsonValue
+    },
+    include: { mediaAttachment: true }
+  });
+
+  realtimeBroadcaster.broadcast("MESSAGE_CREATED", message);
+
+  const metaResult = await whatsappClient.sendInteractiveButtons({
+    to: customer.normalizedPhone,
+    bodyText,
+    buttons,
+    headerText,
+    footerText
+  });
+
+  const now = new Date();
+
+  if (metaResult.success && metaResult.metaMessageId) {
+    const updated = await prisma.message.update({
+      where: { id: message.id },
+      data: {
+        metaMessageId: metaResult.metaMessageId,
+        status: MessageStatus.SENT,
+        sentAt: now,
+        rawPayload: {
+          ...interactiveSnapshot,
+          metaResponse: metaResult.rawResponse
+        } as unknown as Prisma.InputJsonValue
+      },
+      include: { mediaAttachment: true }
+    });
+
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        lastOutboundAt: now,
+        lastInteractionAt: now
+      }
+    });
+
+    await prisma.conversation.update({
+      where: { id: activeConvId },
+      data: { lastMessageAt: now }
+    });
+
+    realtimeBroadcaster.broadcast("MESSAGE_SENT", updated);
+    realtimeBroadcaster.broadcast("MESSAGE_UPDATED", updated);
+    return updated;
+  } else {
+    const failedMsg = await prisma.message.update({
+      where: { id: message.id },
+      data: {
+        status: MessageStatus.FAILED,
+        errorCode: metaResult.errorCode || "META_INTERACTIVE_SEND_FAILED",
+        errorMessage:
+          metaResult.errorMessage ||
+          "Failed to deliver interactive message via WhatsApp API",
+        failedAt: now,
+        rawPayload: {
+          ...interactiveSnapshot,
+          metaResponse: metaResult.rawResponse
+        } as unknown as Prisma.InputJsonValue
       },
       include: { mediaAttachment: true }
     });
@@ -375,7 +494,11 @@ export async function sendOutboundTemplateMessage({
   if (Array.isArray(components) && components.length > 0) {
     resolvedComponents = components.map((comp: unknown) => {
       const c = comp as Record<string, unknown>;
-      if (c && c.type === "body" && Array.isArray(c.parameters)) {
+      const cType = String(c?.type || "").toLowerCase();
+      if (
+        (cType === "body" || cType === "header") &&
+        Array.isArray(c.parameters)
+      ) {
         return {
           ...c,
           parameters: c.parameters.map((param: unknown) => {

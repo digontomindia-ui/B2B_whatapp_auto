@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission, requireAnyPermission } from "@/lib/rbac";
 import { createBulkMessageJob } from "@/server/bulk/service";
 import prisma from "@/lib/prisma";
-import { requirePermission, requireAnyPermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -11,9 +11,9 @@ const bulkTemplateSchema = z.object({
   templateName: z.string().min(1, "Template name is required"),
   language: z.string().default("en"),
   components: z.array(z.any()).default([]),
-  customerIds: z
-    .array(z.string().uuid())
-    .min(1, "At least one recipient is required"),
+  targetMode: z.enum(["ALL", "CUSTOM"]).default("CUSTOM"),
+  customerIds: z.array(z.string().uuid()).optional(),
+  variableConfigurations: z.record(z.string(), z.any()).optional(),
   allowOverrideBlocked: z.boolean().default(false)
 });
 
@@ -28,6 +28,20 @@ export async function POST(request: NextRequest) {
           error: true,
           message:
             parsed.error.issues[0]?.message || "Invalid bulk template payload",
+          data: null
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      parsed.data.targetMode === "CUSTOM" &&
+      (!parsed.data.customerIds || parsed.data.customerIds.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error: true,
+          message: "Please select at least one recipient for custom broadcast",
           data: null
         },
         { status: 400 }
@@ -51,6 +65,9 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
+    const assignedStaffId =
+      actor.actorType === "staff" && !actor.isOwner ? actor.id : undefined;
+
     const result = await createBulkMessageJob({
       type: "TEMPLATE",
       title: parsed.data.title,
@@ -58,7 +75,10 @@ export async function POST(request: NextRequest) {
       templateName: parsed.data.templateName,
       language: parsed.data.language,
       components: parsed.data.components,
+      targetMode: parsed.data.targetMode,
       customerIds: parsed.data.customerIds,
+      assignedStaffId,
+      variableConfigurations: parsed.data.variableConfigurations,
       allowOverrideBlocked: parsed.data.allowOverrideBlocked,
       createdByAdminId: actor.id
     });

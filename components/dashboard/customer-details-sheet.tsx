@@ -1,14 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { formatDisplayPhone } from "@/utils/phone";
 import type { DashboardCustomer } from "./types";
-import { CustomerState } from "@prisma/client";
-import { toast } from "sonner";
 import {
   X,
   User,
-  Phone,
   MessageSquare,
   Shield,
   Tag as TagIcon,
@@ -18,6 +13,10 @@ import {
   Plus,
   Lock
 } from "lucide-react";
+import React, { useState } from "react";
+import { formatDisplayPhone } from "@/utils/phone";
+import { CustomerState } from "@prisma/client";
+import { toast } from "sonner";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -141,6 +140,7 @@ export function CustomerDetailsSheet({
         <div className="border-border bg-muted/20 space-y-3 rounded-lg border p-3">
           <div className="border-border/60 flex items-center gap-3 border-b pb-2">
             {profilePicUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={profilePicUrl}
                 alt={customer.customName || customer.whatsappName || "Profile"}

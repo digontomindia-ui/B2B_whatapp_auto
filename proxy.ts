@@ -1,16 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   ADMIN_ID_HEADER,
   STAFF_ID_HEADER,
   ACTOR_TYPE_HEADER,
   verifyAccessToken,
-  ACCESS_TOKEN_COOKIE_NAME
+  ACCESS_TOKEN_COOKIE_NAME,
+  REFRESH_TOKEN_COOKIE_NAME
 } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 
 export function proxy(request: NextRequest) {
   const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)?.value;
+  const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)?.value;
 
   if (!accessToken) {
+    // If refreshToken exists, allow the downstream route handler to perform transparent refresh
+    if (refreshToken) {
+      return NextResponse.next();
+    }
+
     return NextResponse.json(
       {
         error: true,
@@ -24,6 +31,11 @@ export function proxy(request: NextRequest) {
   const payload = verifyAccessToken(accessToken);
 
   if (!payload) {
+    // If accessToken is expired/invalid but refreshToken exists, let downstream route refresh
+    if (refreshToken) {
+      return NextResponse.next();
+    }
+
     return NextResponse.json(
       {
         error: true,

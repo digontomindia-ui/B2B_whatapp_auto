@@ -1,7 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-import { signUpSchema } from "@/lib/validation/auth";
-import crypto from "node:crypto";
-import prisma from "@/lib/prisma";
 import {
   hashPassword,
   generateAccessToken,
@@ -11,6 +7,10 @@ import {
   ACCESS_TOKEN_COOKIE_OPTIONS,
   REFRESH_TOKEN_COOKIE_OPTIONS
 } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { signUpSchema } from "@/lib/validation/auth";
+import crypto from "node:crypto";
+import prisma from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {

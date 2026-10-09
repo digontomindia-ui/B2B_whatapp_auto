@@ -1,8 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Papa from "papaparse";
+import type { DashboardCustomer } from "@/components/dashboard/types";
 import {
   FileSpreadsheet,
   Upload,
@@ -17,9 +15,11 @@ import {
   Users,
   Loader2
 } from "lucide-react";
-import { toast } from "sonner";
+import React, { useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EXPORTABLE_COLUMNS, type ImportResult } from "@/server/customers/csv";
-import type { DashboardCustomer } from "@/components/dashboard/types";
+import Papa from "papaparse";
+import { toast } from "sonner";
 import { formatDisplayPhone } from "@/utils/phone";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -157,21 +157,24 @@ export default function ImportExportPage() {
         name: "Aquib Alam",
         tags: "Admission 2026, VIP",
         notes: "Met at education fair, requested fee details",
-        state: "ACTIVE"
+        state: "ACTIVE",
+        staff_email: "staff@myschoolbranding.com"
       },
       {
         phone: "+91 98765 43210",
         name: "John Doe",
         tags: "Lead",
         notes: "Follow up next Monday",
-        state: "ACTIVE"
+        state: "ACTIVE",
+        staff_email: "counselor@myschoolbranding.com"
       },
       {
         phone: "+91 88888 77777",
         name: "Priya Sharma",
         tags: "Alumni",
         notes: "Prefers email notifications",
-        state: "OPTED_OUT"
+        state: "OPTED_OUT",
+        staff_email: ""
       }
     ];
 

@@ -1,32 +1,32 @@
 "use client";
 
+import type {
+  DashboardMessage,
+  DashboardBulkJob,
+  DashboardTemplate,
+  CustomersListResponse
+} from "@/components/dashboard/types";
+import { Search, UserPlus, Users, Layers, MessageSquare } from "lucide-react";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery
+} from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
 import { CustomerDetailsSheet } from "@/components/dashboard/customer-details-sheet";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
 import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
 import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
-import {
-  useQuery,
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient
-} from "@tanstack/react-query";
-import { Search, UserPlus, Users, Layers, MessageSquare } from "lucide-react";
 import { ConversationView } from "@/components/dashboard/conversation-view";
 import { BulkJobsDialog } from "@/components/dashboard/bulk-jobs-dialog";
 import { CustomerList } from "@/components/dashboard/customer-list";
 import { Composer } from "@/components/dashboard/composer";
-import { useState, useMemo, useEffect } from "react";
 import { useRealtime } from "@/hooks/use-realtime";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "sonner";
-import type {
-  DashboardMessage,
-  DashboardTemplate,
-  DashboardBulkJob,
-  CustomersListResponse
-} from "@/components/dashboard/types";
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();

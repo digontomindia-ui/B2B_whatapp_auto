@@ -1,12 +1,12 @@
-import prisma from "@/lib/prisma";
-import { whatsappClient } from "@/clients/whatsapp";
-import { WHATSAPP_CONFIG } from "@/lib/env";
 import {
   TemplateCategory,
   TemplateStatus,
   ComponentType,
   Prisma
 } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { whatsappClient } from "@/clients/whatsapp";
+import { WHATSAPP_CONFIG } from "@/lib/env";
 
 function mapMetaStatus(status: string): TemplateStatus {
   const s = status.toUpperCase();

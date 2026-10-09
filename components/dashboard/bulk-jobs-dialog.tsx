@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
-import { BarChart3, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import type { DashboardBulkJob } from "./types";
+import { BarChart3, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import React from "react";
 
 interface BulkJobsDialogProps {
   isOpen: boolean;

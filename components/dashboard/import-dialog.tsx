@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import Papa from "papaparse";
+import type { ImportResult } from "@/server/customers/csv";
 import {
   Upload,
   FileSpreadsheet,
@@ -15,8 +14,9 @@ import {
   Settings2,
   Check
 } from "lucide-react";
+import React, { useState, useRef } from "react";
+import Papa from "papaparse";
 import { toast } from "sonner";
-import type { ImportResult } from "@/server/customers/csv";
 
 interface ImportDialogProps {
   isOpen: boolean;
@@ -95,21 +95,24 @@ export function ImportDialog({
         name: "Aquib Alam",
         tags: "Admission 2026, VIP",
         notes: "Met at education fair, requested fee details",
-        state: "ACTIVE"
+        state: "ACTIVE",
+        staff_email: "staff@myschoolbranding.com"
       },
       {
         phone: "+91 98765 43210",
         name: "John Doe",
         tags: "Lead",
         notes: "Follow up next Monday",
-        state: "ACTIVE"
+        state: "ACTIVE",
+        staff_email: "counselor@myschoolbranding.com"
       },
       {
         phone: "+91 88888 77777",
         name: "Priya Sharma",
         tags: "Alumni",
         notes: "Prefers email notifications",
-        state: "OPTED_OUT"
+        state: "OPTED_OUT",
+        staff_email: ""
       }
     ];
 

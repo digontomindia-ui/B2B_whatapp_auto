@@ -1,9 +1,9 @@
 "use client";
 
+import type { DashboardCustomer } from "./types";
+import { Send, Loader2, X, MessageSquare } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Send, Loader2, X, MessageSquare } from "lucide-react";
-import type { DashboardCustomer } from "./types";
 import { formatDisplayPhone } from "@/utils/phone";
 
 interface SendMessageDialogProps {

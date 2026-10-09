@@ -1,11 +1,10 @@
 "use client";
 
-import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
-import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDisplayPhone } from "@/utils/phone";
-import { useRealtime } from "@/hooks/use-realtime";
-import { useState, useMemo } from "react";
+import type {
+  DashboardBulkJob,
+  DashboardCustomer,
+  DashboardTemplate
+} from "@/components/dashboard/types";
 import {
   Radio,
   Send,
@@ -17,11 +16,12 @@ import {
   CheckCircle2,
   Lock
 } from "lucide-react";
-import type {
-  DashboardBulkJob,
-  DashboardCustomer,
-  DashboardTemplate
-} from "@/components/dashboard/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { BulkMessageDialog } from "@/components/dashboard/bulk-message-dialog";
+import { BulkTemplateDialog } from "@/components/dashboard/bulk-template-dialog";
+import { formatDisplayPhone } from "@/utils/phone";
+import { useRealtime } from "@/hooks/use-realtime";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 

@@ -1,9 +1,9 @@
+import type { Metadata } from "next";
 import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { InitToast } from "@/components/init-toast";
 import PaletteProvider from "@/providers/palette";
 import ThemeProvider from "@/providers/theme";
 import QueryProvider from "@/providers/query";
-import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 

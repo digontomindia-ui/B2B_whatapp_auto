@@ -1,9 +1,9 @@
 "use client";
 
+import type { DashboardCustomer } from "./types";
+import { Users, Loader2, X, AlertTriangle, Search, Check } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Users, Loader2, X, AlertTriangle, Search, Check } from "lucide-react";
-import type { DashboardCustomer } from "./types";
 import { formatDisplayPhone } from "@/utils/phone";
 
 interface BulkMessageDialogProps {

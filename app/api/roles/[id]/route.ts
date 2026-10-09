@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getRoleById, updateRole, deleteRole } from "@/server/roles/service";
+import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";

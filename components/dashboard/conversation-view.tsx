@@ -1,29 +1,29 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { formatDisplayPhone } from "@/utils/phone";
 import type { DashboardCustomer, DashboardMessage } from "./types";
-import { toast } from "sonner";
 import {
-  Check,
-  CheckCheck,
-  Clock,
-  AlertCircle,
-  FileText,
+  Ban,
   User,
   Info,
+  Slash,
+  Check,
+  Video,
+  Music,
+  Clock,
   Layers,
   Trash2,
   Loader2,
+  FileText,
   RefreshCw,
-  Ban,
-  Slash,
-  ExternalLink,
-  Video,
-  Music
+  CheckCheck,
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
-import { useAuth } from "@/providers/auth";
+import React, { useState, useEffect, useRef } from "react";
+import { formatDisplayPhone } from "@/utils/phone";
 import { PERMISSIONS } from "@/lib/permissions";
+import { useAuth } from "@/providers/auth";
+import { toast } from "sonner";
 
 function formatFileSize(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -166,6 +166,7 @@ export function ConversationView({
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
             {customer.profilePicUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={customer.profilePicUrl}
                 alt={displayName}
@@ -342,6 +343,7 @@ export function ConversationView({
                               {/* IMAGE / STICKER */}
                               {isImage && (
                                 <div className="border-border/80 group relative overflow-hidden rounded-md border bg-black/5 dark:bg-black/20">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={mediaUrl}
                                     alt={
@@ -512,6 +514,33 @@ export function ConversationView({
                           {msg.body}
                         </p>
                       )}
+
+                      {/* Interactive Buttons (Quick replies) if present */}
+                      {(() => {
+                        const payload = msg.rawPayload as Record<
+                          string,
+                          unknown
+                        > | null;
+                        const buttons =
+                          (payload?.buttons as
+                            Array<{ id: string; title: string }> | undefined) ||
+                          [];
+                        if (buttons.length > 0) {
+                          return (
+                            <div className="border-border/40 mt-2.5 flex flex-wrap gap-1.5 border-t pt-1.5">
+                              {buttons.map((btn, bIdx) => (
+                                <span
+                                  key={btn.id || bIdx}
+                                  className="border-border/80 bg-background/80 text-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-2xs"
+                                >
+                                  🔘 {btn.title}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
 
                       {/* Failure reason explanation if failed */}
                       {msg.status === "FAILED" && (

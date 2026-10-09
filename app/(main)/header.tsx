@@ -1,12 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { LogOut, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import Link from "next/link";
 
 export function Header() {
@@ -15,18 +14,41 @@ export function Header() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   let section = "Inbox";
+  let sectionHref = "/";
   let subSection: string | null = null;
   if (pathname === "/templates/new") {
     section = "Templates";
+    sectionHref = "/templates";
     subSection = "Create Template";
   } else if (pathname.startsWith("/templates")) {
     section = "Templates";
+    sectionHref = "/templates";
+  } else if (pathname === "/workflows/new") {
+    section = "Workflows";
+    sectionHref = "/workflows";
+    subSection = "Create Workflow";
+  } else if (pathname.startsWith("/workflows")) {
+    section = "Workflows";
+    sectionHref = "/workflows";
+    if (pathname !== "/workflows") {
+      subSection = "Edit Workflow";
+    }
   } else if (pathname.startsWith("/broadcast")) {
     section = "Broadcast";
+    sectionHref = "/broadcast";
   } else if (pathname.startsWith("/import-export")) {
     section = "Import & Export";
+    sectionHref = "/import-export";
+  } else if (pathname === "/staff/distribution") {
+    section = "Staff & Roles";
+    sectionHref = "/staff";
+    subSection = "Customer Distribution";
   } else if (pathname.startsWith("/staff")) {
     section = "Staff & Roles";
+    sectionHref = "/staff";
+    if (pathname !== "/staff") {
+      subSection = "Staff Details";
+    }
   }
 
   async function handleLogout() {
@@ -51,7 +73,7 @@ export function Header() {
         {subSection ? (
           <>
             <Link
-              href="/templates"
+              href={sectionHref}
               className="text-muted-foreground hover:text-foreground font-normal transition-colors"
             >
               {section}

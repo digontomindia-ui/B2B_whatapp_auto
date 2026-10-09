@@ -63,6 +63,8 @@ model Staff {
   role   Role         @relation(fields: [roleId], references: [id])
   tokens StaffToken[]
 
+  assignedCustomers Customer[] @relation("StaffAssignedCustomers")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -106,10 +108,14 @@ model Customer {
   notes             String?       @db.Text
   metadata          Json?
 
+  assignedStaffId   String?
+  assignedStaff     Staff?        @relation("StaffAssignedCustomers", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+
   tags           CustomerTag[]
   conversations  Conversation[]
   messages       Message[]
   bulkRecipients BulkMessageRecipient[]
+  workflowExecutions WorkflowExecution[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -119,6 +125,7 @@ model Customer {
   @@index([state])
   @@index([customName])
   @@index([whatsappName])
+  @@index([assignedStaffId])
   @@map("customers")
 }
 
@@ -185,6 +192,7 @@ enum MessageType {
   LOCATION
   TEMPLATE
   REACTION
+  INTERACTIVE
 }
 
 enum MessageStatus {
@@ -445,3 +453,57 @@ model WebhookEvent {
   @@index([createdAt])
   @@map("webhook_events")
 }
+
+// -------------------------------------------------------------
+// Interactive Automation Workflows
+// -------------------------------------------------------------
+
+enum WorkflowExecutionStatus {
+  RUNNING
+  WAITING_FOR_INPUT
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Workflow {
+  id              String              @id @default(uuid())
+  name            String
+  description     String?
+  isActive        Boolean             @default(true)
+  triggerType     String              @default("KEYWORD") // "KEYWORD", "ANY_INBOUND", "MANUAL"
+  triggerKeywords String[]
+  steps           Json                @default("[]")
+  executions      WorkflowExecution[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([isActive])
+  @@index([triggerType])
+  @@map("workflows")
+}
+
+model WorkflowExecution {
+  id              String                  @id @default(uuid())
+  workflowId      String
+  workflow        Workflow                @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversationId  String?
+  status          WorkflowExecutionStatus @default(RUNNING)
+  currentStepId   String?
+  waitingForReply Boolean                 @default(false)
+  expectedReplies Json?
+  contextData     Json?                   @default("{}")
+  errorLog        String?                 @db.Text
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([workflowId])
+  @@index([customerId, status])
+  @@index([status])
+  @@map("workflow_executions")
+}
+

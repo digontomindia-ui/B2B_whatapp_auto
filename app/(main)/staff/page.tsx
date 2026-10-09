@@ -1,15 +1,5 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/providers/auth";
-import {
-  PERMISSIONS,
-  PERMISSION_LABELS,
-  PERMISSION_CATEGORIES,
-  PERMISSIONS_PRESETS,
-  ALL_PERMISSIONS
-} from "@/lib/permissions";
 import {
   Users,
   Shield,
@@ -26,11 +16,24 @@ import {
   Loader2,
   Lock,
   UserCheck,
-  UserX
+  UserX,
+  Eye,
+  Sliders
 } from "lucide-react";
+import {
+  PERMISSIONS,
+  PERMISSION_LABELS,
+  PERMISSION_CATEGORIES,
+  PERMISSIONS_PRESETS,
+  ALL_PERMISSIONS
+} from "@/lib/permissions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useAuth } from "@/providers/auth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import Link from "next/link";
 
 interface RoleItem {
   id: string;
@@ -205,7 +208,7 @@ export default function StaffAndRolesPage() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            {isOwner && (
+            {(isOwner || canManageStaff) && (
               <>
                 <Button
                   onClick={() => setIsImportStaffOpen(true)}
@@ -230,7 +233,20 @@ export default function StaffAndRolesPage() {
               </>
             )}
 
-            {(isOwner || hasPermission(PERMISSIONS.ROLE_MANAGE)) && (
+            {(isOwner || hasPermission(PERMISSIONS.CUSTOMER_ASSIGN)) && (
+              <Link href="/staff/distribution">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-cf-orange border-cf-orange/40 hover:bg-cf-orange/10 cursor-pointer gap-1.5 text-xs font-semibold"
+                >
+                  <Sliders className="size-3.5" />
+                  <span>Customer Distribution</span>
+                </Button>
+              </Link>
+            )}
+
+            {(isOwner || canManageRoles) && (
               <Button
                 onClick={() => {
                   setEditingRole(null);
@@ -285,6 +301,18 @@ export default function StaffAndRolesPage() {
                 </span>
               </div>
             </button>
+          )}
+
+          {(isOwner || hasPermission(PERMISSIONS.CUSTOMER_ASSIGN)) && (
+            <Link
+              href="/staff/distribution"
+              className="text-muted-foreground hover:text-foreground cursor-pointer border-b-2 border-transparent px-3 py-2 font-medium transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="text-cf-orange size-4" />
+                <span>Customer Distribution</span>
+              </div>
+            </Link>
           )}
         </div>
       </div>
@@ -379,7 +407,12 @@ export default function StaffAndRolesPage() {
                               </div>
                               <div className="min-w-0">
                                 <div className="text-foreground font-semibold">
-                                  {staff.name}
+                                  <Link
+                                    href={`/staff/${staff.id}`}
+                                    className="hover:text-cf-orange transition-colors"
+                                  >
+                                    {staff.name}
+                                  </Link>
                                 </div>
                                 <div className="text-muted-foreground font-mono text-[11px]">
                                   {staff.email}
@@ -414,6 +447,13 @@ export default function StaffAndRolesPage() {
                           {isOwner && (
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <Link
+                                  href={`/staff/${staff.id}`}
+                                  className="text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer rounded p-1"
+                                  title="View staff details & assigned contacts"
+                                >
+                                  <Eye className="text-cf-orange size-3.5" />
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => {

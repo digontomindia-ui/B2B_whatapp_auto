@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission, requireAnyPermission } from "@/lib/rbac";
 import { sendOutboundTemplateMessage } from "@/server/messages/service";
 import prisma from "@/lib/prisma";
-import { requirePermission, requireAnyPermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 

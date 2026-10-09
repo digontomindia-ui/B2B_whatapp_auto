@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { toast } from "sonner";
+import type { DashboardTemplate } from "./types";
 import {
   RefreshCw,
   Layers,
@@ -10,7 +9,8 @@ import {
   Clock,
   AlertCircle
 } from "lucide-react";
-import type { DashboardTemplate } from "./types";
+import React, { useState } from "react";
+import { toast } from "sonner";
 
 interface TemplatesDialogProps {
   isOpen: boolean;

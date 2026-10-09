@@ -1,7 +1,7 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { Toaster, ToasterProps } from "sonner";
+import { useTheme } from "next-themes";
 
 export function InitToast(props: ToasterProps) {
   const { theme } = useTheme();

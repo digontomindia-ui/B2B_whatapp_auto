@@ -1,5 +1,5 @@
-import prisma from "@/lib/prisma";
 import { normalizePhoneNumber, extractCountryCode } from "@/utils/phone";
+import prisma from "@/lib/prisma";
 import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 import { CustomerState } from "@prisma/client";
 
@@ -33,6 +33,7 @@ export interface CustomerFilterParams {
     | "newest_customer"
     | "oldest_customer";
   tag?: string;
+  assignedStaffId?: string | null;
   page?: number;
   limit?: number;
 }
@@ -182,12 +183,17 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
     communicationState = "all",
     sort = "newest_interaction",
     tag,
+    assignedStaffId,
     page = 1,
     limit = 50
   } = params;
 
   // Build Prisma where clause
   const where: Record<string, unknown> = {};
+
+  if (assignedStaffId !== undefined) {
+    where.assignedStaffId = assignedStaffId;
+  }
 
   // 1. Search across normalizedPhone, customName, whatsappName
   if (search && search.trim()) {

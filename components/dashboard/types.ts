@@ -21,6 +21,7 @@ export interface DashboardCustomer {
   lastInboundAt: string | null;
   lastOutboundAt: string | null;
   notes: string | null;
+  assignedStaffId?: string | null;
   createdAt: string;
   updatedAt: string;
   tags?: Array<{
@@ -76,6 +77,7 @@ export interface DashboardMessage {
     metaUrl: string | null;
     caption: string | null;
   } | null;
+  rawPayload?: Record<string, unknown> | null;
   createdAt: string;
 }
 

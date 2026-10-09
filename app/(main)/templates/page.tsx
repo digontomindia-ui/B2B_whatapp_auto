@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type {
+  DashboardTemplate,
+  DashboardCustomer
+} from "@/components/dashboard/types";
 import {
   Layers,
   RefreshCw,
@@ -17,12 +19,10 @@ import {
   Lock,
   Plus
 } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
-import type {
-  DashboardTemplate,
-  DashboardCustomer
-} from "@/components/dashboard/types";
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -429,7 +429,8 @@ export default function TemplatesPage() {
             setSelectedTemplateForSend(null);
           }}
           customer={customers[0] || null}
-          templates={[selectedTemplateForSend]}
+          initialTemplateId={selectedTemplateForSend.id}
+          templates={templates}
           onSent={() => {
             setIsSendDialogOpen(false);
             setSelectedTemplateForSend(null);

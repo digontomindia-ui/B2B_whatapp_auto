@@ -1,8 +1,5 @@
 "use client";
 
-import React from "react";
-import { useInView } from "react-intersection-observer";
-import { formatDisplayPhone } from "@/utils/phone";
 import type { DashboardCustomer } from "./types";
 import {
   Check,
@@ -18,6 +15,9 @@ import {
   Music,
   Loader2
 } from "lucide-react";
+import React from "react";
+import { useInView } from "react-intersection-observer";
+import { formatDisplayPhone } from "@/utils/phone";
 
 interface CustomerListProps {
   customers: DashboardCustomer[];
@@ -196,6 +196,7 @@ export function CustomerList({
                 {/* Avatar with fallback initials */}
                 <div className="relative flex-shrink-0">
                   {cust.profilePicUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={cust.profilePicUrl}
                       alt={displayName}

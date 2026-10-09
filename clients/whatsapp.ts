@@ -219,6 +219,60 @@ export class WhatsAppClient {
   }
 
   /**
+   * Send interactive quick reply button message (max 3 buttons)
+   */
+  async sendInteractiveButtons({
+    to,
+    bodyText,
+    buttons,
+    headerText,
+    footerText
+  }: {
+    to: string;
+    bodyText: string;
+    buttons: Array<{ id: string; title: string }>;
+    headerText?: string;
+    footerText?: string;
+  }): Promise<MetaSendResult> {
+    const actionButtons = buttons.slice(0, 3).map((btn) => ({
+      type: "reply",
+      reply: {
+        id: String(
+          btn.id || `btn_${Math.random().toString(36).substring(2, 7)}`
+        ),
+        title: String(btn.title || "").slice(0, 20)
+      }
+    }));
+
+    const interactivePayload: Record<string, unknown> = {
+      type: "button",
+      body: { text: bodyText },
+      action: {
+        buttons: actionButtons
+      }
+    };
+
+    if (headerText && headerText.trim()) {
+      interactivePayload.header = {
+        type: "text",
+        text: headerText.trim()
+      };
+    }
+
+    if (footerText && footerText.trim()) {
+      interactivePayload.footer = {
+        text: footerText.trim()
+      };
+    }
+
+    return this.sendMessage({
+      to,
+      type: "interactive",
+      interactive: interactivePayload
+    });
+  }
+
+  /**
    * Send approved WhatsApp template message
    */
   async sendTemplate({

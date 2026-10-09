@@ -5,7 +5,8 @@ import {
   Layers,
   Radio,
   FileSpreadsheet,
-  ShieldCheck
+  ShieldCheck,
+  GitFork
 } from "lucide-react";
 import { ToggleTheme } from "@/components/theme-toggle";
 import { usePathname } from "next/navigation";
@@ -29,6 +30,17 @@ export function Sidebar() {
       href: "/templates",
       icon: Layers,
       visible: isOwner || hasPermission(PERMISSIONS.TEMPLATE_VIEW)
+    },
+    {
+      label: "Workflows",
+      href: "/workflows",
+      icon: GitFork,
+      visible:
+        isOwner ||
+        hasAnyPermission([
+          PERMISSIONS.WORKFLOW_VIEW,
+          PERMISSIONS.WORKFLOW_MANAGE
+        ])
     },
     {
       label: "Broadcast",

@@ -1,15 +1,16 @@
-import prisma from "@/lib/prisma";
-import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
-import {
-  sendOutboundTextMessage,
-  sendOutboundTemplateMessage
-} from "@/server/messages/service";
 import {
   BulkJobStatus,
   BulkJobType,
   CustomerState,
   MessageStatus
 } from "@prisma/client";
+import {
+  sendOutboundTextMessage,
+  sendOutboundTemplateMessage,
+  resolveCustomerTemplateVariable
+} from "@/server/messages/service";
+import prisma from "@/lib/prisma";
+import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 
 export async function createBulkMessageJob({
   type,
@@ -20,6 +21,9 @@ export async function createBulkMessageJob({
   language = "en",
   components = [],
   customerIds,
+  targetMode = "CUSTOM",
+  assignedStaffId,
+  variableConfigurations,
   allowOverrideBlocked = false,
   adminId,
   createdByAdminId
@@ -31,18 +35,30 @@ export async function createBulkMessageJob({
   templateName?: string;
   language?: string;
   components?: unknown[];
-  customerIds: string[];
+  customerIds?: string[];
+  targetMode?: "ALL" | "CUSTOM";
+  assignedStaffId?: string;
+  variableConfigurations?: Record<string, unknown>;
   allowOverrideBlocked?: boolean;
   adminId?: string;
   createdByAdminId?: string;
 }) {
-  if (!customerIds || customerIds.length === 0) {
-    throw new Error("No customer recipients selected");
+  const where: Record<string, unknown> = {};
+
+  if (assignedStaffId) {
+    where.assignedStaffId = assignedStaffId;
+  }
+
+  if (targetMode === "CUSTOM") {
+    if (!customerIds || customerIds.length === 0) {
+      throw new Error("No customer recipients selected for custom broadcast");
+    }
+    where.id = { in: customerIds };
   }
 
   // 1. Fetch customers to categorize eligibility
   const customers = await prisma.customer.findMany({
-    where: { id: { in: customerIds } },
+    where,
     select: { id: true, state: true, normalizedPhone: true }
   });
 
@@ -79,7 +95,13 @@ export async function createBulkMessageJob({
         content: content || null,
         templateSnapshot: templateName
           ? JSON.parse(
-              JSON.stringify({ templateId, templateName, language, components })
+              JSON.stringify({
+                templateId,
+                templateName,
+                language,
+                components,
+                variableConfigurations
+              })
             )
           : undefined,
         createdByAdminId: createdByAdminId || adminId || null,
@@ -163,13 +185,103 @@ async function executeBulkJob(jobId: string) {
           templateName: string;
           language: string;
           components?: unknown[];
+          variableConfigurations?: Record<
+            string,
+            {
+              type?: "static" | "dynamic";
+              field?: string;
+              customField?: string;
+              sample?: string;
+              fallback?: string;
+              staticValue?: string;
+            }
+          >;
         };
+
+        let recipientComponents = snap.components;
+
+        if (
+          snap.variableConfigurations &&
+          Object.keys(snap.variableConfigurations).length > 0
+        ) {
+          if (Array.isArray(snap.components) && snap.components.length > 0) {
+            recipientComponents = snap.components.map((comp: unknown) => {
+              const c = comp as Record<string, unknown>;
+              const cType = String(c.type || "").toLowerCase();
+              if (
+                (cType === "body" || cType === "header") &&
+                Array.isArray(c.parameters)
+              ) {
+                return {
+                  ...c,
+                  parameters: c.parameters.map(
+                    (param: unknown, idx: number) => {
+                      const p = param as Record<string, unknown>;
+                      const varKey =
+                        cType === "header" ? "header_1" : String(idx + 1);
+                      const cfg =
+                        snap.variableConfigurations?.[varKey] ||
+                        snap.variableConfigurations?.[String(idx + 1)];
+                      if (cfg) {
+                        const val =
+                          cfg.type === "static"
+                            ? cfg.staticValue || cfg.sample || ""
+                            : resolveCustomerTemplateVariable(
+                                recipient.customer,
+                                cfg
+                              );
+                        return { ...p, text: val };
+                      }
+                      return p;
+                    }
+                  )
+                };
+              }
+              return c;
+            });
+          } else {
+            // Build body component parameters directly from variableConfigurations
+            const keys = Object.keys(snap.variableConfigurations)
+              .filter((k) => !k.startsWith("header_"))
+              .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+            const parameters = keys.map((k) => {
+              const cfg = snap.variableConfigurations![k];
+              const val =
+                cfg.type === "static"
+                  ? cfg.staticValue || cfg.sample || ""
+                  : resolveCustomerTemplateVariable(recipient.customer, cfg);
+              return { type: "text", text: val };
+            });
+
+            const headerCfg = snap.variableConfigurations["header_1"];
+            const newComps: unknown[] = [];
+            if (headerCfg) {
+              const hVal =
+                headerCfg.type === "static"
+                  ? headerCfg.staticValue || headerCfg.sample || ""
+                  : resolveCustomerTemplateVariable(
+                      recipient.customer,
+                      headerCfg
+                    );
+              newComps.push({
+                type: "header",
+                parameters: [{ type: "text", text: hVal }]
+              });
+            }
+            if (parameters.length > 0) {
+              newComps.push({ type: "body", parameters });
+            }
+            recipientComponents = newComps;
+          }
+        }
+
         resultingMsg = await sendOutboundTemplateMessage({
           customerId: recipient.customerId,
           templateId: snap.templateId,
           templateName: snap.templateName,
           language: snap.language,
-          components: snap.components,
+          components: recipientComponents,
           bulkJobId: job.id,
           bulkRecipientId: recipient.id
         });

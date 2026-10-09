@@ -1,9 +1,9 @@
-import prisma from "@/lib/prisma";
-import { normalizePhoneNumber, extractCountryCode } from "@/utils/phone";
-import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
-import { CustomerState, Prisma } from "@prisma/client";
-import Papa from "papaparse";
 import type { CustomerFilterParams } from "./service";
+import { normalizePhoneNumber, extractCountryCode } from "@/utils/phone";
+import { CustomerState, Prisma } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
+import Papa from "papaparse";
 
 export interface ImportOptions {
   updateExisting: boolean;
@@ -34,6 +34,8 @@ export const EXPORTABLE_COLUMNS: Record<string, string> = {
   tags: "Tags",
   state: "Status",
   notes: "Notes",
+  staff_email: "Assigned Staff Email",
+  staff_name: "Assigned Staff Name",
   unreadCount: "Unread Count",
   lastInteractionAt: "Last Interaction",
   createdAt: "Created At"
@@ -81,6 +83,7 @@ export async function importContactsFromCsv(
   };
 
   const tagCache = new Map<string, string>(); // name -> tagId
+  const staffCache = new Map<string, string | null>(); // email -> staffId | null
 
   // Helper to resolve tag IDs
   async function resolveTagIds(tagNames: string[]): Promise<string[]> {
@@ -175,6 +178,33 @@ export async function importContactsFromCsv(
       "description"
     ]);
 
+    // Extract staff_email (which states this customer belongs to this staff)
+    const rawStaffEmail = getFieldValue(row, [
+      "staff_email",
+      "staffemail",
+      "staff_mail",
+      "staff",
+      "assigned_staff",
+      "assigned_to",
+      "agent_email",
+      "agent",
+      "owner_email"
+    ]);
+
+    let assignedStaffId: string | null = null;
+    if (rawStaffEmail) {
+      const cleanEmail = rawStaffEmail.trim().toLowerCase();
+      if (staffCache.has(cleanEmail)) {
+        assignedStaffId = staffCache.get(cleanEmail) || null;
+      } else {
+        const staff = await prisma.staff.findUnique({
+          where: { email: cleanEmail }
+        });
+        assignedStaffId = staff ? staff.id : null;
+        staffCache.set(cleanEmail, assignedStaffId);
+      }
+    }
+
     const stateRaw = getFieldValue(row, ["state", "status", "customer_state"]);
     let state: CustomerState = CustomerState.ACTIVE;
     if (stateRaw) {
@@ -245,6 +275,9 @@ export async function importContactsFromCsv(
         if (stateRaw && state !== existing.state) {
           dataToUpdate.state = state;
         }
+        if (assignedStaffId !== null) {
+          dataToUpdate.assignedStaffId = assignedStaffId;
+        }
 
         // Find which tag IDs are not yet associated
         const existingTagIds = new Set(existing.tags.map((t) => t.tagId));
@@ -281,6 +314,7 @@ export async function importContactsFromCsv(
             countryCode,
             notes: notes || null,
             state,
+            assignedStaffId: assignedStaffId || null,
             ...(tagIds.length > 0
               ? {
                   tags: {
@@ -415,7 +449,8 @@ export async function exportContactsToCsv(
     where,
     orderBy: { createdAt: "desc" },
     include: {
-      tags: { include: { tag: true } }
+      tags: { include: { tag: true } },
+      assignedStaff: { select: { name: true, email: true } }
     }
   });
 
@@ -447,6 +482,12 @@ export async function exportContactsToCsv(
           break;
         case "notes":
           rowObj[headerTitle] = c.notes || "";
+          break;
+        case "staff_email":
+          rowObj[headerTitle] = c.assignedStaff?.email || "";
+          break;
+        case "staff_name":
+          rowObj[headerTitle] = c.assignedStaff?.name || "";
           break;
         case "unreadCount":
           rowObj[headerTitle] = c.unreadCount;

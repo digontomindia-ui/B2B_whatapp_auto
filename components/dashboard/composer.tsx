@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState } from "react";
 import {
   Send,
   Paperclip,
@@ -12,6 +11,7 @@ import {
   Music,
   Lock
 } from "lucide-react";
+import React, { useState } from "react";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "sonner";

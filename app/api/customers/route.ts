@@ -24,9 +24,14 @@ const createCustomerSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_VIEW);
+    const actor = await requirePermission(request, PERMISSIONS.CUSTOMER_VIEW);
 
     const { searchParams } = new URL(request.url);
+
+    let assignedStaffId = searchParams.get("assignedStaffId") || undefined;
+    if (actor.actorType === "staff" && !actor.isOwner) {
+      assignedStaffId = actor.id;
+    }
 
     const search = searchParams.get("search") || undefined;
     const dateRange = (searchParams.get("dateRange") || "all") as
@@ -63,6 +68,7 @@ export async function GET(request: NextRequest) {
       communicationState,
       sort,
       tag,
+      assignedStaffId,
       page,
       limit
     });

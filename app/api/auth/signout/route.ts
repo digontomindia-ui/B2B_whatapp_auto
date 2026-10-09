@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import {
   verifyRefreshToken,
   AUTH_COOKIE_OPTIONS,
   ACCESS_TOKEN_COOKIE_NAME,
   REFRESH_TOKEN_COOKIE_NAME
 } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +16,19 @@ export async function POST(request: NextRequest) {
         const payload = verifyRefreshToken(refreshToken);
 
         if (payload?.tokenId) {
-          await prisma.token.deleteMany({
-            where: { id: payload.tokenId }
-          });
+          if (payload.adminId || payload.actorType === "admin") {
+            await prisma.token
+              .deleteMany({
+                where: { id: payload.tokenId }
+              })
+              .catch(() => {});
+          } else if (payload.staffId || payload.actorType === "staff") {
+            await prisma.staffToken
+              .deleteMany({
+                where: { id: payload.tokenId }
+              })
+              .catch(() => {});
+          }
         }
       } catch {
         // Token is invalid/expired. Still clear cookies.
