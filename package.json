@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev",
     "prisma": "npx prisma generate && npx prisma db push",
     "build": "npm run prisma && next build",
-    "start": "next start -p 3001",
+    "start": "next start",
     "lint": "eslint",
     "format": "prettier --write ."
   },
