@@ -11,6 +11,8 @@ import { z } from "zod";
 const createCustomerSchema = z.object({
   phone: z.string().min(6, "Valid phone number is required"),
   customName: z.string().trim().optional().nullable(),
+  companyName: z.string().trim().optional().nullable(),
+  address: z.string().trim().optional().nullable(),
   whatsappName: z.string().trim().optional().nullable(),
   profilePicUrl: z
     .string()

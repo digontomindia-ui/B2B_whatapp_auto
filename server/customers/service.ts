@@ -7,6 +7,8 @@ export interface FindOrCreateCustomerInput {
   phone: string;
   whatsappName?: string | null;
   customName?: string | null;
+  companyName?: string | null;
+  address?: string | null;
   profilePicUrl?: string | null;
   notes?: string | null;
   status?: CustomerStatus;
@@ -46,6 +48,8 @@ export async function findOrCreateCustomerByPhone({
   phone,
   whatsappName,
   customName,
+  companyName,
+  address,
   profilePicUrl,
   notes,
   status,
@@ -76,6 +80,12 @@ export async function findOrCreateCustomerByPhone({
     }
     if (customName && customName !== existing.customName) {
       dataToUpdate.customName = customName;
+    }
+    if (companyName && companyName !== existing.companyName) {
+      dataToUpdate.companyName = companyName;
+    }
+    if (address && address !== existing.address) {
+      dataToUpdate.address = address;
     }
     if (profilePicUrl && profilePicUrl !== existing.profilePicUrl) {
       dataToUpdate.profilePicUrl = profilePicUrl;
@@ -150,6 +160,8 @@ export async function findOrCreateCustomerByPhone({
         normalizedPhone: normalized,
         whatsappName: whatsappName || null,
         customName: customName || null,
+        companyName: companyName || null,
+        address: address || null,
         profilePicUrl: profilePicUrl || null,
         countryCode,
         status: status || "COLD",
@@ -222,6 +234,8 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
 
     const orConditions: Record<string, unknown>[] = [
       { customName: { contains: q, mode: "insensitive" } },
+      { companyName: { contains: q, mode: "insensitive" } },
+      { address: { contains: q, mode: "insensitive" } },
       { whatsappName: { contains: q, mode: "insensitive" } },
       { phoneNumber: { contains: q, mode: "insensitive" } },
       { normalizedPhone: { contains: cleanDigits || q, mode: "insensitive" } },
@@ -422,6 +436,8 @@ export async function updateCustomer(
   id: string,
   data: {
     customName?: string | null;
+    companyName?: string | null;
+    address?: string | null;
     profilePicUrl?: string | null;
     notes?: string | null;
     state?: CustomerState;
@@ -432,6 +448,9 @@ export async function updateCustomer(
 ) {
   const updatePayload: Record<string, unknown> = {};
   if (data.customName !== undefined) updatePayload.customName = data.customName;
+  if (data.companyName !== undefined)
+    updatePayload.companyName = data.companyName;
+  if (data.address !== undefined) updatePayload.address = data.address;
   if (data.profilePicUrl !== undefined)
     updatePayload.profilePicUrl = data.profilePicUrl;
   if (data.notes !== undefined) updatePayload.notes = data.notes;

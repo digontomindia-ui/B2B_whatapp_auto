@@ -27,20 +27,19 @@ export interface ExportOptions {
 
 // Available exportable columns dictionary
 export const EXPORTABLE_COLUMNS: Record<string, string> = {
-  phone: "Phone Number",
-  normalizedPhone: "Normalized Phone",
-  customName: "Custom Name",
-  whatsappName: "WhatsApp Name",
-  group: "Group",
-  status: "Status (Hot/Warm/Cold)",
-  tags: "Tags",
-  state: "Communication State",
-  notes: "Notes",
-  staff_email: "Assigned Staff Email",
-  staff_name: "Assigned Staff Name",
-  unreadCount: "Unread Count",
-  lastInteractionAt: "Last Interaction",
-  createdAt: "Created At"
+  name: "name",
+  ph_no: "ph_no",
+  company_name: "company name",
+  address: "address",
+  tag: "tag",
+  group: "group",
+  note: "note",
+  assign_to: "assign to",
+  status: "status",
+  state: "state",
+  unreadCount: "unreadCount",
+  lastInteractionAt: "lastInteractionAt",
+  createdAt: "createdAt"
 };
 
 // Map row column headers flexibly
@@ -87,6 +86,46 @@ export async function importContactsFromCsv(
   const tagCache = new Map<string, string>(); // name -> tagId
   const staffCache = new Map<string, string | null>(); // email -> staffId | null
   const groupCache = new Map<string, string>(); // lowercase name -> groupId
+
+  // 1. Strict duplicate validation: Validate that no duplicate phone numbers exist within this import batch
+  const phoneToRowsMap = new Map<string, number[]>();
+  for (let i = 0; i < rows.length; i++) {
+    const rawP = getFieldValue(rows[i], [
+      "ph_no",
+      "phno",
+      "ph_number",
+      "phone",
+      "phonenumber",
+      "phone_number",
+      "mobile",
+      "mobilenumber",
+      "mobile_number",
+      "contact",
+      "contactnumber",
+      "contact_number",
+      "whatsapp",
+      "number"
+    ]);
+    if (rawP) {
+      const norm = normalizePhoneNumber(rawP) || rawP.trim();
+      const existingRows = phoneToRowsMap.get(norm) || [];
+      existingRows.push(i + 1);
+      phoneToRowsMap.set(norm, existingRows);
+    }
+  }
+
+  const dupMessages: string[] = [];
+  for (const [phone, rowNums] of phoneToRowsMap.entries()) {
+    if (rowNums.length > 1) {
+      dupMessages.push(`${phone} (rows ${rowNums.join(", ")})`);
+    }
+  }
+
+  if (dupMessages.length > 0) {
+    throw new Error(
+      `Duplicate phone numbers detected in import batch (${dupMessages.length} duplicate numbers): ${dupMessages.slice(0, 5).join("; ")}${dupMessages.length > 5 ? ` and ${dupMessages.length - 5} more` : ""}. Phone numbers must be unique.`
+    );
+  }
 
   // Helper to resolve tag IDs
   async function resolveTagIds(tagNames: string[]): Promise<string[]> {
@@ -137,8 +176,11 @@ export async function importContactsFromCsv(
     const row = rows[idx];
     const rowNumber = idx + 1;
 
-    // 1. Extract phone number
+    // 1. Extract phone number (ph_no)
     const rawPhone = getFieldValue(row, [
+      "ph_no",
+      "phno",
+      "ph_number",
       "phone",
       "phonenumber",
       "phone_number",
@@ -172,9 +214,11 @@ export async function importContactsFromCsv(
       continue;
     }
 
-    // 2. Extract other fields
+    // 2. Extract customer name
     const customName = getFieldValue(row, [
       "name",
+      "customer name",
+      "customer_name",
       "customname",
       "custom_name",
       "fullname",
@@ -183,6 +227,27 @@ export async function importContactsFromCsv(
       "contact_name",
       "first_name",
       "firstname"
+    ]);
+
+    // 3. Extract company name
+    const companyName = getFieldValue(row, [
+      "company name",
+      "company_name",
+      "company",
+      "companyname",
+      "organization",
+      "business",
+      "firm"
+    ]);
+
+    // 4. Extract physical address
+    const address = getFieldValue(row, [
+      "address",
+      "physical address",
+      "physical_address",
+      "location",
+      "street",
+      "city"
     ]);
 
     const whatsappName = getFieldValue(row, [
@@ -194,9 +259,12 @@ export async function importContactsFromCsv(
       "profilename"
     ]);
 
+    // 5. Extract custom note
     const notes = getFieldValue(row, [
-      "notes",
       "note",
+      "notes",
+      "custom note",
+      "custom_note",
       "remarks",
       "remark",
       "comment",
@@ -204,14 +272,19 @@ export async function importContactsFromCsv(
       "description"
     ]);
 
-    // Extract staff_email (which states this customer belongs to this staff)
+    // 6. Extract staff email (assign to)
     const rawStaffEmail = getFieldValue(row, [
+      "assign to",
+      "assign_to",
+      "assigned to",
+      "assigned_to",
+      "staff email",
       "staff_email",
       "staffemail",
       "staff_mail",
       "staff",
       "assigned_staff",
-      "assigned_to",
+      "agent email",
       "agent_email",
       "agent",
       "owner_email"
@@ -321,6 +394,12 @@ export async function importContactsFromCsv(
         if (customName && customName !== existing.customName) {
           dataToUpdate.customName = customName;
         }
+        if (companyName && companyName !== existing.companyName) {
+          dataToUpdate.companyName = companyName;
+        }
+        if (address && address !== existing.address) {
+          dataToUpdate.address = address;
+        }
         if (notes && notes !== existing.notes) {
           // If notes exist, append or update
           dataToUpdate.notes = existing.notes
@@ -372,6 +451,8 @@ export async function importContactsFromCsv(
             normalizedPhone,
             customName: customName || null,
             whatsappName: whatsappName || null,
+            companyName: companyName || null,
+            address: address || null,
             countryCode,
             notes: notes || null,
             state,
@@ -445,6 +526,8 @@ export async function exportContactsToCsv(
         },
         { phoneNumber: { contains: q, mode: "insensitive" } },
         { customName: { contains: q, mode: "insensitive" } },
+        { companyName: { contains: q, mode: "insensitive" } },
+        { address: { contains: q, mode: "insensitive" } },
         { whatsappName: { contains: q, mode: "insensitive" } },
         { about: { contains: q, mode: "insensitive" } },
         { notes: { contains: q, mode: "insensitive" } },
@@ -605,21 +688,31 @@ export async function exportContactsToCsv(
       const headerTitle = EXPORTABLE_COLUMNS[colKey] || colKey;
 
       switch (colKey) {
+        case "name":
+        case "customName":
+          rowObj[headerTitle] = c.customName || c.whatsappName || "";
+          break;
+        case "ph_no":
         case "phone":
           rowObj[headerTitle] = c.phoneNumber || c.normalizedPhone;
           break;
         case "normalizedPhone":
           rowObj[headerTitle] = c.normalizedPhone;
           break;
-        case "customName":
-          rowObj[headerTitle] = c.customName || "";
-          break;
         case "whatsappName":
           rowObj[headerTitle] = c.whatsappName || "";
+          break;
+        case "company_name":
+        case "companyName":
+          rowObj[headerTitle] = c.companyName || "";
+          break;
+        case "address":
+          rowObj[headerTitle] = c.address || "";
           break;
         case "group":
           rowObj[headerTitle] = c.group?.name || "";
           break;
+        case "tag":
         case "tags":
           rowObj[headerTitle] = c.tags.map((t) => t.tag.name).join(", ");
           break;
@@ -629,9 +722,11 @@ export async function exportContactsToCsv(
         case "status":
           rowObj[headerTitle] = c.status;
           break;
+        case "note":
         case "notes":
           rowObj[headerTitle] = c.notes || "";
           break;
+        case "assign_to":
         case "staff_email":
           rowObj[headerTitle] = c.assignedStaff?.email || "";
           break;

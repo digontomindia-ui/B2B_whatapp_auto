@@ -7,7 +7,9 @@ import {
   Flame,
   Sun,
   Snowflake,
-  Building2
+  Building2,
+  Briefcase,
+  MapPin
 } from "lucide-react";
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +33,8 @@ export function CreateCustomerDialog({
 }: CreateCustomerDialogProps) {
   const [phone, setPhone] = useState("");
   const [customName, setCustomName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [address, setAddress] = useState("");
   const [profilePicUrl, setProfilePicUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -73,6 +77,8 @@ export function CreateCustomerDialog({
         body: JSON.stringify({
           phone: phone.trim(),
           customName: customName.trim() || undefined,
+          companyName: companyName.trim() || undefined,
+          address: address.trim() || undefined,
           profilePicUrl: profilePicUrl.trim() || undefined,
           notes: notes.trim() || undefined,
           status,
@@ -91,6 +97,8 @@ export function CreateCustomerDialog({
       onClose();
       setPhone("");
       setCustomName("");
+      setCompanyName("");
+      setAddress("");
       setProfilePicUrl("");
       setNotes("");
       setTagsInput("");
@@ -142,13 +150,41 @@ export function CreateCustomerDialog({
 
           <div>
             <label className="text-foreground font-semibold">
-              Custom Name / Organization
+              Custom Name
             </label>
             <input
               type="text"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              placeholder="e.g. Delhi Public School - Admin"
+              placeholder="e.g. Principal Sharma"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-foreground flex items-center gap-1.5 font-semibold">
+              <Briefcase className="text-cf-orange size-3.5" />
+              Company Name
+            </label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="e.g. Delhi Public School / Acme Corp"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-foreground flex items-center gap-1.5 font-semibold">
+              <MapPin className="text-cf-orange size-3.5" />
+              Physical Address
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. Sector 12, RK Puram, New Delhi"
               className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
             />
           </div>

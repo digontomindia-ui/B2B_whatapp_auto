@@ -107,7 +107,10 @@ export async function POST(request: NextRequest) {
       (err.name === "UnauthorizedError" || err.name === "ForbiddenError");
     const status = isRbac
       ? (err as { statusCode?: number }).statusCode || 403
-      : 500;
+      : err instanceof Error &&
+          (err.message.includes("Duplicate") || err.message.includes("unique"))
+        ? 400
+        : 500;
     const msg =
       err instanceof Error ? err.message : "Failed to import contacts";
     return NextResponse.json(

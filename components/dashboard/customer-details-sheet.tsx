@@ -15,7 +15,9 @@ import {
   Flame,
   Sun,
   Snowflake,
-  Building2
+  Building2,
+  Briefcase,
+  MapPin
 } from "lucide-react";
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +35,8 @@ interface CustomerDetailsSheetProps {
     id: string,
     data: {
       customName?: string | null;
+      companyName?: string | null;
+      address?: string | null;
       profilePicUrl?: string | null;
       notes?: string | null;
       state?: CustomerState;
@@ -70,6 +74,8 @@ export function CustomerDetailsSheet({
   const groups = groupsData?.data || [];
 
   const [customName, setCustomName] = useState(customer?.customName || "");
+  const [companyName, setCompanyName] = useState(customer?.companyName || "");
+  const [address, setAddress] = useState(customer?.address || "");
   const [profilePicUrl, setProfilePicUrl] = useState(
     customer?.profilePicUrl || ""
   );
@@ -97,6 +103,8 @@ export function CustomerDetailsSheet({
   if (customer && customer.id !== prevCustomerId) {
     setPrevCustomerId(customer.id);
     setCustomName(customer.customName || "");
+    setCompanyName(customer.companyName || "");
+    setAddress(customer.address || "");
     setProfilePicUrl(customer.profilePicUrl || "");
     setNotes(customer.notes || "");
     setState(customer.state);
@@ -116,6 +124,8 @@ export function CustomerDetailsSheet({
     try {
       await onUpdateCustomer(customer!.id, {
         customName: customName.trim() || null,
+        companyName: companyName.trim() || null,
+        address: address.trim() || null,
         profilePicUrl: profilePicUrl.trim() || null,
         notes: notes.trim() || null,
         state,
@@ -247,8 +257,40 @@ export function CustomerDetailsSheet({
             disabled={!canEdit}
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            placeholder="e.g. Principal Sharma (DPS Delhi)"
+            placeholder="e.g. Principal Sharma"
             className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+
+        {/* Company Name field */}
+        <div className="space-y-1.5">
+          <label className="text-foreground flex items-center gap-1.5 font-semibold">
+            <Briefcase className="text-cf-orange size-3.5" />
+            Company Name
+          </label>
+          <input
+            type="text"
+            disabled={!canEdit}
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="e.g. Delhi Public School / Acme Corp"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+
+        {/* Physical Address field */}
+        <div className="space-y-1.5">
+          <label className="text-foreground flex items-center gap-1.5 font-semibold">
+            <MapPin className="text-cf-orange size-3.5" />
+            Physical Address
+          </label>
+          <textarea
+            rows={2}
+            disabled={!canEdit}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="e.g. Sector 12, RK Puram, New Delhi 110022"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 resize-none"
           />
         </div>
 

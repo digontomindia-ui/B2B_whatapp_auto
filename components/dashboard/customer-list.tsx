@@ -279,6 +279,11 @@ export function CustomerList({
                     <span className="font-mono text-[11px]">
                       {formatDisplayPhone(cust.normalizedPhone)}
                     </span>
+                    {cust.companyName && (
+                      <span className="text-muted-foreground/90 truncate text-[10px] font-medium">
+                        • {cust.companyName}
+                      </span>
+                    )}
                     {cust.customName && cust.whatsappName && (
                       <span className="text-muted-foreground/80 truncate text-[10px]">
                         • {cust.whatsappName}

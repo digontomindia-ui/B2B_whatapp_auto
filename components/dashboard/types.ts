@@ -14,6 +14,8 @@ export interface DashboardCustomer {
   normalizedPhone: string;
   whatsappName: string | null;
   customName: string | null;
+  companyName?: string | null;
+  address?: string | null;
   profilePicUrl: string | null;
   countryCode: string | null;
   state: CustomerState;

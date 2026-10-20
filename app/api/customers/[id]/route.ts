@@ -8,6 +8,8 @@ import { z } from "zod";
 
 const updateCustomerSchema = z.object({
   customName: z.string().trim().optional().nullable(),
+  companyName: z.string().trim().optional().nullable(),
+  address: z.string().trim().optional().nullable(),
   profilePicUrl: z
     .string()
     .trim()

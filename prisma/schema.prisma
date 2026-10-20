@@ -103,6 +103,8 @@ model Customer {
   normalizedPhone   String         @unique
   whatsappName      String?
   customName        String?
+  companyName       String?
+  address           String?        @db.Text
   profilePicUrl     String?
   about             String?
   countryCode       String?
@@ -135,6 +137,7 @@ model Customer {
   @@index([state])
   @@index([status])
   @@index([customName])
+  @@index([companyName])
   @@index([whatsappName])
   @@index([assignedStaffId])
   @@index([groupId])
