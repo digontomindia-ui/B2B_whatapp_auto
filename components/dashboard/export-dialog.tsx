@@ -22,6 +22,8 @@ interface ExportDialogProps {
   totalCustomersCount: number;
   activeFilterParams: {
     search?: string;
+    status?: string;
+    groupId?: string;
     dateRange?: string;
     communicationState?: string;
     tag?: string;

@@ -21,6 +21,7 @@ export async function createBulkMessageJob({
   language = "en",
   components = [],
   customerIds,
+  groupIds,
   targetMode = "CUSTOM",
   assignedStaffId,
   variableConfigurations,
@@ -36,7 +37,8 @@ export async function createBulkMessageJob({
   language?: string;
   components?: unknown[];
   customerIds?: string[];
-  targetMode?: "ALL" | "CUSTOM";
+  groupIds?: string[];
+  targetMode?: "ALL" | "CUSTOM" | "GROUPS";
   assignedStaffId?: string;
   variableConfigurations?: Record<string, unknown>;
   allowOverrideBlocked?: boolean;
@@ -54,6 +56,11 @@ export async function createBulkMessageJob({
       throw new Error("No customer recipients selected for custom broadcast");
     }
     where.id = { in: customerIds };
+  } else if (targetMode === "GROUPS") {
+    if (!groupIds || groupIds.length === 0) {
+      throw new Error("No groups selected for broadcast");
+    }
+    where.groupId = { in: groupIds };
   }
 
   // 1. Fetch customers to categorize eligibility

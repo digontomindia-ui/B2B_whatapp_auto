@@ -4,9 +4,17 @@ import type {
   DashboardMessage,
   DashboardBulkJob,
   DashboardTemplate,
-  CustomersListResponse
+  CustomersListResponse,
+  DashboardGroup
 } from "@/components/dashboard/types";
-import { Search, UserPlus, Users, Layers, MessageSquare } from "lucide-react";
+import {
+  Search,
+  UserPlus,
+  Users,
+  Layers,
+  MessageSquare,
+  Download
+} from "lucide-react";
 import {
   useQuery,
   useMutation,
@@ -14,6 +22,7 @@ import {
   useInfiniteQuery
 } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
+import { CustomerStatus } from "@prisma/client";
 import { CustomerDetailsSheet } from "@/components/dashboard/customer-details-sheet";
 import { CreateCustomerDialog } from "@/components/dashboard/create-customer-dialog";
 import { SendTemplateDialog } from "@/components/dashboard/send-template-dialog";
@@ -23,9 +32,11 @@ import { ConversationView } from "@/components/dashboard/conversation-view";
 import { BulkJobsDialog } from "@/components/dashboard/bulk-jobs-dialog";
 import { CustomerList } from "@/components/dashboard/customer-list";
 import { Composer } from "@/components/dashboard/composer";
+import { ImportDialog } from "@/components/dashboard/import-dialog";
+import { ExportDialog } from "@/components/dashboard/export-dialog";
 import { useRealtime } from "@/hooks/use-realtime";
-import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
+import { useAuth } from "@/providers/auth";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
@@ -34,6 +45,7 @@ export default function DashboardPage() {
 
   const canCreateCustomer =
     isOwner || hasPermission(PERMISSIONS.CUSTOMER_CREATE);
+  const canExport = isOwner || hasPermission(PERMISSIONS.CUSTOMER_EXPORT);
   const canSendBulkMessage =
     isOwner || hasPermission(PERMISSIONS.BULK_MESSAGE_SEND);
   const canSendBulkTemplate =
@@ -46,6 +58,10 @@ export default function DashboardPage() {
   // Search, filter, and sorting state
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CustomerStatus | "all">(
+    "all"
+  );
+  const [groupIdFilter, setGroupIdFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<
     "all" | "today" | "yesterday" | "last7days" | "last30days"
   >("all");
@@ -75,6 +91,22 @@ export default function DashboardPage() {
   const [isBulkMessageOpen, setIsBulkMessageOpen] = useState(false);
   const [isBulkTemplateOpen, setIsBulkTemplateOpen] = useState(false);
   const [isBulkJobsOpen, setIsBulkJobsOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+
+  // Fetch groups for filter
+  const { data: groupsData } = useQuery<{
+    error: boolean;
+    data: DashboardGroup[];
+  }>({
+    queryKey: ["groups"],
+    queryFn: async () => {
+      const res = await fetch("/api/groups");
+      const json = await res.json();
+      return json;
+    }
+  });
+  const groups = groupsData?.data || [];
 
   // Debounce search input
   useEffect(() => {
@@ -92,10 +124,20 @@ export default function DashboardPage() {
     hasNextPage,
     fetchNextPage
   } = useInfiniteQuery<CustomersListResponse>({
-    queryKey: ["customers", debouncedSearch, dateRange, commState, sort],
+    queryKey: [
+      "customers",
+      debouncedSearch,
+      statusFilter,
+      groupIdFilter,
+      dateRange,
+      commState,
+      sort
+    ],
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (groupIdFilter !== "all") params.set("groupId", groupIdFilter);
       if (dateRange !== "all") params.set("dateRange", dateRange);
       if (commState !== "all") params.set("communicationState", commState);
       params.set("sort", sort);
@@ -317,9 +359,60 @@ export default function DashboardPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search phone, name, WA..."
+                placeholder="Search all fields (phone, name, notes, tags, messages...)"
                 className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded-md border py-1.5 pr-3 pl-8 text-xs focus:ring-1 focus:outline-none"
               />
+            </div>
+
+            {/* Quick Filter: Status */}
+            <div className="bg-muted/50 border-border flex items-center gap-1 rounded-md border p-0.5 text-[11px]">
+              <span className="text-muted-foreground hidden pr-0.5 pl-1.5 text-[10px] font-semibold tracking-wider uppercase sm:inline">
+                Status:
+              </span>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className={`cursor-pointer rounded px-2 py-1 transition-colors ${
+                  statusFilter === "all"
+                    ? "bg-background text-foreground font-semibold shadow-2xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("HOT")}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 transition-colors ${
+                  statusFilter === "HOT"
+                    ? "border border-rose-500/30 bg-rose-500/15 font-bold text-rose-600 shadow-2xs dark:text-rose-400"
+                    : "text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
+                }`}
+              >
+                Hot
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("WARM")}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 transition-colors ${
+                  statusFilter === "WARM"
+                    ? "border border-amber-500/30 bg-amber-500/15 font-bold text-amber-600 shadow-2xs dark:text-amber-400"
+                    : "text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400"
+                }`}
+              >
+                Warm
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("COLD")}
+                className={`inline-flex cursor-pointer items-center gap-1 rounded px-2 py-1 transition-colors ${
+                  statusFilter === "COLD"
+                    ? "border border-sky-500/30 bg-sky-500/15 font-bold text-sky-600 shadow-2xs dark:text-sky-400"
+                    : "text-muted-foreground hover:text-sky-600 dark:hover:text-sky-400"
+                }`}
+              >
+                Cold
+              </button>
             </div>
 
             {/* Date filter dropdown */}
@@ -334,6 +427,21 @@ export default function DashboardPage() {
               <option value="yesterday">Yesterday</option>
               <option value="last7days">Last 7 Days</option>
               <option value="last30days">Last 30 Days</option>
+            </select>
+
+            {/* Group filter dropdown */}
+            <select
+              value={groupIdFilter}
+              onChange={(e) => setGroupIdFilter(e.target.value)}
+              className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            >
+              <option value="all">Group: All Groups</option>
+              <option value="none">Group: Unassigned</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  Group: {g.name}
+                </option>
+              ))}
             </select>
 
             {/* Communication state filters */}
@@ -432,6 +540,16 @@ export default function DashboardPage() {
                     <span>Send Bulk Template</span>
                   </button>
                 )}
+                {canExport && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExportOpen(true)}
+                    className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold shadow-2xs transition-colors"
+                  >
+                    <Download className="text-cf-orange size-3.5" />
+                    <span>Export</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={clearSelection}
@@ -441,8 +559,8 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              canCreateCustomer && (
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
+                {canCreateCustomer && (
                   <button
                     type="button"
                     onClick={() => setIsCreateCustomerOpen(true)}
@@ -451,8 +569,8 @@ export default function DashboardPage() {
                     <UserPlus className="size-3.5" />
                     <span>Add Contact</span>
                   </button>
-                </div>
-              )
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -609,6 +727,31 @@ export default function DashboardPage() {
         onClose={() => setIsBulkJobsOpen(false)}
         jobs={bulkJobs}
         isLoading={isLoadingBulkJobs}
+      />
+
+      {/* 7. Import Dialog */}
+      <ImportDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+          queryClient.invalidateQueries({ queryKey: ["groups"] });
+        }}
+      />
+
+      {/* 8. Export Dialog */}
+      <ExportDialog
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        selectedCustomerIds={selectedCustomerIds}
+        totalCustomersCount={totalCount}
+        activeFilterParams={{
+          search: debouncedSearch || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          groupId: groupIdFilter !== "all" ? groupIdFilter : undefined,
+          dateRange: dateRange !== "all" ? dateRange : undefined,
+          communicationState: commState !== "all" ? commState : undefined
+        }}
       />
     </div>
   );

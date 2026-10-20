@@ -93,6 +93,7 @@ export function ImportDialog({
       {
         phone: "+91 90461 13306",
         name: "Aquib Alam",
+        group: "DPS Delhi",
         tags: "Admission 2026, VIP",
         notes: "Met at education fair, requested fee details",
         state: "ACTIVE",
@@ -101,6 +102,7 @@ export function ImportDialog({
       {
         phone: "+91 98765 43210",
         name: "John Doe",
+        group: "Modern School",
         tags: "Lead",
         notes: "Follow up next Monday",
         state: "ACTIVE",
@@ -109,6 +111,7 @@ export function ImportDialog({
       {
         phone: "+91 88888 77777",
         name: "Priya Sharma",
+        group: "",
         tags: "Alumni",
         notes: "Prefers email notifications",
         state: "OPTED_OUT",
@@ -219,12 +222,15 @@ export function ImportDialog({
     "contactname",
     "firstname"
   ]);
-  const tagsHeader = findMatchingHeader([
-    "tags",
-    "tag",
-    "labels",
-    "label",
-    "groups"
+  const tagsHeader = findMatchingHeader(["tags", "tag", "labels", "label"]);
+  const groupHeader = findMatchingHeader([
+    "group",
+    "groupname",
+    "group_name",
+    "school",
+    "schoolname",
+    "school_name",
+    "customergroup"
   ]);
   const notesHeader = findMatchingHeader([
     "notes",
@@ -494,6 +500,21 @@ export function ImportDialog({
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {notesHeader ? (
                           <span className="text-foreground">{notesHeader}</span>
+                        ) : (
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/40 border-border/60 rounded border p-2">
+                      <div className="text-muted-foreground text-[10px] font-semibold uppercase">
+                        Group / School
+                      </div>
+                      <div className="text-foreground mt-0.5 truncate font-mono">
+                        {groupHeader ? (
+                          <span className="text-foreground">{groupHeader}</span>
                         ) : (
                           <span className="text-muted-foreground italic">
                             (optional)

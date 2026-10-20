@@ -11,8 +11,9 @@ const bulkTemplateSchema = z.object({
   templateName: z.string().min(1, "Template name is required"),
   language: z.string().default("en"),
   components: z.array(z.any()).default([]),
-  targetMode: z.enum(["ALL", "CUSTOM"]).default("CUSTOM"),
+  targetMode: z.enum(["ALL", "CUSTOM", "GROUPS"]).default("CUSTOM"),
   customerIds: z.array(z.string().uuid()).optional(),
+  groupIds: z.array(z.string().uuid()).optional(),
   variableConfigurations: z.record(z.string(), z.any()).optional(),
   allowOverrideBlocked: z.boolean().default(false)
 });
@@ -48,6 +49,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      parsed.data.targetMode === "GROUPS" &&
+      (!parsed.data.groupIds || parsed.data.groupIds.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error: true,
+          message: "Please select at least one group for broadcast",
+          data: null
+        },
+        { status: 400 }
+      );
+    }
+
     // Determine utility vs marketing permission
     const tmpl = await prisma.whatsappTemplate.findFirst({
       where: { name: parsed.data.templateName }
@@ -77,6 +92,7 @@ export async function POST(request: NextRequest) {
       components: parsed.data.components,
       targetMode: parsed.data.targetMode,
       customerIds: parsed.data.customerIds,
+      groupIds: parsed.data.groupIds,
       assignedStaffId,
       variableConfigurations: parsed.data.variableConfigurations,
       allowOverrideBlocked: parsed.data.allowOverrideBlocked,

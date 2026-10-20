@@ -5,6 +5,7 @@ import {
 } from "@/server/customers/service";
 import { requirePermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
+import { CustomerStatus } from "@prisma/client";
 import { z } from "zod";
 
 const createCustomerSchema = z.object({
@@ -19,6 +20,8 @@ const createCustomerSchema = z.object({
     .optional()
     .nullable(),
   notes: z.string().trim().optional().nullable(),
+  status: z.nativeEnum(CustomerStatus).optional(),
+  groupId: z.string().trim().optional().nullable(),
   tags: z.array(z.string()).optional()
 });
 
@@ -34,6 +37,9 @@ export async function GET(request: NextRequest) {
     }
 
     const search = searchParams.get("search") || undefined;
+    const status = (searchParams.get("status") || "all") as
+      CustomerStatus | "all";
+    const groupId = searchParams.get("groupId") || undefined;
     const dateRange = (searchParams.get("dateRange") || "all") as
       "all" | "today" | "yesterday" | "last7days" | "last30days" | "custom";
     const startDate = searchParams.get("startDate") || undefined;
@@ -62,6 +68,8 @@ export async function GET(request: NextRequest) {
 
     const result = await listCustomers({
       search,
+      status,
+      groupId,
       dateRange,
       startDate,
       endDate,

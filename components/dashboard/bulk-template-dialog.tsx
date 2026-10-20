@@ -1,6 +1,10 @@
 "use client";
 
-import type { DashboardCustomer, DashboardTemplate } from "./types";
+import type {
+  DashboardCustomer,
+  DashboardTemplate,
+  DashboardGroup
+} from "./types";
 import {
   Layers,
   Loader2,
@@ -9,6 +13,7 @@ import {
   Check,
   Users,
   CheckSquare,
+  Building2,
   Sparkles,
   Pin,
   ChevronDown
@@ -59,8 +64,10 @@ export function BulkTemplateDialog({
   const canBulkMarketing =
     isOwner || hasPermission(PERMISSIONS.BULK_MARKETING_SEND);
 
-  // 1. Tab state: "ALL" (Default) vs "CUSTOM"
-  const [activeTab, setActiveTab] = useState<"ALL" | "CUSTOM">("ALL");
+  // 1. Tab state: "ALL" vs "CUSTOM" vs "GROUPS"
+  const [activeTab, setActiveTab] = useState<"ALL" | "CUSTOM" | "GROUPS">(
+    "ALL"
+  );
 
   // 2. Filter approved templates
   const approvedTemplates = useMemo(() => {
@@ -93,6 +100,51 @@ export function BulkTemplateDialog({
   const [checkedIds, setCheckedIds] = useState<Set<string>>(() => {
     return new Set(selectedCustomers.map((c) => c.id));
   });
+
+  // Groups selection state (Tab 3)
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [groupSearch, setGroupSearch] = useState("");
+
+  const { data: groupsData, isLoading: isLoadingGroups } = useQuery<{
+    error: boolean;
+    message: string;
+    data: DashboardGroup[];
+  }>({
+    queryKey: ["groups"],
+    queryFn: async () => {
+      const res = await fetch("/api/groups");
+      const json = await res.json();
+      return json;
+    },
+    enabled: isOpen
+  });
+
+  const groups: DashboardGroup[] = groupsData?.data || [];
+
+  const filteredGroups = useMemo(() => {
+    if (!groupSearch.trim()) return groups;
+    const q = groupSearch.toLowerCase().trim();
+    return groups.filter((g) => g.name.toLowerCase().includes(q));
+  }, [groups, groupSearch]);
+
+  function toggleGroup(id: string) {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllGroups() {
+    setSelectedGroupIds(new Set(groups.map((g) => g.id)));
+  }
+
+  function deselectAllGroups() {
+    setSelectedGroupIds(new Set());
+  }
 
   const activeTemplateId = selectedTemplateId || defaultTemplateId;
 
@@ -376,6 +428,11 @@ export function BulkTemplateDialog({
     if (activeTab === "ALL") {
       return allowOverride ? totalAudience : activeAudience;
     }
+    if (activeTab === "GROUPS") {
+      return groups
+        .filter((g) => selectedGroupIds.has(g.id))
+        .reduce((sum, g) => sum + (g._count?.customers || 0), 0);
+    }
     const checkedCustomers = allLoadedCustomCustomers.filter((c) =>
       checkedIds.has(c.id)
     );
@@ -389,7 +446,9 @@ export function BulkTemplateDialog({
     totalAudience,
     activeAudience,
     allLoadedCustomCustomers,
-    checkedIds
+    checkedIds,
+    groups,
+    selectedGroupIds
   ]);
 
   // Live rendered previews for bulk
@@ -479,6 +538,11 @@ export function BulkTemplateDialog({
       return;
     }
 
+    if (activeTab === "GROUPS" && selectedGroupIds.size === 0) {
+      toast.error("Please select at least one group for broadcast");
+      return;
+    }
+
     // Validate static variables
     for (const k of allVarKeys) {
       const cfg = effectiveConfigs[k];
@@ -535,6 +599,8 @@ export function BulkTemplateDialog({
           targetMode: activeTab,
           customerIds:
             activeTab === "CUSTOM" ? Array.from(checkedIds) : undefined,
+          groupIds:
+            activeTab === "GROUPS" ? Array.from(selectedGroupIds) : undefined,
           variableConfigurations: effectiveConfigs,
           components,
           allowOverrideBlocked: allowOverride
@@ -583,7 +649,7 @@ export function BulkTemplateDialog({
         <div className="flex-1 space-y-4 overflow-y-auto py-2 pr-1">
           {/* Target Audience Tabs */}
           <div className="space-y-2">
-            <div className="border-border bg-muted/30 grid grid-cols-2 gap-1 rounded-lg border p-1">
+            <div className="border-border bg-muted/30 grid grid-cols-3 gap-1 rounded-lg border p-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("ALL")}
@@ -594,7 +660,7 @@ export function BulkTemplateDialog({
                 }`}
               >
                 <Users className="size-3.5" />
-                <span>All Contacts (Default)</span>
+                <span>All Customers</span>
               </button>
               <button
                 type="button"
@@ -606,7 +672,19 @@ export function BulkTemplateDialog({
                 }`}
               >
                 <CheckSquare className="size-3.5" />
-                <span>Custom Selection</span>
+                <span>Custom (Specifics)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("GROUPS")}
+                className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === "GROUPS"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Building2 className="size-3.5" />
+                <span>Groups</span>
               </button>
             </div>
 
@@ -798,6 +876,120 @@ export function BulkTemplateDialog({
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: GROUPS */}
+            {activeTab === "GROUPS" && (
+              <div className="border-border bg-muted/20 space-y-2.5 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-foreground text-xs font-semibold">
+                    Select Groups ({selectedGroupIds.size} of {groups.length}{" "}
+                    selected)
+                  </span>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={selectAllGroups}
+                      className="text-cf-orange cursor-pointer hover:underline"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground">•</span>
+                    <button
+                      type="button"
+                      onClick={deselectAllGroups}
+                      className="text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Box */}
+                <div className="relative">
+                  <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={groupSearch}
+                    onChange={(e) => setGroupSearch(e.target.value)}
+                    placeholder="Search groups by name..."
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground w-full rounded border py-1.5 pr-2.5 pl-7 text-xs focus:outline-none"
+                  />
+                </div>
+
+                {/* Groups List */}
+                <div className="border-border bg-background divide-border/60 max-h-48 divide-y overflow-y-auto rounded border">
+                  {isLoadingGroups ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="text-cf-orange size-4 animate-spin" />
+                    </div>
+                  ) : filteredGroups.length === 0 ? (
+                    <div className="text-muted-foreground p-3 text-center text-[11px]">
+                      No groups found
+                    </div>
+                  ) : (
+                    filteredGroups.map((grp) => {
+                      const isChecked = selectedGroupIds.has(grp.id);
+                      return (
+                        <div
+                          key={grp.id}
+                          onClick={() => toggleGroup(grp.id)}
+                          className={`flex cursor-pointer items-center justify-between px-2.5 py-2 transition-colors select-none ${
+                            isChecked ? "bg-accent/40" : "hover:bg-muted/40"
+                          }`}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <button
+                              type="button"
+                              role="checkbox"
+                              aria-checked={isChecked}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleGroup(grp.id);
+                              }}
+                              className={`flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                                isChecked
+                                  ? "bg-cf-orange border-cf-orange text-white"
+                                  : "border-border hover:border-foreground/50 bg-background"
+                              }`}
+                            >
+                              {isChecked && (
+                                <Check className="size-2.5 stroke-3" />
+                              )}
+                            </button>
+                            <span
+                              className="size-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: grp.color || "#f6821f"
+                              }}
+                            />
+                            <span className="text-foreground truncate text-xs font-medium">
+                              {grp.name}
+                            </span>
+                          </div>
+
+                          <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
+                            {grp._count?.customers || 0} customers
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Recipient summary */}
+                <div className="text-muted-foreground flex items-center justify-between pt-1 text-[11px]">
+                  <span>
+                    Total Groups: <strong>{selectedGroupIds.size}</strong>
+                  </span>
+                  <span>
+                    Total Customers:{" "}
+                    <strong className="font-mono text-emerald-600 dark:text-emerald-400">
+                      {eligibleCount}
+                    </strong>
+                  </span>
                 </div>
               </div>
             )}

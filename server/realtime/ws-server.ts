@@ -46,13 +46,8 @@ export function startWebSocketServer(): void {
     });
 
     globalWs.__wss_initialized = true;
-    console.log(
-      `[Realtime] WebSocket server listening on ws://localhost:${port}`
-    );
+    console.log(`WebSocket server listening on ws://localhost:${port}`);
   } catch (err) {
-    console.warn(
-      "[Realtime] Could not initialize standalone WebSocket port:",
-      err
-    );
+    console.warn("Could not initialize standalone WebSocket port:", err);
   }
 }

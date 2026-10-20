@@ -7,9 +7,9 @@ import { z } from "zod";
 const bulkMessageSchema = z.object({
   title: z.string().optional(),
   content: z.string().min(1, "Message content cannot be empty"),
-  customerIds: z
-    .array(z.string().uuid())
-    .min(1, "At least one recipient is required"),
+  targetMode: z.enum(["ALL", "CUSTOM", "GROUPS"]).default("CUSTOM"),
+  customerIds: z.array(z.string().uuid()).optional(),
+  groupIds: z.array(z.string().uuid()).optional(),
   allowOverrideBlocked: z.boolean().default(false)
 });
 
@@ -35,11 +35,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      parsed.data.targetMode === "CUSTOM" &&
+      (!parsed.data.customerIds || parsed.data.customerIds.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error: true,
+          message: "Please select at least one recipient for custom broadcast",
+          data: null
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      parsed.data.targetMode === "GROUPS" &&
+      (!parsed.data.groupIds || parsed.data.groupIds.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error: true,
+          message: "Please select at least one group for broadcast",
+          data: null
+        },
+        { status: 400 }
+      );
+    }
+
+    const assignedStaffId =
+      actor.actorType === "staff" && !actor.isOwner ? actor.id : undefined;
+
     const result = await createBulkMessageJob({
       type: "MESSAGE",
       title: parsed.data.title,
       content: parsed.data.content,
+      targetMode: parsed.data.targetMode,
       customerIds: parsed.data.customerIds,
+      groupIds: parsed.data.groupIds,
+      assignedStaffId,
       allowOverrideBlocked: parsed.data.allowOverrideBlocked,
       createdByAdminId: actor.id
     });

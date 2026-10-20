@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateCustomer, deleteCustomer } from "@/server/customers/service";
 import prisma from "@/lib/prisma";
-import { CustomerState } from "@prisma/client";
-import { requirePermission } from "@/lib/rbac";
+import { CustomerState, CustomerStatus } from "@prisma/client";
+import { requirePermission, requireAnyPermission } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -17,6 +17,8 @@ const updateCustomerSchema = z.object({
     .nullable(),
   notes: z.string().trim().optional().nullable(),
   state: z.nativeEnum(CustomerState).optional(),
+  status: z.nativeEnum(CustomerStatus).optional(),
+  groupId: z.string().trim().optional().nullable(),
   tags: z.array(z.string()).optional()
 });
 
@@ -31,6 +33,7 @@ export async function GET(
     const customer = await prisma.customer.findUniqueOrThrow({
       where: { id },
       include: {
+        group: { select: { id: true, name: true, color: true } },
         tags: { include: { tag: true } },
         conversations: {
           take: 1,
@@ -64,7 +67,10 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_EDIT);
+    await requireAnyPermission(request, [
+      PERMISSIONS.CUSTOMER_EDIT,
+      PERMISSIONS.GROUP_MANAGE
+    ]);
 
     const { id } = await context.params;
     const body = await request.json();

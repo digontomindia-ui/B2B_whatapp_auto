@@ -7,6 +7,7 @@ export enum PERMISSIONS {
   CUSTOMER_IMPORT = 5, // Import customers via CSV
   CUSTOMER_EXPORT = 6, // Export customer data to CSV
   CUSTOMER_ASSIGN = 7, // Distribute and assign customers to staff members
+  GROUP_MANAGE = 8, // Create, update, delete groups and assign customer groups
 
   // ── Conversations & 1-on-1 Messaging (20-39) ─────────────────────────────
   CONVERSATION_VIEW = 20, // View chat conversations and message history
@@ -51,6 +52,7 @@ export const PERMISSION_LABELS: Record<PERMISSIONS, string> = {
   [PERMISSIONS.CUSTOMER_IMPORT]: "Import Customers",
   [PERMISSIONS.CUSTOMER_EXPORT]: "Export Customers",
   [PERMISSIONS.CUSTOMER_ASSIGN]: "Distribute & Assign Customers",
+  [PERMISSIONS.GROUP_MANAGE]: "Manage Groups",
 
   // Messaging
   [PERMISSIONS.CONVERSATION_VIEW]: "View Conversations",
@@ -101,7 +103,8 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
       PERMISSIONS.CUSTOMER_DELETE,
       PERMISSIONS.CUSTOMER_IMPORT,
       PERMISSIONS.CUSTOMER_EXPORT,
-      PERMISSIONS.CUSTOMER_ASSIGN
+      PERMISSIONS.CUSTOMER_ASSIGN,
+      PERMISSIONS.GROUP_MANAGE
     ]
   },
   {
@@ -175,6 +178,7 @@ export const PERMISSIONS_PRESETS: PermissionPreset[] = [
       PERMISSIONS.CUSTOMER_EXPORT,
       PERMISSIONS.CUSTOMER_IMPORT,
       PERMISSIONS.CUSTOMER_ASSIGN,
+      PERMISSIONS.GROUP_MANAGE,
       PERMISSIONS.CONVERSATION_VIEW,
       PERMISSIONS.MESSAGE_SEND,
       PERMISSIONS.MESSAGE_SEND_UTILITY,

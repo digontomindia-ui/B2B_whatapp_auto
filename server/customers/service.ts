@@ -1,7 +1,7 @@
 import { normalizePhoneNumber, extractCountryCode } from "@/utils/phone";
 import prisma from "@/lib/prisma";
 import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
-import { CustomerState } from "@prisma/client";
+import { CustomerState, CustomerStatus } from "@prisma/client";
 
 export interface FindOrCreateCustomerInput {
   phone: string;
@@ -9,11 +9,15 @@ export interface FindOrCreateCustomerInput {
   customName?: string | null;
   profilePicUrl?: string | null;
   notes?: string | null;
+  status?: CustomerStatus;
+  groupId?: string | null;
   tags?: string[];
 }
 
 export interface CustomerFilterParams {
   search?: string;
+  status?: CustomerStatus | "all";
+  groupId?: string | "all";
   dateRange?:
     "all" | "today" | "yesterday" | "last7days" | "last30days" | "custom";
   startDate?: string;
@@ -44,6 +48,8 @@ export async function findOrCreateCustomerByPhone({
   customName,
   profilePicUrl,
   notes,
+  status,
+  groupId,
   tags = []
 }: FindOrCreateCustomerInput) {
   const normalized = normalizePhoneNumber(phone);
@@ -55,6 +61,7 @@ export async function findOrCreateCustomerByPhone({
   const existing = await prisma.customer.findUnique({
     where: { normalizedPhone: normalized },
     include: {
+      group: { select: { id: true, name: true, color: true } },
       tags: { include: { tag: true } },
       conversations: { take: 1, orderBy: { createdAt: "desc" } }
     }
@@ -76,6 +83,12 @@ export async function findOrCreateCustomerByPhone({
     if (notes !== undefined && notes !== null && notes !== existing.notes) {
       dataToUpdate.notes = notes;
     }
+    if (status && status !== existing.status) {
+      dataToUpdate.status = status;
+    }
+    if (groupId !== undefined && groupId !== existing.groupId) {
+      dataToUpdate.groupId = groupId;
+    }
 
     let updated = existing;
     if (Object.keys(dataToUpdate).length > 0) {
@@ -83,6 +96,7 @@ export async function findOrCreateCustomerByPhone({
         where: { id: existing.id },
         data: dataToUpdate,
         include: {
+          group: { select: { id: true, name: true, color: true } },
           tags: { include: { tag: true } },
           conversations: { take: 1, orderBy: { createdAt: "desc" } }
         }
@@ -138,12 +152,15 @@ export async function findOrCreateCustomerByPhone({
         customName: customName || null,
         profilePicUrl: profilePicUrl || null,
         countryCode,
+        status: status || "COLD",
+        groupId: groupId || null,
         notes: notes || null,
         conversations: {
           create: {}
         }
       },
       include: {
+        group: { select: { id: true, name: true, color: true } },
         tags: { include: { tag: true } },
         conversations: { take: 1 }
       }
@@ -177,6 +194,8 @@ export async function findOrCreateCustomerByPhone({
 export async function listCustomers(params: CustomerFilterParams = {}) {
   const {
     search,
+    status,
+    groupId,
     dateRange = "all",
     startDate,
     endDate,
@@ -195,15 +214,74 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
     where.assignedStaffId = assignedStaffId;
   }
 
-  // 1. Search across normalizedPhone, customName, whatsappName
+  // 1. Search across all customer fields
   if (search && search.trim()) {
     const q = search.trim();
     const cleanDigits = q.replace(/\D/g, "");
-    where.OR = [
+    const qUpper = q.toUpperCase();
+
+    const orConditions: Record<string, unknown>[] = [
       { customName: { contains: q, mode: "insensitive" } },
       { whatsappName: { contains: q, mode: "insensitive" } },
-      { normalizedPhone: { contains: cleanDigits || q } }
+      { phoneNumber: { contains: q, mode: "insensitive" } },
+      { normalizedPhone: { contains: cleanDigits || q, mode: "insensitive" } },
+      { about: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { countryCode: { contains: q, mode: "insensitive" } },
+      {
+        tags: {
+          some: {
+            tag: {
+              name: { contains: q, mode: "insensitive" }
+            }
+          }
+        }
+      },
+      {
+        assignedStaff: {
+          name: { contains: q, mode: "insensitive" }
+        }
+      },
+      {
+        assignedStaff: {
+          email: { contains: q, mode: "insensitive" }
+        }
+      },
+      {
+        assignedStaff: {
+          phone: { contains: q, mode: "insensitive" }
+        }
+      },
+      {
+        group: {
+          name: { contains: q, mode: "insensitive" }
+        }
+      },
+      {
+        conversations: {
+          some: {
+            title: { contains: q, mode: "insensitive" }
+          }
+        }
+      },
+      {
+        messages: {
+          some: {
+            body: { contains: q, mode: "insensitive" }
+          }
+        }
+      }
     ];
+
+    if (qUpper === "HOT" || qUpper === "WARM" || qUpper === "COLD") {
+      orConditions.push({ status: qUpper });
+    }
+
+    if (qUpper === "ACTIVE" || qUpper === "BLOCKED" || qUpper === "OPTED_OUT") {
+      orConditions.push({ state: qUpper });
+    }
+
+    where.OR = orConditions;
   }
 
   // 2. Date filters against lastInteractionAt or createdAt
@@ -257,6 +335,20 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
     where.messages = { some: { status: "FAILED" } };
   }
 
+  // 3b. Status filter (HOT, WARM, COLD)
+  if (status && status !== "all") {
+    where.status = status;
+  }
+
+  // 3c. Group filter
+  if (groupId && groupId !== "all") {
+    if (groupId === "none" || groupId === "unassigned") {
+      where.groupId = null;
+    } else {
+      where.groupId = groupId;
+    }
+  }
+
   // 4. Tag filter
   if (tag && tag.trim()) {
     where.tags = {
@@ -292,6 +384,7 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
       skip,
       take: limit,
       include: {
+        group: { select: { id: true, name: true, color: true } },
         tags: { include: { tag: true } },
         conversations: {
           take: 1,
@@ -332,6 +425,8 @@ export async function updateCustomer(
     profilePicUrl?: string | null;
     notes?: string | null;
     state?: CustomerState;
+    status?: CustomerStatus;
+    groupId?: string | null;
     tags?: string[];
   }
 ) {
@@ -341,6 +436,8 @@ export async function updateCustomer(
     updatePayload.profilePicUrl = data.profilePicUrl;
   if (data.notes !== undefined) updatePayload.notes = data.notes;
   if (data.state !== undefined) updatePayload.state = data.state;
+  if (data.status !== undefined) updatePayload.status = data.status;
+  if (data.groupId !== undefined) updatePayload.groupId = data.groupId;
 
   if (Object.keys(updatePayload).length > 0) {
     await prisma.customer.update({
@@ -369,6 +466,7 @@ export async function updateCustomer(
   const finalCustomer = await prisma.customer.findUniqueOrThrow({
     where: { id },
     include: {
+      group: { select: { id: true, name: true, color: true } },
       tags: { include: { tag: true } },
       conversations: { take: 1, orderBy: { createdAt: "desc" } }
     }

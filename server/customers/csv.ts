@@ -1,6 +1,6 @@
 import type { CustomerFilterParams } from "./service";
 import { normalizePhoneNumber, extractCountryCode } from "@/utils/phone";
-import { CustomerState, Prisma } from "@prisma/client";
+import { CustomerState, CustomerStatus, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { realtimeBroadcaster } from "@/server/realtime/broadcaster";
 import Papa from "papaparse";
@@ -31,8 +31,10 @@ export const EXPORTABLE_COLUMNS: Record<string, string> = {
   normalizedPhone: "Normalized Phone",
   customName: "Custom Name",
   whatsappName: "WhatsApp Name",
+  group: "Group",
+  status: "Status (Hot/Warm/Cold)",
   tags: "Tags",
-  state: "Status",
+  state: "Communication State",
   notes: "Notes",
   staff_email: "Assigned Staff Email",
   staff_name: "Assigned Staff Name",
@@ -84,6 +86,7 @@ export async function importContactsFromCsv(
 
   const tagCache = new Map<string, string>(); // name -> tagId
   const staffCache = new Map<string, string | null>(); // email -> staffId | null
+  const groupCache = new Map<string, string>(); // lowercase name -> groupId
 
   // Helper to resolve tag IDs
   async function resolveTagIds(tagNames: string[]): Promise<string[]> {
@@ -105,6 +108,29 @@ export async function importContactsFromCsv(
       ids.push(tagId);
     }
     return ids;
+  }
+
+  // Helper to resolve group ID (case-insensitive matching or creating)
+  async function resolveGroupId(groupName: string): Promise<string | null> {
+    const cleanName = groupName.trim();
+    if (!cleanName) return null;
+    const key = cleanName.toLowerCase();
+    if (groupCache.has(key)) {
+      return groupCache.get(key) || null;
+    }
+
+    let group = await prisma.group.findFirst({
+      where: { name: { equals: cleanName, mode: "insensitive" } }
+    });
+
+    if (!group) {
+      group = await prisma.group.create({
+        data: { name: cleanName }
+      });
+    }
+
+    groupCache.set(key, group.id);
+    return group.id;
   }
 
   for (let idx = 0; idx < rows.length; idx++) {
@@ -205,7 +231,12 @@ export async function importContactsFromCsv(
       }
     }
 
-    const stateRaw = getFieldValue(row, ["state", "status", "customer_state"]);
+    const stateRaw = getFieldValue(row, [
+      "state",
+      "communication_state",
+      "communicationstate",
+      "customer_state"
+    ]);
     let state: CustomerState = CustomerState.ACTIVE;
     if (stateRaw) {
       const upper = stateRaw.toUpperCase();
@@ -219,15 +250,39 @@ export async function importContactsFromCsv(
       }
     }
 
-    // 3. Extract and parse tags
-    const rawTags = getFieldValue(row, [
-      "tags",
-      "tag",
-      "labels",
-      "label",
-      "groups",
-      "group"
+    const statusRaw = getFieldValue(row, [
+      "status",
+      "lead_status",
+      "leadstatus",
+      "customer_status"
     ]);
+    let status: CustomerStatus = CustomerStatus.COLD;
+    if (statusRaw) {
+      const upper = statusRaw.toUpperCase();
+      if (upper === "HOT") status = CustomerStatus.HOT;
+      else if (upper === "WARM") status = CustomerStatus.WARM;
+      else if (upper === "COLD") status = CustomerStatus.COLD;
+    }
+
+    // 3. Extract group name (case-insensitive matching or creating)
+    const rawGroup = getFieldValue(row, [
+      "group",
+      "group_name",
+      "groupname",
+      "school",
+      "school_name",
+      "schoolname",
+      "customer_group",
+      "customergroup"
+    ]);
+
+    let groupId: string | null = null;
+    if (rawGroup) {
+      groupId = await resolveGroupId(rawGroup);
+    }
+
+    // 4. Extract and parse tags
+    const rawTags = getFieldValue(row, ["tags", "tag", "labels", "label"]);
     const tagList: string[] = [];
     if (rawTags) {
       // Split by comma or semicolon
@@ -246,7 +301,7 @@ export async function importContactsFromCsv(
     const tagIds = await resolveTagIds(uniqueTagNames);
 
     try {
-      // 4. Find existing customer by normalized phone
+      // 5. Find existing customer by normalized phone
       const existing = await prisma.customer.findUnique({
         where: { normalizedPhone },
         include: {
@@ -275,8 +330,14 @@ export async function importContactsFromCsv(
         if (stateRaw && state !== existing.state) {
           dataToUpdate.state = state;
         }
+        if (statusRaw && status !== existing.status) {
+          dataToUpdate.status = status;
+        }
         if (assignedStaffId !== null) {
           dataToUpdate.assignedStaffId = assignedStaffId;
+        }
+        if (groupId !== null && groupId !== existing.groupId) {
+          dataToUpdate.groupId = groupId;
         }
 
         // Find which tag IDs are not yet associated
@@ -314,6 +375,8 @@ export async function importContactsFromCsv(
             countryCode,
             notes: notes || null,
             state,
+            status,
+            groupId: groupId || null,
             assignedStaffId: assignedStaffId || null,
             ...(tagIds.length > 0
               ? {
@@ -374,12 +437,80 @@ export async function exportContactsToCsv(
     // Apply filters matching Customer filter rules
     if (filterParams.search) {
       const q = filterParams.search.trim();
-      where.OR = [
-        { normalizedPhone: { contains: q, mode: "insensitive" } },
+      const cleanDigits = q.replace(/\D/g, "");
+      const qUpper = q.toUpperCase();
+      const orConditions: Prisma.CustomerWhereInput[] = [
+        {
+          normalizedPhone: { contains: cleanDigits || q, mode: "insensitive" }
+        },
         { phoneNumber: { contains: q, mode: "insensitive" } },
         { customName: { contains: q, mode: "insensitive" } },
-        { whatsappName: { contains: q, mode: "insensitive" } }
+        { whatsappName: { contains: q, mode: "insensitive" } },
+        { about: { contains: q, mode: "insensitive" } },
+        { notes: { contains: q, mode: "insensitive" } },
+        { countryCode: { contains: q, mode: "insensitive" } },
+        {
+          tags: {
+            some: {
+              tag: {
+                name: { contains: q, mode: "insensitive" }
+              }
+            }
+          }
+        },
+        {
+          assignedStaff: {
+            name: { contains: q, mode: "insensitive" }
+          }
+        },
+        {
+          assignedStaff: {
+            email: { contains: q, mode: "insensitive" }
+          }
+        },
+        {
+          assignedStaff: {
+            phone: { contains: q, mode: "insensitive" }
+          }
+        },
+        {
+          group: {
+            name: { contains: q, mode: "insensitive" }
+          }
+        },
+        {
+          conversations: {
+            some: {
+              title: { contains: q, mode: "insensitive" }
+            }
+          }
+        },
+        {
+          messages: {
+            some: {
+              body: { contains: q, mode: "insensitive" }
+            }
+          }
+        }
       ];
+
+      if (qUpper === "HOT" || qUpper === "WARM" || qUpper === "COLD") {
+        orConditions.push({ status: qUpper as CustomerStatus });
+      }
+
+      if (
+        qUpper === "ACTIVE" ||
+        qUpper === "BLOCKED" ||
+        qUpper === "OPTED_OUT"
+      ) {
+        orConditions.push({ state: qUpper as CustomerState });
+      }
+
+      where.OR = orConditions;
+    }
+
+    if (filterParams.status && filterParams.status !== "all") {
+      where.status = filterParams.status;
     }
 
     if (
@@ -416,6 +547,17 @@ export async function exportContactsToCsv(
       };
     }
 
+    if (filterParams.groupId && filterParams.groupId !== "all") {
+      if (
+        filterParams.groupId === "none" ||
+        filterParams.groupId === "unassigned"
+      ) {
+        where.groupId = null;
+      } else {
+        where.groupId = filterParams.groupId;
+      }
+    }
+
     if (filterParams.dateRange && filterParams.dateRange !== "all") {
       const now = new Date();
       let fromDate: Date | null = null;
@@ -449,6 +591,7 @@ export async function exportContactsToCsv(
     where,
     orderBy: { createdAt: "desc" },
     include: {
+      group: { select: { name: true } },
       tags: { include: { tag: true } },
       assignedStaff: { select: { name: true, email: true } }
     }
@@ -474,11 +617,17 @@ export async function exportContactsToCsv(
         case "whatsappName":
           rowObj[headerTitle] = c.whatsappName || "";
           break;
+        case "group":
+          rowObj[headerTitle] = c.group?.name || "";
+          break;
         case "tags":
           rowObj[headerTitle] = c.tags.map((t) => t.tag.name).join(", ");
           break;
         case "state":
           rowObj[headerTitle] = c.state;
+          break;
+        case "status":
+          rowObj[headerTitle] = c.status;
           break;
         case "notes":
           rowObj[headerTitle] = c.notes || "";

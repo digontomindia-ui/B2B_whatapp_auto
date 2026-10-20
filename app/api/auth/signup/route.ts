@@ -1,3 +1,7 @@
+import { NextRequest, NextResponse } from "next/server";
+import { signUpSchema } from "@/lib/validation/auth";
+import prisma from "@/lib/prisma";
+import crypto from "node:crypto";
 import {
   hashPassword,
   generateAccessToken,
@@ -7,107 +11,112 @@ import {
   ACCESS_TOKEN_COOKIE_OPTIONS,
   REFRESH_TOKEN_COOKIE_OPTIONS
 } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
-import { signUpSchema } from "@/lib/validation/auth";
-import crypto from "node:crypto";
-import prisma from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const result = signUpSchema.safeParse(body);
+  return NextResponse.json(
+    {
+      error: true,
+      message: "Registration off",
+      data: null
+    },
+    { status: 400 }
+  );
 
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: true,
-          message: result.error.issues[0].message,
-          data: null
-        },
-        { status: 400 }
-      );
-    }
+  // try {
+  //   const body = await request.json();
+  //   const result = signUpSchema.safeParse(body);
 
-    const { email, name, password } = result.data;
+  //   if (!result.success) {
+  //     return NextResponse.json(
+  //       {
+  //         error: true,
+  //         message: result.error.issues[0].message,
+  //         data: null
+  //       },
+  //       { status: 400 }
+  //     );
+  //   }
 
-    const existingAdmin = await prisma.admin.findUnique({
-      where: { email },
-      select: { id: true }
-    });
+  //   const { email, name, password } = result.data;
 
-    if (existingAdmin) {
-      return NextResponse.json(
-        {
-          error: true,
-          message: "Admin already registered",
-          data: null
-        },
-        { status: 409 }
-      );
-    }
+  //   const existingAdmin = await prisma.admin.findUnique({
+  //     where: { email },
+  //     select: { id: true }
+  //   });
 
-    const passwordHash = await hashPassword(password);
-    const tokenId = crypto.randomUUID();
+  //   if (existingAdmin) {
+  //     return NextResponse.json(
+  //       {
+  //         error: true,
+  //         message: "Admin already registered",
+  //         data: null
+  //       },
+  //       { status: 409 }
+  //     );
+  //   }
 
-    const admin = await prisma.admin.create({
-      data: {
-        email,
-        name,
+  //   const passwordHash = await hashPassword(password);
+  //   const tokenId = crypto.randomUUID();
 
-        credential: {
-          create: {
-            passwordHash
-          }
-        },
+  //   const admin = await prisma.admin.create({
+  //     data: {
+  //       email,
+  //       name,
 
-        tokens: {
-          create: {
-            id: tokenId
-          }
-        }
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true
-      }
-    });
+  //       credential: {
+  //         create: {
+  //           passwordHash
+  //         }
+  //       },
 
-    const accessToken = generateAccessToken(admin.id);
-    const refreshToken = generateRefreshToken(admin.id, tokenId);
+  //       tokens: {
+  //         create: {
+  //           id: tokenId
+  //         }
+  //       }
+  //     },
+  //     select: {
+  //       id: true,
+  //       email: true,
+  //       name: true
+  //     }
+  //   });
 
-    const response = NextResponse.json(
-      {
-        error: false,
-        message: "Admin registered successfully",
-        data: admin
-      },
-      { status: 201 }
-    );
+  //   const accessToken = generateAccessToken(admin.id);
+  //   const refreshToken = generateRefreshToken(admin.id, tokenId);
 
-    response.cookies.set(
-      ACCESS_TOKEN_COOKIE_NAME,
-      accessToken,
-      ACCESS_TOKEN_COOKIE_OPTIONS
-    );
+  //   const response = NextResponse.json(
+  //     {
+  //       error: false,
+  //       message: "Admin registered successfully",
+  //       data: admin
+  //     },
+  //     { status: 201 }
+  //   );
 
-    response.cookies.set(
-      REFRESH_TOKEN_COOKIE_NAME,
-      refreshToken,
-      REFRESH_TOKEN_COOKIE_OPTIONS
-    );
+  //   response.cookies.set(
+  //     ACCESS_TOKEN_COOKIE_NAME,
+  //     accessToken,
+  //     ACCESS_TOKEN_COOKIE_OPTIONS
+  //   );
 
-    return response;
-  } catch (error) {
-    console.error("Sign up error:", error);
+  //   response.cookies.set(
+  //     REFRESH_TOKEN_COOKIE_NAME,
+  //     refreshToken,
+  //     REFRESH_TOKEN_COOKIE_OPTIONS
+  //   );
 
-    return NextResponse.json(
-      {
-        error: true,
-        message: "Internal server error",
-        data: null
-      },
-      { status: 500 }
-    );
-  }
+  //   return response;
+  // } catch (error) {
+  //   console.error("Sign up error:", error);
+
+  //   return NextResponse.json(
+  //     {
+  //       error: true,
+  //       message: "Internal server error",
+  //       data: null
+  //     },
+  //     { status: 500 }
+  //   );
+  // }
 }

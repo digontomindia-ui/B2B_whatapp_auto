@@ -91,30 +91,40 @@ enum CustomerState {
   OPTED_OUT
 }
 
+enum CustomerStatus {
+  HOT
+  WARM
+  COLD
+}
+
 model Customer {
-  id                String        @id @default(uuid())
+  id                String         @id @default(uuid())
   phoneNumber       String
-  normalizedPhone   String        @unique
+  normalizedPhone   String         @unique
   whatsappName      String?
   customName        String?
   profilePicUrl     String?
   about             String?
   countryCode       String?
-  state             CustomerState @default(ACTIVE)
-  unreadCount       Int           @default(0)
+  state             CustomerState  @default(ACTIVE)
+  status            CustomerStatus @default(COLD)
+  unreadCount       Int            @default(0)
   lastInteractionAt DateTime?
   lastInboundAt     DateTime?
   lastOutboundAt    DateTime?
-  notes             String?       @db.Text
+  notes             String?        @db.Text
   metadata          Json?
 
   assignedStaffId   String?
-  assignedStaff     Staff?        @relation("StaffAssignedCustomers", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  assignedStaff     Staff?         @relation("StaffAssignedCustomers", fields: [assignedStaffId], references: [id], onDelete: SetNull)
 
-  tags           CustomerTag[]
-  conversations  Conversation[]
-  messages       Message[]
-  bulkRecipients BulkMessageRecipient[]
+  groupId            String?
+  group              Group?                @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  tags               CustomerTag[]
+  conversations      Conversation[]
+  messages           Message[]
+  bulkRecipients     BulkMessageRecipient[]
   workflowExecutions WorkflowExecution[]
 
   createdAt DateTime @default(now())
@@ -123,9 +133,11 @@ model Customer {
   @@index([lastInteractionAt])
   @@index([createdAt])
   @@index([state])
+  @@index([status])
   @@index([customName])
   @@index([whatsappName])
   @@index([assignedStaffId])
+  @@index([groupId])
   @@map("customers")
 }
 
@@ -154,6 +166,19 @@ model CustomerTag {
   @@index([customerId])
   @@index([tagId])
   @@map("customer_tags")
+}
+
+model Group {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  color       String     @default("#f6821f")
+  customers   Customer[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("customer_groups")
 }
 
 // -------------------------------------------------------------

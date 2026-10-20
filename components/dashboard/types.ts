@@ -1,5 +1,6 @@
 import type {
   CustomerState,
+  CustomerStatus,
   MessageDirection,
   MessageStatus,
   MessageType,
@@ -16,12 +17,19 @@ export interface DashboardCustomer {
   profilePicUrl: string | null;
   countryCode: string | null;
   state: CustomerState;
+  status: CustomerStatus;
   unreadCount: number;
   lastInteractionAt: string | null;
   lastInboundAt: string | null;
   lastOutboundAt: string | null;
   notes: string | null;
   assignedStaffId?: string | null;
+  groupId?: string | null;
+  group?: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
   tags?: Array<{
@@ -137,4 +145,16 @@ export interface DashboardPagination {
 export interface CustomersListResponse {
   customers: DashboardCustomer[];
   pagination: DashboardPagination;
+}
+
+export interface DashboardGroup {
+  id: string;
+  name: string;
+  color: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    customers: number;
+  };
 }

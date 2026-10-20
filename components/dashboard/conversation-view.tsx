@@ -17,7 +17,11 @@ import {
   RefreshCw,
   CheckCheck,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Flame,
+  Sun,
+  Snowflake,
+  Building2
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { formatDisplayPhone } from "@/utils/phone";
@@ -191,6 +195,22 @@ export function ConversationView({
                 {displayName}
               </span>
 
+              {customer.status === "HOT" && (
+                <span className="py-0.2 inline-flex items-center gap-1 rounded border border-rose-500/25 bg-rose-500/15 px-1.5 text-[10px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
+                  <Flame className="size-2.5 fill-rose-500 text-rose-500" /> Hot
+                </span>
+              )}
+              {customer.status === "WARM" && (
+                <span className="py-0.2 inline-flex items-center gap-1 rounded border border-amber-500/25 bg-amber-500/15 px-1.5 text-[10px] font-bold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+                  <Sun className="size-2.5 text-amber-500" /> Warm
+                </span>
+              )}
+              {customer.status === "COLD" && (
+                <span className="py-0.2 inline-flex items-center gap-1 rounded border border-sky-500/25 bg-sky-500/15 px-1.5 text-[10px] font-bold tracking-wider text-sky-600 uppercase dark:text-sky-400">
+                  <Snowflake className="size-2.5 text-sky-500" /> Cold
+                </span>
+              )}
+
               {customer.state === "BLOCKED" && (
                 <span className="py-0.2 inline-flex items-center gap-1 rounded bg-red-100 px-1.5 text-[10px] font-semibold text-red-600 dark:bg-red-950/50 dark:text-red-400">
                   <Ban className="size-2.5" /> Blocked
@@ -199,6 +219,20 @@ export function ConversationView({
               {customer.state === "OPTED_OUT" && (
                 <span className="py-0.2 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
                   <Slash className="size-2.5" /> Opted out
+                </span>
+              )}
+
+              {customer.group && (
+                <span
+                  className="py-0.2 inline-flex items-center gap-1 rounded border px-1.5 text-[10px] font-semibold"
+                  style={{
+                    borderColor: `${customer.group.color || "#f6821f"}40`,
+                    backgroundColor: `${customer.group.color || "#f6821f"}15`,
+                    color: customer.group.color || "#f6821f"
+                  }}
+                  title={`Group: ${customer.group.name}`}
+                >
+                  <Building2 className="size-2.5" /> {customer.group.name}
                 </span>
               )}
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { DashboardCustomer } from "./types";
+import type { DashboardCustomer, DashboardGroup } from "./types";
 import {
   X,
   User,
@@ -11,11 +11,16 @@ import {
   Loader2,
   Calendar,
   Plus,
-  Lock
+  Lock,
+  Flame,
+  Sun,
+  Snowflake,
+  Building2
 } from "lucide-react";
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { formatDisplayPhone } from "@/utils/phone";
-import { CustomerState } from "@prisma/client";
+import { CustomerState, CustomerStatus } from "@prisma/client";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -31,6 +36,8 @@ interface CustomerDetailsSheetProps {
       profilePicUrl?: string | null;
       notes?: string | null;
       state?: CustomerState;
+      status?: CustomerStatus;
+      groupId?: string | null;
       tags?: string[];
     }
   ) => Promise<void>;
@@ -44,6 +51,23 @@ export function CustomerDetailsSheet({
 }: CustomerDetailsSheetProps) {
   const { hasPermission, isOwner } = useAuth();
   const canEdit = isOwner || hasPermission(PERMISSIONS.CUSTOMER_EDIT);
+  const canManageGroup =
+    isOwner ||
+    hasPermission(PERMISSIONS.GROUP_MANAGE) ||
+    hasPermission(PERMISSIONS.CUSTOMER_EDIT);
+
+  const { data: groupsData } = useQuery<{
+    error: boolean;
+    data: DashboardGroup[];
+  }>({
+    queryKey: ["groups"],
+    queryFn: async () => {
+      const res = await fetch("/api/groups");
+      return res.json();
+    },
+    enabled: isOpen
+  });
+  const groups = groupsData?.data || [];
 
   const [customName, setCustomName] = useState(customer?.customName || "");
   const [profilePicUrl, setProfilePicUrl] = useState(
@@ -52,6 +76,12 @@ export function CustomerDetailsSheet({
   const [notes, setNotes] = useState(customer?.notes || "");
   const [state, setState] = useState<CustomerState>(
     customer?.state || CustomerState.ACTIVE
+  );
+  const [status, setStatus] = useState<CustomerStatus>(
+    customer?.status || CustomerStatus.COLD
+  );
+  const [groupId, setGroupId] = useState<string | null>(
+    customer?.groupId || null
   );
   const [tags, setTags] = useState<string[]>(
     customer?.tags?.map((t) => t.tag.name) || []
@@ -70,6 +100,8 @@ export function CustomerDetailsSheet({
     setProfilePicUrl(customer.profilePicUrl || "");
     setNotes(customer.notes || "");
     setState(customer.state);
+    setStatus(customer.status || CustomerStatus.COLD);
+    setGroupId(customer.groupId || null);
     setTags(customer.tags?.map((t) => t.tag.name) || []);
   }
 
@@ -87,6 +119,8 @@ export function CustomerDetailsSheet({
         profilePicUrl: profilePicUrl.trim() || null,
         notes: notes.trim() || null,
         state,
+        status,
+        groupId: groupId || null,
         tags
       });
       toast.success("Customer details updated");
@@ -218,6 +252,55 @@ export function CustomerDetailsSheet({
           />
         </div>
 
+        {/* Lead Status (Hot, Warm, Cold) */}
+        <div className="space-y-1.5">
+          <label className="text-foreground flex items-center gap-1.5 font-semibold">
+            <Flame className="size-3.5 text-rose-500" />
+            Lead Status
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={!canEdit}
+              onClick={() => setStatus("HOT")}
+              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
+                status === "HOT"
+                  ? "border-rose-500 bg-rose-500/15 font-bold text-rose-600 shadow-2xs dark:text-rose-400"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted"
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              <Flame className="size-3.5 fill-rose-500 text-rose-500" />
+              Hot
+            </button>
+            <button
+              type="button"
+              disabled={!canEdit}
+              onClick={() => setStatus("WARM")}
+              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
+                status === "WARM"
+                  ? "border-amber-500 bg-amber-500/15 font-bold text-amber-600 shadow-2xs dark:text-amber-400"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted"
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              <Sun className="size-3.5 text-amber-500" />
+              Warm
+            </button>
+            <button
+              type="button"
+              disabled={!canEdit}
+              onClick={() => setStatus("COLD")}
+              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
+                status === "COLD"
+                  ? "border-sky-500 bg-sky-500/15 font-bold text-sky-600 shadow-2xs dark:text-sky-400"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted"
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              <Snowflake className="size-3.5 text-sky-500" />
+              Cold
+            </button>
+          </div>
+        </div>
+
         {/* Communication State */}
         <div className="space-y-1.5">
           <label className="text-foreground flex items-center gap-1.5 font-semibold">
@@ -235,6 +318,42 @@ export function CustomerDetailsSheet({
             <option value="OPTED_OUT">
               OPTED_OUT (Customer requested stop)
             </option>
+          </select>
+        </div>
+
+        {/* Group (e.g. School Name) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-foreground flex items-center gap-1.5 font-semibold">
+              <Building2 className="text-cf-orange size-3.5" />
+              Group / School
+            </label>
+            {groupId && canManageGroup && (
+              <button
+                type="button"
+                onClick={() => setGroupId(null)}
+                className="text-muted-foreground cursor-pointer text-[11px] hover:text-red-500"
+              >
+                Clear Group
+              </button>
+            )}
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            A customer belongs to one group. Used for group broadcasts (e.g.
+            DPS).
+          </p>
+          <select
+            disabled={!canManageGroup}
+            value={groupId || ""}
+            onChange={(e) => setGroupId(e.target.value || null)}
+            className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">-- No Group Assigned --</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
           </select>
         </div>
 

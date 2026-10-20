@@ -15,18 +15,28 @@ export async function GET(request: NextRequest) {
       where.assignedStaffId = actor.id;
     }
 
-    const [total, active, blocked, optedOut] = await Promise.all([
-      prisma.customer.count({ where }),
-      prisma.customer.count({
-        where: { ...where, state: CustomerState.ACTIVE }
-      }),
-      prisma.customer.count({
-        where: { ...where, state: CustomerState.BLOCKED }
-      }),
-      prisma.customer.count({
-        where: { ...where, state: CustomerState.OPTED_OUT }
-      })
-    ]);
+    const [total, active, blocked, optedOut, hot, warm, cold] =
+      await Promise.all([
+        prisma.customer.count({ where }),
+        prisma.customer.count({
+          where: { ...where, state: CustomerState.ACTIVE }
+        }),
+        prisma.customer.count({
+          where: { ...where, state: CustomerState.BLOCKED }
+        }),
+        prisma.customer.count({
+          where: { ...where, state: CustomerState.OPTED_OUT }
+        }),
+        prisma.customer.count({
+          where: { ...where, status: "HOT" }
+        }),
+        prisma.customer.count({
+          where: { ...where, status: "WARM" }
+        }),
+        prisma.customer.count({
+          where: { ...where, status: "COLD" }
+        })
+      ]);
 
     return NextResponse.json({
       error: false,
@@ -36,6 +46,9 @@ export async function GET(request: NextRequest) {
         active,
         blocked,
         optedOut,
+        hot,
+        warm,
+        cold,
         scopedToStaff: isStaffScoped,
         staffName: isStaffScoped ? actor.name : null
       }

@@ -204,12 +204,59 @@ export async function getStaffAssignedCustomers(
 
   if (search.trim()) {
     const q = search.trim();
-    where.OR = [
+    const cleanDigits = q.replace(/\D/g, "");
+    const qUpper = q.toUpperCase();
+    const orConditions: Record<string, unknown>[] = [
       { customName: { contains: q, mode: "insensitive" } },
       { whatsappName: { contains: q, mode: "insensitive" } },
-      { phoneNumber: { contains: q } },
-      { normalizedPhone: { contains: q } }
+      { phoneNumber: { contains: q, mode: "insensitive" } },
+      { normalizedPhone: { contains: cleanDigits || q, mode: "insensitive" } },
+      { about: { contains: q, mode: "insensitive" } },
+      { notes: { contains: q, mode: "insensitive" } },
+      { countryCode: { contains: q, mode: "insensitive" } },
+      {
+        tags: {
+          some: {
+            tag: {
+              name: { contains: q, mode: "insensitive" }
+            }
+          }
+        }
+      },
+      {
+        groupMemberships: {
+          some: {
+            group: {
+              name: { contains: q, mode: "insensitive" }
+            }
+          }
+        }
+      },
+      {
+        conversations: {
+          some: {
+            title: { contains: q, mode: "insensitive" }
+          }
+        }
+      },
+      {
+        messages: {
+          some: {
+            body: { contains: q, mode: "insensitive" }
+          }
+        }
+      }
     ];
+
+    if (qUpper === "HOT" || qUpper === "WARM" || qUpper === "COLD") {
+      orConditions.push({ status: qUpper });
+    }
+
+    if (qUpper === "ACTIVE" || qUpper === "BLOCKED" || qUpper === "OPTED_OUT") {
+      orConditions.push({ state: qUpper });
+    }
+
+    where.OR = orConditions;
   }
 
   const [total, customers] = await Promise.all([

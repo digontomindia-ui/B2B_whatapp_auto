@@ -1,8 +1,19 @@
 "use client";
 
-import { UserPlus, Loader2, X } from "lucide-react";
+import {
+  UserPlus,
+  Loader2,
+  X,
+  Flame,
+  Sun,
+  Snowflake,
+  Building2
+} from "lucide-react";
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { CustomerStatus } from "@prisma/client";
 import { toast } from "sonner";
+import type { DashboardGroup } from "./types";
 
 interface CreateCustomerDialogProps {
   isOpen: boolean;
@@ -23,7 +34,22 @@ export function CreateCustomerDialog({
   const [profilePicUrl, setProfilePicUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [status, setStatus] = useState<CustomerStatus>("COLD");
+  const [groupId, setGroupId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const { data: groupsData } = useQuery<{
+    error: boolean;
+    data: DashboardGroup[];
+  }>({
+    queryKey: ["groups"],
+    queryFn: async () => {
+      const res = await fetch("/api/groups");
+      return res.json();
+    },
+    enabled: isOpen
+  });
+  const groups = groupsData?.data || [];
 
   if (!isOpen) return null;
 
@@ -49,6 +75,8 @@ export function CreateCustomerDialog({
           customName: customName.trim() || undefined,
           profilePicUrl: profilePicUrl.trim() || undefined,
           notes: notes.trim() || undefined,
+          status,
+          groupId: groupId.trim() || undefined,
           tags
         })
       });
@@ -63,8 +91,11 @@ export function CreateCustomerDialog({
       onClose();
       setPhone("");
       setCustomName("");
+      setProfilePicUrl("");
       setNotes("");
       setTagsInput("");
+      setStatus("COLD");
+      setGroupId("");
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to create customer";
@@ -146,6 +177,70 @@ export function CreateCustomerDialog({
               placeholder="VIP, Delhi, Admissions"
               className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="text-foreground flex items-center gap-1.5 font-semibold">
+              <Building2 className="text-cf-orange size-3.5" />
+              Group (e.g. School Name)
+            </label>
+            <select
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="border-border bg-background text-foreground focus:ring-cf-orange mt-1 w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+            >
+              <option value="">-- No Group (Unassigned) --</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-foreground flex items-center gap-1 font-semibold">
+              <Flame className="size-3.5 text-rose-500" />
+              Lead Status
+            </label>
+            <div className="mt-1 grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setStatus("HOT")}
+                className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-1.5 text-xs font-semibold transition-colors ${
+                  status === "HOT"
+                    ? "border-rose-500 bg-rose-500/15 font-bold text-rose-600 shadow-2xs dark:text-rose-400"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Flame className="size-3 fill-rose-500 text-rose-500" />
+                Hot
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus("WARM")}
+                className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-1.5 text-xs font-semibold transition-colors ${
+                  status === "WARM"
+                    ? "border-amber-500 bg-amber-500/15 font-bold text-amber-600 shadow-2xs dark:text-amber-400"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Sun className="size-3 text-amber-500" />
+                Warm
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus("COLD")}
+                className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-1.5 text-xs font-semibold transition-colors ${
+                  status === "COLD"
+                    ? "border-sky-500 bg-sky-500/15 font-bold text-sky-600 shadow-2xs dark:text-sky-400"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Snowflake className="size-3 text-sky-500" />
+                Cold
+              </button>
+            </div>
           </div>
 
           <div>

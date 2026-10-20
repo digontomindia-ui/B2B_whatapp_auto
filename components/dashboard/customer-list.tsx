@@ -13,7 +13,11 @@ import {
   Image as ImageIcon,
   Video,
   Music,
-  Loader2
+  Loader2,
+  Flame,
+  Sun,
+  Snowflake,
+  Building2
 } from "lucide-react";
 import React from "react";
 import { useInView } from "react-intersection-observer";
@@ -228,10 +232,44 @@ export function CustomerList({
                 {/* Main info */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-foreground truncate text-sm font-semibold">
-                      {displayName}
-                    </span>
-                    <span className="text-muted-foreground text-[11px] whitespace-nowrap">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="text-foreground truncate text-sm font-semibold">
+                        {displayName}
+                      </span>
+                      {cust.status === "HOT" && (
+                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-rose-500/25 bg-rose-500/15 px-1 text-[9px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
+                          <Flame className="size-2.5 fill-rose-500 text-rose-500" />
+                          Hot
+                        </span>
+                      )}
+                      {cust.status === "WARM" && (
+                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-amber-500/25 bg-amber-500/15 px-1 text-[9px] font-bold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+                          <Sun className="size-2.5 text-amber-500" />
+                          Warm
+                        </span>
+                      )}
+                      {cust.status === "COLD" && (
+                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/25 bg-sky-500/15 px-1 text-[9px] font-bold tracking-wider text-sky-600 uppercase dark:text-sky-400">
+                          <Snowflake className="size-2.5 text-sky-500" />
+                          Cold
+                        </span>
+                      )}
+                      {cust.group && (
+                        <span
+                          className="py-0.2 inline-flex max-w-[100px] shrink-0 items-center gap-1 truncate rounded border px-1.5 text-[9px] font-semibold tracking-wide"
+                          style={{
+                            borderColor: `${cust.group.color || "#f6821f"}40`,
+                            backgroundColor: `${cust.group.color || "#f6821f"}15`,
+                            color: cust.group.color || "#f6821f"
+                          }}
+                          title={`Group: ${cust.group.name}`}
+                        >
+                          <Building2 className="size-2.5 shrink-0" />
+                          <span className="truncate">{cust.group.name}</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground shrink-0 text-[11px] whitespace-nowrap">
                       {relativeTime}
                     </span>
                   </div>

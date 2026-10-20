@@ -13,6 +13,8 @@ const exportSchema = z.object({
   filterParams: z
     .object({
       search: z.string().optional(),
+      status: z.string().optional(),
+      groupId: z.string().optional(),
       dateRange: z.string().optional(),
       communicationState: z.string().optional(),
       tag: z.string().optional()

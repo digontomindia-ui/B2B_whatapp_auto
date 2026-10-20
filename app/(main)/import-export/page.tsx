@@ -13,7 +13,10 @@ import {
   Square,
   Database,
   Users,
-  Loader2
+  Loader2,
+  Flame,
+  Sun,
+  Snowflake
 } from "lucide-react";
 import React, { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,7 +62,14 @@ export default function ImportExportPage() {
   // EXPORT STATE
   // -------------------------------------------------------------
   const [exportScope, setExportScope] = useState<
-    "selected" | "all" | "active" | "blocked" | "opted_out"
+    | "selected"
+    | "all"
+    | "active"
+    | "blocked"
+    | "opted_out"
+    | "hot"
+    | "warm"
+    | "cold"
   >("all");
   const [selectedExportCustomerIds, setSelectedExportCustomerIds] = useState<
     Set<string>
@@ -310,7 +320,7 @@ export default function ImportExportPage() {
       );
       const payload: {
         customerIds?: string[];
-        filterParams?: { communicationState?: string };
+        filterParams?: { communicationState?: string; status?: string };
         columns: string[];
       } = {
         columns: activeKeys
@@ -318,6 +328,12 @@ export default function ImportExportPage() {
 
       if (exportScope === "selected" || selectedExportCustomerIds.size > 0) {
         payload.customerIds = Array.from(selectedExportCustomerIds);
+      } else if (
+        exportScope === "hot" ||
+        exportScope === "warm" ||
+        exportScope === "cold"
+      ) {
+        payload.filterParams = { status: exportScope.toUpperCase() };
       } else if (exportScope !== "all") {
         payload.filterParams = { communicationState: exportScope };
       }
@@ -1027,6 +1043,45 @@ export default function ImportExportPage() {
                     <AlertCircle className="mb-1 size-4 text-amber-500" />
                     <span>Opted Out</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportScope("hot")}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border p-3 transition-colors ${
+                      exportScope === "hot"
+                        ? "border-rose-500 bg-rose-500/10 font-bold text-rose-600 dark:text-rose-400"
+                        : "border-border bg-background text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Flame className="mb-1 size-4 fill-rose-500 text-rose-500" />
+                    <span>Hot Leads</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportScope("warm")}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border p-3 transition-colors ${
+                      exportScope === "warm"
+                        ? "border-amber-500 bg-amber-500/10 font-bold text-amber-600 dark:text-amber-400"
+                        : "border-border bg-background text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Sun className="mb-1 size-4 text-amber-500" />
+                    <span>Warm Leads</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setExportScope("cold")}
+                    className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border p-3 transition-colors ${
+                      exportScope === "cold"
+                        ? "border-sky-500 bg-sky-500/10 font-bold text-sky-600 dark:text-sky-400"
+                        : "border-border bg-background text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <Snowflake className="mb-1 size-4 text-sky-500" />
+                    <span>Cold Leads</span>
+                  </button>
                 </div>
               </div>
 
@@ -1195,18 +1250,33 @@ export default function ImportExportPage() {
                               <td className="text-muted-foreground p-2">
                                 {c.whatsappName || "—"}
                               </td>
-                              <td className="p-2">
-                                <span
-                                  className={`py-0.2 rounded-full px-2 text-[10px] font-semibold ${
-                                    c.state === "ACTIVE"
-                                      ? "bg-emerald-500/10 text-emerald-600"
-                                      : c.state === "BLOCKED"
-                                        ? "bg-red-500/10 text-red-600"
-                                        : "bg-amber-500/10 text-amber-600"
-                                  }`}
-                                >
-                                  {c.state}
-                                </span>
+                              <td className="space-y-1 p-2">
+                                <div>
+                                  <span
+                                    className={`py-0.2 rounded-full px-2 text-[10px] font-semibold ${
+                                      c.state === "ACTIVE"
+                                        ? "bg-emerald-500/10 text-emerald-600"
+                                        : c.state === "BLOCKED"
+                                          ? "bg-red-500/10 text-red-600"
+                                          : "bg-amber-500/10 text-amber-600"
+                                    }`}
+                                  >
+                                    {c.state}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span
+                                    className={`py-0.2 inline-flex items-center gap-0.5 rounded px-1.5 text-[9px] font-bold tracking-wider uppercase ${
+                                      c.status === "HOT"
+                                        ? "border border-rose-500/25 bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                                        : c.status === "WARM"
+                                          ? "border border-amber-500/25 bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                          : "border border-sky-500/25 bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                                    }`}
+                                  >
+                                    {c.status || "COLD"}
+                                  </span>
+                                </div>
                               </td>
                               <td className="text-muted-foreground max-w-[120px] truncate p-2">
                                 {c.tags?.map((t) => t.tag.name).join(", ") ||
