@@ -7,7 +7,8 @@ import {
   FileSpreadsheet,
   ShieldCheck,
   GitFork,
-  Wallet
+  Wallet,
+  FolderKanban
 } from "lucide-react";
 import { ToggleTheme } from "@/components/theme-toggle";
 import { usePathname } from "next/navigation";
@@ -54,6 +55,17 @@ export function Sidebar() {
           PERMISSIONS.BULK_MESSAGE_SEND,
           PERMISSIONS.BULK_UTILITY_SEND,
           PERMISSIONS.BULK_MARKETING_SEND
+        ])
+    },
+    {
+      label: "Groups",
+      href: "/groups",
+      icon: FolderKanban,
+      visible:
+        isOwner ||
+        hasAnyPermission([
+          PERMISSIONS.GROUP_MANAGE,
+          PERMISSIONS.CUSTOMER_VIEW
         ])
     },
     {

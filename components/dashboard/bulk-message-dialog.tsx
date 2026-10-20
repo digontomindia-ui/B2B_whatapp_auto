@@ -101,7 +101,10 @@ export function BulkMessageDialog({
     enabled: isOpen
   });
 
-  const groups: DashboardGroup[] = groupsData?.data || [];
+  const groups: DashboardGroup[] = useMemo(
+    () => groupsData?.data || [],
+    [groupsData?.data]
+  );
 
   const filteredGroups = useMemo(() => {
     if (!groupSearch.trim()) return groups;
@@ -445,7 +448,7 @@ export function BulkMessageDialog({
                               }`}
                             >
                               {isChecked && (
-                                <Check className="size-2.5 stroke-[3]" />
+                                <Check className="size-2.5 stroke-3" />
                               )}
                             </button>
                             <span className="text-foreground truncate text-xs font-medium">
@@ -564,7 +567,7 @@ export function BulkMessageDialog({
                               }`}
                             >
                               {isChecked && (
-                                <Check className="size-2.5 stroke-[3]" />
+                                <Check className="size-2.5 stroke-3" />
                               )}
                             </button>
                             <span

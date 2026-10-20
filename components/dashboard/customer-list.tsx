@@ -1,6 +1,9 @@
 "use client";
 
+import { useInView } from "react-intersection-observer";
+import { formatDisplayPhone } from "@/utils/phone";
 import type { DashboardCustomer } from "./types";
+import React from "react";
 import {
   Check,
   CheckCheck,
@@ -10,7 +13,7 @@ import {
   Slash,
   MessageSquare,
   FileText,
-  Image as ImageIcon,
+  ImageIcon,
   Video,
   Music,
   Loader2,
@@ -19,9 +22,6 @@ import {
   Snowflake,
   Building2
 } from "lucide-react";
-import React from "react";
-import { useInView } from "react-intersection-observer";
-import { formatDisplayPhone } from "@/utils/phone";
 
 interface CustomerListProps {
   customers: DashboardCustomer[];
@@ -114,7 +114,7 @@ export function CustomerList({
             title="Select all visible contacts"
           >
             {isAllVisibleSelected ? (
-              <Check className="size-3 stroke-[3]" />
+              <Check className="size-3 stroke-3" />
             ) : selectedIds.size > 0 ? (
               <span className="bg-cf-orange size-1.5 rounded-xs" />
             ) : null}
@@ -193,12 +193,12 @@ export function CustomerList({
                         : "border-border hover:border-foreground/50 bg-background"
                     }`}
                   >
-                    {isChecked && <Check className="size-3 stroke-[3]" />}
+                    {isChecked && <Check className="size-3 stroke-3" />}
                   </button>
                 </div>
 
                 {/* Avatar with fallback initials */}
-                <div className="relative flex-shrink-0">
+                <div className="relative shrink-0">
                   {cust.profilePicUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -231,47 +231,80 @@ export function CustomerList({
 
                 {/* Main info */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="text-foreground truncate text-sm font-semibold">
-                        {displayName}
-                      </span>
-                      {cust.status === "HOT" && (
-                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-rose-500/25 bg-rose-500/15 px-1 text-[9px] font-bold tracking-wider text-rose-600 uppercase dark:text-rose-400">
-                          <Flame className="size-2.5 fill-rose-500 text-rose-500" />
-                          Hot
-                        </span>
-                      )}
-                      {cust.status === "WARM" && (
-                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-amber-500/25 bg-amber-500/15 px-1 text-[9px] font-bold tracking-wider text-amber-600 uppercase dark:text-amber-400">
-                          <Sun className="size-2.5 text-amber-500" />
-                          Warm
-                        </span>
-                      )}
-                      {cust.status === "COLD" && (
-                        <span className="py-0.2 inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/25 bg-sky-500/15 px-1 text-[9px] font-bold tracking-wider text-sky-600 uppercase dark:text-sky-400">
-                          <Snowflake className="size-2.5 text-sky-500" />
-                          Cold
-                        </span>
-                      )}
-                      {cust.group && (
-                        <span
-                          className="py-0.2 inline-flex max-w-[100px] shrink-0 items-center gap-1 truncate rounded border px-1.5 text-[9px] font-semibold tracking-wide"
-                          style={{
-                            borderColor: `${cust.group.color || "#f6821f"}40`,
-                            backgroundColor: `${cust.group.color || "#f6821f"}15`,
-                            color: cust.group.color || "#f6821f"
-                          }}
-                          title={`Group: ${cust.group.name}`}
-                        >
-                          <Building2 className="size-2.5 shrink-0" />
-                          <span className="truncate">{cust.group.name}</span>
-                        </span>
-                      )}
-                    </div>
+                  {/* Name and timestamp */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-foreground min-w-0 truncate text-sm font-semibold">
+                      {displayName}
+                    </span>
+
                     <span className="text-muted-foreground shrink-0 text-[11px] whitespace-nowrap">
                       {relativeTime}
                     </span>
+                  </div>
+
+                  {/* Status, group and tags — one line */}
+                  <div className="mt-1 flex min-w-0 items-center gap-1 overflow-hidden">
+                    {cust.status && (
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold ${
+                          cust.status === "HOT"
+                            ? "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                            : cust.status === "WARM"
+                              ? "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              : cust.status === "COLD"
+                                ? "border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                                : "hidden"
+                        }`}
+                      >
+                        {cust.status === "HOT" && (
+                          <Flame className="size-2.5 fill-rose-500 text-rose-500" />
+                        )}
+                        {cust.status === "WARM" && (
+                          <Sun className="size-2.5 text-amber-500" />
+                        )}
+                        {cust.status === "COLD" && (
+                          <Snowflake className="size-2.5 text-sky-500" />
+                        )}
+                        {cust.status}
+                      </span>
+                    )}
+
+                    {cust.group && (
+                      <span
+                        className="inline-flex max-w-22.5 shrink-0 items-center gap-1 truncate rounded border px-1.5 py-0.5 text-[9px] font-medium"
+                        style={{
+                          borderColor: `${cust.group.color || "#f6821f"}40`,
+                          backgroundColor: `${cust.group.color || "#f6821f"}15`,
+                          color: cust.group.color || "#f6821f"
+                        }}
+                        title={`Group: ${cust.group.name}`}
+                      >
+                        <Building2 className="size-2.5 shrink-0" />
+                        <span className="truncate">{cust.group.name}</span>
+                      </span>
+                    )}
+
+                    {cust.tags?.slice(0, 2).map(({ tag }) => (
+                      <span
+                        key={tag.id}
+                        title={tag.name}
+                        className="bg-muted text-muted-foreground border-border/80 max-w-19 shrink-0 truncate rounded border px-1.5 py-0.5 text-[9px] font-medium"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+
+                    {cust.tags && cust.tags.length > 2 && (
+                      <span
+                        className="text-muted-foreground shrink-0 text-[10px]"
+                        title={cust.tags
+                          .slice(2)
+                          .map(({ tag }) => tag.name)
+                          .join(", ")}
+                      >
+                        +{cust.tags.length - 2}
+                      </span>
+                    )}
                   </div>
 
                   {/* Subtitle phone / WhatsApp profile */}

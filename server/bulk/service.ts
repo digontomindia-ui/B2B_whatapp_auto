@@ -113,7 +113,11 @@ export async function createBulkMessageJob({
           : undefined,
         createdByAdminId: createdByAdminId || adminId || null,
         totalRecipients: total,
-        queuedCount: total
+        queuedCount: total,
+        rawMetadata: {
+          targetMode,
+          groupIds: groupIds || []
+        }
       }
     });
 

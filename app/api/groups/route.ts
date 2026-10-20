@@ -30,10 +30,52 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Count broadcasts targeting each group
+    const allBulkJobs = await prisma.bulkMessageJob.findMany({
+      select: {
+        id: true,
+        createdAt: true,
+        rawMetadata: true,
+        recipients: {
+          select: {
+            customer: {
+              select: { groupId: true }
+            }
+          }
+        }
+      }
+    });
+
+    const enrichedGroups = groups.map((g) => {
+      const matchingJobs = allBulkJobs.filter((job) => {
+        const meta = job.rawMetadata as Record<string, unknown> | null;
+        if (Array.isArray(meta?.groupIds) && meta.groupIds.includes(g.id)) {
+          return true;
+        }
+        return job.recipients.some((r) => r.customer?.groupId === g.id);
+      });
+
+      const lastJob = matchingJobs.reduce((latest, j) => {
+        return !latest || j.createdAt > latest.createdAt ? j : latest;
+      }, null as (typeof allBulkJobs)[0] | null);
+
+      return {
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        color: g.color,
+        createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
+        customerCount: g._count.customers,
+        broadcastCount: matchingJobs.length,
+        lastBroadcastAt: lastJob?.createdAt || null
+      };
+    });
+
     return NextResponse.json({
       error: false,
       message: "Groups fetched successfully",
-      data: groups
+      data: enrichedGroups
     });
   } catch (err: unknown) {
     const isRbac =

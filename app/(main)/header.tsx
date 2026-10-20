@@ -53,6 +53,12 @@ export function Header() {
   } else if (pathname.startsWith("/funds")) {
     section = "Funds & Billing";
     sectionHref = "/funds";
+  } else if (pathname.startsWith("/groups")) {
+    section = "Customer Groups";
+    sectionHref = "/groups";
+    if (pathname !== "/groups") {
+      subSection = "Group Details";
+    }
   }
 
   // Fetch live funds for the header pill

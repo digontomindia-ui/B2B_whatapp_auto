@@ -465,6 +465,10 @@ export class WhatsAppClient {
       account_review_status?: string;
       is_enabled_for_insights?: boolean;
       extended_credits?: unknown;
+      owner_business_info?: {
+        id?: string;
+        name?: string;
+      };
     };
     error?: string;
   }> {
@@ -481,9 +485,13 @@ export class WhatsAppClient {
       account_review_status?: string;
       is_enabled_for_insights?: boolean;
       extended_credits?: unknown;
+      owner_business_info?: {
+        id?: string;
+        name?: string;
+      };
       error?: unknown;
     }>(
-      `${accountId}?fields=id,name,currency,timezone_id,account_review_status,is_enabled_for_insights,extended_credits`,
+      `${accountId}?fields=id,name,currency,timezone_id,account_review_status,is_enabled_for_insights,owner_business_info,extended_credits`,
       { method: "GET" }
     );
 

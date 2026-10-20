@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { signUpSchema } from "@/lib/validation/auth";
-import prisma from "@/lib/prisma";
-import crypto from "node:crypto";
-import {
-  hashPassword,
-  generateAccessToken,
-  generateRefreshToken,
-  ACCESS_TOKEN_COOKIE_NAME,
-  REFRESH_TOKEN_COOKIE_NAME,
-  ACCESS_TOKEN_COOKIE_OPTIONS,
-  REFRESH_TOKEN_COOKIE_OPTIONS
-} from "@/lib/auth";
+import { /*  NextRequest,  */ NextResponse } from "next/server";
+// import { signUpSchema } from "@/lib/validation/auth";
+// import prisma from "@/lib/prisma";
+// import crypto from "node:crypto";
+// import {
+//   hashPassword,
+//   generateAccessToken,
+//   generateRefreshToken,
+//   ACCESS_TOKEN_COOKIE_NAME,
+//   REFRESH_TOKEN_COOKIE_NAME,
+//   ACCESS_TOKEN_COOKIE_OPTIONS,
+//   REFRESH_TOKEN_COOKIE_OPTIONS
+// } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
+export async function POST(/* request: NextRequest */) {
   return NextResponse.json(
     {
       error: true,

@@ -14,7 +14,6 @@ import {
   Layers,
   MessageSquare,
   Download,
-  Wallet,
   ExternalLink
 } from "lucide-react";
 import Link from "next/link";
@@ -546,11 +545,9 @@ export default function DashboardPage() {
               <div className="border-border bg-muted/40 hidden items-center gap-2 rounded-md border px-2.5 py-1 text-xs md:flex">
                 <Link
                   href="/funds"
-                  className="flex items-center gap-1.5 text-foreground hover:text-cf-orange transition-colors"
+                  className="text-foreground hover:text-cf-orange flex items-center gap-1.5 transition-colors"
                   title="View Funds &amp; Analytics"
                 >
-                  <Wallet className="size-3.5 text-cf-orange shrink-0" />
-                  <span className="text-muted-foreground text-[11px]">Funds Left:</span>
                   <span className="font-mono font-bold">
                     {fundsSummary.currencySymbol}
                     {fundsSummary.balance.toLocaleString("en-IN", {
@@ -558,16 +555,19 @@ export default function DashboardPage() {
                       maximumFractionDigits: 2
                     })}
                   </span>
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" title="Healthy Balance"></span>
+                  <span
+                    className="size-1.5 animate-pulse rounded-full bg-emerald-500"
+                    title="Healthy Balance"
+                  ></span>
                 </Link>
 
-                <div className="h-3 w-px bg-border"></div>
+                <div className="bg-border h-3 w-px"></div>
 
                 <a
                   href={fundsSummary.addFundsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cf-orange hover:text-[#e87516] inline-flex items-center gap-0.5 text-[11px] font-semibold transition-colors"
+                  className="text-cf-orange inline-flex items-center gap-0.5 text-[11px] font-semibold transition-colors hover:text-[#e87516]"
                   title="Add Funds via WhatsApp Manager"
                 >
                   <span>+ Add</span>

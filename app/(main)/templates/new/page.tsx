@@ -1,5 +1,11 @@
 "use client";
 
+import React, { useState, useMemo, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/providers/auth";
+import { PERMISSIONS } from "@/lib/permissions";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Layers,
@@ -26,15 +32,8 @@ import {
   Check,
   Link as LinkIcon,
   Star,
-  Zap,
-  TrendingUp
+  Zap
 } from "lucide-react";
-import React, { useState, useMemo, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useAuth } from "@/providers/auth";
-import { PERMISSIONS } from "@/lib/permissions";
-import { toast } from "sonner";
 
 // Supported WhatsApp languages
 const SUPPORTED_LANGUAGES = [
@@ -214,10 +213,7 @@ export default function NewTemplatePage() {
     setActivePreviewMediaId(newId);
   }
 
-  function updateMediaLink(
-    id: string,
-    updates: Partial<HeaderMediaLinkInput>
-  ) {
+  function updateMediaLink(id: string, updates: Partial<HeaderMediaLinkInput>) {
     setHeaderMediaLinks((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -721,21 +717,17 @@ export default function NewTemplatePage() {
               ? {
                   type: "TEXT" as const,
                   text: headerText.trim(),
-                  example:
-                    headerText.includes("{{1}}")
-                      ? [headerExampleVal]
-                      : undefined,
-                  variableMapping:
-                    headerText.includes("{{1}}")
-                      ? headerVarConfig
-                      : undefined
+                  example: headerText.includes("{{1}}")
+                    ? [headerExampleVal]
+                    : undefined,
+                  variableMapping: headerText.includes("{{1}}")
+                    ? headerVarConfig
+                    : undefined
                 }
               : {
                   type: headerType,
                   mediaLinks: (() => {
-                    const valid = headerMediaLinks.filter((l) =>
-                      l.url.trim()
-                    );
+                    const valid = headerMediaLinks.filter((l) => l.url.trim());
                     const hasDefault = valid.some((l) => l.isDefault);
                     return valid.map((l, idx) => ({
                       id: l.id,
@@ -746,11 +738,8 @@ export default function NewTemplatePage() {
                     }));
                   })(),
                   example: (() => {
-                    const valid = headerMediaLinks.filter((l) =>
-                      l.url.trim()
-                    );
-                    const def =
-                      valid.find((l) => l.isDefault) || valid[0];
+                    const valid = headerMediaLinks.filter((l) => l.url.trim());
+                    const def = valid.find((l) => l.isDefault) || valid[0];
                     return def?.url ? [def.url.trim()] : undefined;
                   })()
                 }
@@ -966,10 +955,10 @@ export default function NewTemplatePage() {
                 </div>
 
                 {/* Insights & Analytics Tracking */}
-                <div className="border-border bg-muted/40 sm:col-span-2 rounded-lg border p-3.5">
+                <div className="border-border bg-muted/40 rounded-lg border p-3.5 sm:col-span-2">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-start gap-2.5">
-                      <div className="bg-cf-orange/15 text-cf-orange mt-0.5 rounded p-1.5 shrink-0">
+                      <div className="bg-cf-orange/15 text-cf-orange mt-0.5 shrink-0 rounded p-1.5">
                         <Zap className="size-4" />
                       </div>
                       <div>
@@ -977,23 +966,25 @@ export default function NewTemplatePage() {
                           <span className="text-foreground text-xs font-semibold">
                             Template Insights &amp; Analytics
                           </span>
-                          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.2 text-[10px] font-semibold">
+                          <span className="py-0.2 rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                             Auto-Enabled ⚡
                           </span>
                         </div>
-                        <p className="text-muted-foreground text-[11px] leading-relaxed mt-0.5">
-                          Automatically turns on link tracking, button click rates, read delivery metrics, and message spend analytics on Meta and in the CRM Funds dashboard.
+                        <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                          Automatically turns on link tracking, button click
+                          rates, read delivery metrics, and message spend
+                          analytics on Meta and in the CRM Funds dashboard.
                         </p>
                       </div>
                     </div>
-                    <label className="relative inline-flex cursor-pointer items-center shrink-0">
+                    <label className="relative inline-flex shrink-0 cursor-pointer items-center">
                       <input
                         type="checkbox"
                         checked={enableInsights}
                         onChange={(e) => setEnableInsights(e.target.checked)}
                         className="peer sr-only"
                       />
-                      <div className="h-5 w-9 rounded-full bg-muted-foreground/30 peer-checked:bg-cf-orange peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:size-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+                      <div className="bg-muted-foreground/30 peer-checked:bg-cf-orange h-5 w-9 rounded-full peer-focus:outline-none after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
                     </label>
                   </div>
                 </div>
@@ -1213,7 +1204,7 @@ export default function NewTemplatePage() {
                   {/* Top banner highlighting direct links & no file uploads */}
                   <div className="border-border bg-muted/20 space-y-1.5 rounded-lg border p-3 text-xs">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                      <div className="text-foreground flex items-center gap-1.5 font-semibold">
                         <LinkIcon className="text-cf-orange size-3.5" />
                         <span>Header Media Links (Multiple Links Preset)</span>
                       </div>
@@ -1222,7 +1213,11 @@ export default function NewTemplatePage() {
                       </span>
                     </div>
                     <p className="text-muted-foreground text-[11px] leading-relaxed">
-                      Enter direct media URLs (e.g. hosted images, CDN video streams, or PDF links). You can add multiple media links as presets to choose from during message sends. The link marked with ⭐ will be used as the default sample for Meta review.
+                      Enter direct media URLs (e.g. hosted images, CDN video
+                      streams, or PDF links). You can add multiple media links
+                      as presets to choose from during message sends. The link
+                      marked with ⭐ will be used as the default sample for Meta
+                      review.
                     </p>
                   </div>
 
@@ -1239,7 +1234,7 @@ export default function NewTemplatePage() {
                       return (
                         <div
                           key={mediaLink.id}
-                          className={`bg-card rounded-lg border p-3.5 space-y-3 transition-colors ${
+                          className={`bg-card space-y-3 rounded-lg border p-3.5 transition-colors ${
                             isDefault
                               ? "border-cf-orange/60 shadow-xs"
                               : "border-border/80"
@@ -1252,12 +1247,11 @@ export default function NewTemplatePage() {
                                 #{index + 1}
                               </span>
                               <span className="text-foreground text-xs font-semibold">
-                                {mediaLink.title ||
-                                  `Media Link #${index + 1}`}
+                                {mediaLink.title || `Media Link #${index + 1}`}
                               </span>
                               {isDefault ? (
                                 <span className="bg-cf-orange/10 text-cf-orange inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold">
-                                  <Star className="size-3 fill-cf-orange" />
+                                  <Star className="fill-cf-orange size-3" />
                                   <span>Default Sample</span>
                                 </span>
                               ) : null}
@@ -1285,7 +1279,7 @@ export default function NewTemplatePage() {
                                 }
                                 className={`inline-flex cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[11px] transition-colors ${
                                   isPreviewActive
-                                    ? "border-cf-orange bg-cf-orange text-white font-semibold"
+                                    ? "border-cf-orange bg-cf-orange font-semibold text-white"
                                     : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
                                 }`}
                                 title="Preview this media in the phone mockup"
@@ -1296,9 +1290,7 @@ export default function NewTemplatePage() {
                               {headerMediaLinks.length > 1 && (
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    removeMediaLink(mediaLink.id)
-                                  }
+                                  onClick={() => removeMediaLink(mediaLink.id)}
                                   className="text-muted-foreground hover:text-destructive cursor-pointer rounded p-1 transition-colors"
                                   title="Remove this media link"
                                 >
@@ -1309,17 +1301,17 @@ export default function NewTemplatePage() {
                           </div>
 
                           {/* Inputs Grid */}
-                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 text-xs">
+                          <div className="grid grid-cols-1 gap-2.5 text-xs sm:grid-cols-12">
                             {/* URL Input */}
-                            <div className="sm:col-span-6 space-y-1">
-                              <label className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center justify-between">
+                            <div className="space-y-1 sm:col-span-6">
+                              <label className="text-muted-foreground flex items-center justify-between text-[10px] font-semibold uppercase">
                                 <span>Direct Media Link URL *</span>
                                 {isValidUrl && (
                                   <a
                                     href={mediaLink.url.trim()}
                                     target="_blank"
                                     rel="noreferrer noopener"
-                                    className="text-cf-orange inline-flex items-center gap-0.5 hover:underline lowercase font-normal"
+                                    className="text-cf-orange inline-flex items-center gap-0.5 font-normal lowercase hover:underline"
                                   >
                                     <span>Test link</span>
                                     <ExternalLink className="size-2.5" />
@@ -1327,7 +1319,7 @@ export default function NewTemplatePage() {
                                 )}
                               </label>
                               <div className="relative">
-                                <LinkIcon className="text-muted-foreground absolute left-2.5 top-2.5 size-3.5" />
+                                <LinkIcon className="text-muted-foreground absolute top-2.5 left-2.5 size-3.5" />
                                 <input
                                   type="url"
                                   required
@@ -1344,13 +1336,13 @@ export default function NewTemplatePage() {
                                         ? "https://example.com/tour.mp4"
                                         : "https://example.com/brochure.pdf"
                                   }
-                                  className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pl-8 pr-2 text-xs focus:ring-1 focus:outline-none"
+                                  className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pr-2 pl-8 text-xs focus:ring-1 focus:outline-none"
                                 />
                               </div>
                             </div>
 
                             {/* Label/Title Input */}
-                            <div className="sm:col-span-4 space-y-1">
+                            <div className="space-y-1 sm:col-span-4">
                               <label className="text-muted-foreground text-[10px] font-semibold uppercase">
                                 Title / Label (Optional)
                               </label>
@@ -1368,7 +1360,7 @@ export default function NewTemplatePage() {
                             </div>
 
                             {/* Format selector */}
-                            <div className="sm:col-span-2 space-y-1">
+                            <div className="space-y-1 sm:col-span-2">
                               <label className="text-muted-foreground text-[10px] font-semibold uppercase">
                                 Format
                               </label>
@@ -1377,9 +1369,7 @@ export default function NewTemplatePage() {
                                 onChange={(e) =>
                                   updateMediaLink(mediaLink.id, {
                                     type: e.target.value as
-                                      | "IMAGE"
-                                      | "VIDEO"
-                                      | "DOCUMENT"
+                                      "IMAGE" | "VIDEO" | "DOCUMENT"
                                   })
                                 }
                                 className="border-border bg-background text-foreground focus:ring-cf-orange w-full rounded border px-2 py-1.5 text-xs focus:ring-1 focus:outline-none"
@@ -2061,9 +2051,12 @@ export default function NewTemplatePage() {
                           const currentTitle = activeMediaLink?.title?.trim();
 
                           if (currentType === "IMAGE") {
-                            if (currentUrl && /^https?:\/\//i.test(currentUrl)) {
+                            if (
+                              currentUrl &&
+                              /^https?:\/\//i.test(currentUrl)
+                            ) {
                               return (
-                                <div className="relative overflow-hidden rounded border border-border/80 bg-black/5">
+                                <div className="border-border/80 relative overflow-hidden rounded border bg-black/5">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={currentUrl}
@@ -2075,18 +2068,19 @@ export default function NewTemplatePage() {
                                       ).style.display = "none";
                                       const fallback = e.currentTarget
                                         .nextElementSibling as HTMLElement;
-                                      if (fallback) fallback.style.display = "flex";
+                                      if (fallback)
+                                        fallback.style.display = "flex";
                                     }}
                                   />
                                   <div
                                     style={{ display: "none" }}
-                                    className="bg-muted/80 flex h-32 flex-col items-center justify-center gap-1 p-2 text-center text-muted-foreground"
+                                    className="bg-muted/80 text-muted-foreground flex h-32 flex-col items-center justify-center gap-1 p-2 text-center"
                                   >
                                     <ImageIcon className="text-cf-orange size-6" />
-                                    <span className="text-[10px] font-medium text-foreground">
+                                    <span className="text-foreground text-[10px] font-medium">
                                       {currentTitle || "Image Header"}
                                     </span>
-                                    <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">
+                                    <span className="text-muted-foreground max-w-50 truncate text-[9px]">
                                       {currentUrl}
                                     </span>
                                   </div>
@@ -2095,12 +2089,12 @@ export default function NewTemplatePage() {
                             }
                             return (
                               <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
-                                <div className="text-muted-foreground flex flex-col items-center gap-1 text-center p-2">
+                                <div className="text-muted-foreground flex flex-col items-center gap-1 p-2 text-center">
                                   <ImageIcon className="text-cf-orange size-6" />
-                                  <span className="text-[10px] font-semibold text-foreground">
+                                  <span className="text-foreground text-[10px] font-semibold">
                                     {currentTitle || "Image Header Banner"}
                                   </span>
-                                  <span className="text-[9px] text-muted-foreground">
+                                  <span className="text-muted-foreground text-[9px]">
                                     Enter direct image URL on the left
                                   </span>
                                 </div>
@@ -2109,9 +2103,12 @@ export default function NewTemplatePage() {
                           }
 
                           if (currentType === "VIDEO") {
-                            if (currentUrl && /^https?:\/\//i.test(currentUrl)) {
+                            if (
+                              currentUrl &&
+                              /^https?:\/\//i.test(currentUrl)
+                            ) {
                               return (
-                                <div className="relative overflow-hidden rounded border border-border/80 bg-black">
+                                <div className="border-border/80 relative overflow-hidden rounded border bg-black">
                                   <video
                                     src={currentUrl}
                                     controls
@@ -2122,12 +2119,12 @@ export default function NewTemplatePage() {
                             }
                             return (
                               <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
-                                <div className="text-muted-foreground flex flex-col items-center gap-1 text-center p-2">
+                                <div className="text-muted-foreground flex flex-col items-center gap-1 p-2 text-center">
                                   <Video className="text-cf-orange size-6" />
-                                  <span className="text-[10px] font-semibold text-foreground">
+                                  <span className="text-foreground text-[10px] font-semibold">
                                     {currentTitle || "Video Header Media"}
                                   </span>
-                                  <span className="text-[9px] text-muted-foreground">
+                                  <span className="text-muted-foreground text-[9px]">
                                     Enter direct video URL (MP4) on the left
                                   </span>
                                 </div>
@@ -2138,30 +2135,33 @@ export default function NewTemplatePage() {
                           if (currentType === "DOCUMENT") {
                             return (
                               <div className="bg-muted/80 border-border/80 flex items-center justify-between rounded border p-2.5 shadow-2xs">
-                                <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex min-w-0 items-center gap-2">
                                   <div className="rounded bg-red-500/10 p-1.5 text-red-600 dark:text-red-400">
                                     <FileText className="size-4 shrink-0" />
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-foreground truncate font-medium text-[11px]">
-                                      {currentTitle || "Document_Attachment.pdf"}
+                                    <p className="text-foreground truncate text-[11px] font-medium">
+                                      {currentTitle ||
+                                        "Document_Attachment.pdf"}
                                     </p>
-                                    <p className="text-muted-foreground text-[9px] truncate max-w-[170px]">
-                                      {currentUrl || "Direct PDF / Document Link"}
+                                    <p className="text-muted-foreground max-w-42.5 truncate text-[9px]">
+                                      {currentUrl ||
+                                        "Direct PDF / Document Link"}
                                     </p>
                                   </div>
                                 </div>
-                                {currentUrl && /^https?:\/\//i.test(currentUrl) && (
-                                  <a
-                                    href={currentUrl}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                    className="text-cf-orange hover:bg-cf-orange/10 shrink-0 rounded p-1 transition-colors"
-                                    title="Open document link"
-                                  >
-                                    <ExternalLink className="size-3" />
-                                  </a>
-                                )}
+                                {currentUrl &&
+                                  /^https?:\/\//i.test(currentUrl) && (
+                                    <a
+                                      href={currentUrl}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                      className="text-cf-orange hover:bg-cf-orange/10 shrink-0 rounded p-1 transition-colors"
+                                      title="Open document link"
+                                    >
+                                      <ExternalLink className="size-3" />
+                                    </a>
+                                  )}
                               </div>
                             );
                           }

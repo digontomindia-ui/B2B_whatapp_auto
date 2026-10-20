@@ -163,13 +163,22 @@ export async function importContactsFromCsv(
     });
 
     if (!group) {
-      group = await prisma.group.create({
-        data: { name: cleanName }
-      });
+      try {
+        group = await prisma.group.create({
+          data: { name: cleanName }
+        });
+      } catch {
+        group = await prisma.group.findFirst({
+          where: { name: { equals: cleanName, mode: "insensitive" } }
+        });
+      }
     }
 
-    groupCache.set(key, group.id);
-    return group.id;
+    if (group) {
+      groupCache.set(key, group.id);
+      return group.id;
+    }
+    return null;
   }
 
   for (let idx = 0; idx < rows.length; idx++) {
