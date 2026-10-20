@@ -13,6 +13,14 @@ const variableMappingSchema = z.object({
   staticValue: z.string().optional()
 });
 
+const headerMediaLinkSchema = z.object({
+  id: z.string().optional(),
+  url: z.string().url("Valid URL required (http:// or https://)"),
+  title: z.string().optional(),
+  type: z.enum(["IMAGE", "VIDEO", "DOCUMENT"]).optional(),
+  isDefault: z.boolean().optional()
+});
+
 const createTemplateSchema = z.object({
   name: z
     .string()
@@ -24,6 +32,7 @@ const createTemplateSchema = z.object({
     ),
   category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
   language: z.string().min(2, "Language code is required").default("en_US"),
+  enableInsights: z.boolean().default(true).optional(),
   header: z
     .object({
       type: z
@@ -34,7 +43,8 @@ const createTemplateSchema = z.object({
         .max(60, "Header text must be under 60 characters")
         .optional(),
       example: z.array(z.string()).optional(),
-      variableMapping: variableMappingSchema.optional()
+      variableMapping: variableMappingSchema.optional(),
+      mediaLinks: z.array(headerMediaLinkSchema).optional()
     })
     .optional(),
   body: z.object({

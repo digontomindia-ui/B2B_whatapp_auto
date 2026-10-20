@@ -6,7 +6,8 @@ import {
   Radio,
   FileSpreadsheet,
   ShieldCheck,
-  GitFork
+  GitFork,
+  Wallet
 } from "lucide-react";
 import { ToggleTheme } from "@/components/theme-toggle";
 import { usePathname } from "next/navigation";
@@ -73,6 +74,18 @@ export function Sidebar() {
       visible:
         isOwner ||
         hasAnyPermission([PERMISSIONS.STAFF_VIEW, PERMISSIONS.ROLE_VIEW])
+    },
+    {
+      label: "Funds",
+      href: "/funds",
+      icon: Wallet,
+      visible:
+        isOwner ||
+        hasAnyPermission([
+          PERMISSIONS.TEMPLATE_VIEW,
+          PERMISSIONS.SETTINGS_VIEW,
+          PERMISSIONS.BULK_JOB_VIEW
+        ])
     }
   ];
 

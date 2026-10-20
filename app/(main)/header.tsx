@@ -1,9 +1,10 @@
 "use client";
 
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -49,7 +50,32 @@ export function Header() {
     if (pathname !== "/staff") {
       subSection = "Staff Details";
     }
+  } else if (pathname.startsWith("/funds")) {
+    section = "Funds & Billing";
+    sectionHref = "/funds";
   }
+
+  // Fetch live funds for the header pill
+  const { data: fundsData } = useQuery<{
+    error: boolean;
+    data: {
+      summary: {
+        balance: number;
+        currencySymbol: string;
+        accountHealth: string;
+      };
+    };
+  }>({
+    queryKey: ["fundsData"],
+    queryFn: async () => {
+      const res = await fetch("/api/funds");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30000
+  });
+
+  const fundsSummary = fundsData?.data?.summary;
 
   async function handleLogout() {
     try {
@@ -86,8 +112,27 @@ export function Header() {
         )}
       </div>
 
-      {/* Right Controls: User info with Role, Sign Out */}
+      {/* Right Controls: Funds Pill, User info with Role, Sign Out */}
       <div className="flex items-center gap-3">
+        {/* Live Funds Balance Pill */}
+        {fundsSummary && (
+          <Link
+            href="/funds"
+            className="border-border bg-muted/50 hover:bg-muted text-foreground hover:border-cf-orange/40 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-2xs transition-colors"
+            title="View WhatsApp Funds & Balance Details"
+          >
+            <Wallet className="size-3.5 text-cf-orange shrink-0" />
+            <span className="font-mono text-xs font-semibold">
+              {fundsSummary.currencySymbol}
+              {fundsSummary.balance.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
+            </span>
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          </Link>
+        )}
+
         <div className="hidden flex-col text-right sm:flex">
           <div className="flex items-center justify-end gap-1.5">
             <span className="text-foreground text-xs leading-none font-medium">

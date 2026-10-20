@@ -188,15 +188,25 @@ export interface VariableMapping {
   staticValue?: string;
 }
 
+export interface HeaderMediaLink {
+  id?: string;
+  url: string;
+  title?: string;
+  type?: "IMAGE" | "VIDEO" | "DOCUMENT";
+  isDefault?: boolean;
+}
+
 export interface CreateTemplateInput {
   name: string;
   category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
   language: string;
+  enableInsights?: boolean;
   header?: {
     type: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
     text?: string;
     example?: string[];
     variableMapping?: VariableMapping;
+    mediaLinks?: HeaderMediaLink[];
   };
   body: {
     text: string;
@@ -260,10 +270,23 @@ export async function createTemplate(
       }
       metaComponents.push(headerObj);
     } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(input.header.type)) {
-      metaComponents.push({
+      const headerObj: Record<string, unknown> = {
         type: "HEADER",
         format: input.header.type
-      });
+      };
+      const defaultMedia =
+        input.header.mediaLinks?.find((m) => m.isDefault) ||
+        input.header.mediaLinks?.[0];
+      if (defaultMedia?.url) {
+        headerObj.example = {
+          header_handle: [defaultMedia.url]
+        };
+      } else if (input.header.example && input.header.example.length > 0) {
+        headerObj.example = {
+          header_handle: input.header.example
+        };
+      }
+      metaComponents.push(headerObj);
     }
   }
 
@@ -346,8 +369,22 @@ export async function createTemplate(
     throw new Error(metaRes.error || "Failed to create template on Meta");
   }
 
+  // Automatically enable template insights & analytics on WABA if requested
+  if (input.enableInsights !== false) {
+    try {
+      await whatsappClient.enableTemplateAnalytics(accountId);
+    } catch {
+      // Non-blocking: continue if already enabled or restricted by region
+    }
+  }
+
   const status = mapMetaStatus(metaRes.status || "PENDING");
   const category = mapMetaCategory(input.category);
+
+  const rawWithInsights = {
+    ...((metaRes.raw as Record<string, unknown>) || {}),
+    insightsEnabled: input.enableInsights !== false
+  };
 
   // Save to database in transaction
   const createdTemplate = await prisma.$transaction(async (tx) => {
@@ -363,7 +400,7 @@ export async function createTemplate(
         metaTemplateId: metaRes.templateId,
         status,
         category,
-        rawResponse: metaRes.raw as unknown as Prisma.InputJsonValue
+        rawResponse: rawWithInsights as unknown as Prisma.InputJsonValue
       },
       create: {
         metaTemplateId: metaRes.templateId,
@@ -372,7 +409,7 @@ export async function createTemplate(
         language: input.language,
         category,
         status,
-        rawResponse: metaRes.raw as unknown as Prisma.InputJsonValue
+        rawResponse: rawWithInsights as unknown as Prisma.InputJsonValue
       }
     });
 
@@ -400,18 +437,31 @@ export async function createTemplate(
           ...rawJsonData,
           variableMappings: input.body.variableMappings
         };
-      } else if (
-        compType === ComponentType.HEADER &&
-        input.header?.variableMapping
-      ) {
-        examplesData = {
-          ...(comp.example ? (comp.example as Record<string, unknown>) : {}),
-          variableMapping: input.header.variableMapping
-        };
-        rawJsonData = {
-          ...rawJsonData,
-          variableMapping: input.header.variableMapping
-        };
+      } else if (compType === ComponentType.HEADER) {
+        let hExamples = comp.example
+          ? (comp.example as Record<string, unknown>)
+          : {};
+        if (input.header?.variableMapping) {
+          hExamples = {
+            ...hExamples,
+            variableMapping: input.header.variableMapping
+          };
+          rawJsonData = {
+            ...rawJsonData,
+            variableMapping: input.header.variableMapping
+          };
+        }
+        if (input.header?.mediaLinks && input.header.mediaLinks.length > 0) {
+          hExamples = {
+            ...hExamples,
+            mediaLinks: input.header.mediaLinks
+          };
+          rawJsonData = {
+            ...rawJsonData,
+            mediaLinks: input.header.mediaLinks
+          };
+        }
+        examplesData = Object.keys(hExamples).length > 0 ? hExamples : null;
       }
 
       const createdComp = await tx.templateComponent.create({

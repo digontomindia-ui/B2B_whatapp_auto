@@ -1,8 +1,19 @@
 "use client";
 
 import type { DashboardCustomer, DashboardTemplate } from "./types";
-import { Layers, Loader2, X, Sparkles, Pin } from "lucide-react";
-import React, { useState, useMemo, useCallback } from "react";
+import {
+  Layers,
+  Loader2,
+  X,
+  Sparkles,
+  Pin,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  Link as LinkIcon,
+  ExternalLink
+} from "lucide-react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { formatDisplayPhone } from "@/utils/phone";
 import { useAuth } from "@/providers/auth";
@@ -71,6 +82,12 @@ export function SendTemplateDialog({
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [isSending, setIsSending] = useState(false);
 
+  // Media header states
+  const [selectedMediaUrl, setSelectedMediaUrl] = useState<string>("");
+  const [customMediaUrl, setCustomMediaUrl] = useState<string>("");
+  const [isCustomMedia, setIsCustomMedia] = useState<boolean>(false);
+  const [selectedMediaTitle, setSelectedMediaTitle] = useState<string>("");
+
   const activeTemplateId = selectedTemplateId || defaultTemplateId;
 
   const selectedTemplate = useMemo(() => {
@@ -83,13 +100,73 @@ export function SendTemplateDialog({
     );
   }, [selectedTemplate]);
 
-  const headerComponent = useMemo(() => {
+  const rawHeaderComponent = useMemo(() => {
     return selectedTemplate?.components.find(
-      (c) =>
-        String(c.type).toUpperCase() === "HEADER" &&
-        (!c.format || c.format.toUpperCase() === "TEXT")
+      (c) => String(c.type).toUpperCase() === "HEADER"
     );
   }, [selectedTemplate]);
+
+  const isMediaHeader = useMemo(() => {
+    const fmt = rawHeaderComponent?.format?.toUpperCase() || "";
+    return ["IMAGE", "VIDEO", "DOCUMENT"].includes(fmt);
+  }, [rawHeaderComponent]);
+
+  const mediaFormat = useMemo(() => {
+    return (rawHeaderComponent?.format?.toUpperCase() || "IMAGE") as
+      | "IMAGE"
+      | "VIDEO"
+      | "DOCUMENT";
+  }, [rawHeaderComponent]);
+
+  const configuredMediaLinks = useMemo(() => {
+    if (!rawHeaderComponent) return [];
+    const ex = rawHeaderComponent.examples as Record<string, unknown> | null;
+    const raw = (rawHeaderComponent as unknown as Record<string, unknown>)
+      ?.rawJson as Record<string, unknown> | null;
+    const links = (ex?.mediaLinks || raw?.mediaLinks) as
+      | Array<{
+          id?: string;
+          url: string;
+          title?: string;
+          type?: string;
+          isDefault?: boolean;
+        }>
+      | undefined;
+    return links || [];
+  }, [rawHeaderComponent]);
+
+  const headerComponent = useMemo(() => {
+    if (isMediaHeader) return null;
+    return rawHeaderComponent;
+  }, [isMediaHeader, rawHeaderComponent]);
+
+  useEffect(() => {
+    if (isMediaHeader) {
+      if (configuredMediaLinks.length > 0) {
+        const def =
+          configuredMediaLinks.find((l) => l.isDefault) ||
+          configuredMediaLinks[0];
+        setSelectedMediaUrl(def.url);
+        setSelectedMediaTitle(def.title || "");
+        setIsCustomMedia(false);
+        setCustomMediaUrl("");
+      } else {
+        setSelectedMediaUrl("");
+        setSelectedMediaTitle("");
+        setIsCustomMedia(true);
+        setCustomMediaUrl("");
+      }
+    } else {
+      setSelectedMediaUrl("");
+      setSelectedMediaTitle("");
+      setIsCustomMedia(false);
+      setCustomMediaUrl("");
+    }
+  }, [isMediaHeader, configuredMediaLinks]);
+
+  const activeMediaUrl = useMemo(() => {
+    return isCustomMedia ? customMediaUrl.trim() : selectedMediaUrl.trim();
+  }, [isCustomMedia, customMediaUrl, selectedMediaUrl]);
 
   const bodyText = bodyComponent?.text || "";
   const headerText = headerComponent?.text || "";
@@ -411,6 +488,20 @@ export function SendTemplateDialog({
       }
     }
 
+    // Verify media header has a valid direct link
+    if (isMediaHeader) {
+      if (!activeMediaUrl) {
+        toast.error(
+          `Please provide or select a media link for the ${mediaFormat.toLowerCase()} header`
+        );
+        return;
+      }
+      if (!/^https?:\/\//i.test(activeMediaUrl)) {
+        toast.error("Media link must start with http:// or https://");
+        return;
+      }
+    }
+
     setIsSending(true);
 
     try {
@@ -418,6 +509,25 @@ export function SendTemplateDialog({
         type: string;
         parameters: Array<{ type: string; text: string }>;
       }> = [];
+
+      // Media header parameter if media template
+      if (isMediaHeader && activeMediaUrl) {
+        const fmt = mediaFormat.toLowerCase();
+        components.push({
+          type: "header",
+          parameters: [
+            {
+              type: fmt,
+              [fmt]: {
+                link: activeMediaUrl,
+                ...(fmt === "document"
+                  ? { filename: selectedMediaTitle || "Document.pdf" }
+                  : {})
+              }
+            } as unknown as { type: string; text: string }
+          ]
+        });
+      }
 
       // Header parameters if any
       if (headerVarKeys.length > 0) {
@@ -525,6 +635,166 @@ export function SendTemplateDialog({
               </p>
             )}
           </div>
+
+          {/* Media Header Selection Section */}
+          {selectedTemplate && isMediaHeader && (
+            <div className="border-border bg-muted/15 space-y-3 rounded-lg border p-3.5 text-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-foreground flex items-center gap-1.5 font-semibold">
+                  {mediaFormat === "IMAGE" ? (
+                    <ImageIcon className="text-cf-orange size-3.5" />
+                  ) : mediaFormat === "VIDEO" ? (
+                    <Video className="text-cf-orange size-3.5" />
+                  ) : (
+                    <FileText className="text-cf-orange size-3.5" />
+                  )}
+                  <span>
+                    Header Media (
+                    {mediaFormat === "IMAGE"
+                      ? "Image"
+                      : mediaFormat === "VIDEO"
+                        ? "Video"
+                        : "Document / PDF"}
+                    )
+                  </span>
+                </label>
+                <span className="bg-cf-orange/10 text-cf-orange rounded-full px-2 py-0.5 text-[10px] font-bold">
+                  Direct Link • No Upload
+                </span>
+              </div>
+
+              {configuredMediaLinks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-muted-foreground text-[11px]">
+                    Choose from template preset media links or enter a custom link:
+                  </p>
+                  <div className="space-y-1.5">
+                    {configuredMediaLinks.map((link, idx) => {
+                      const isSelected =
+                        !isCustomMedia && selectedMediaUrl === link.url;
+                      return (
+                        <div
+                          key={link.id || idx}
+                          onClick={() => {
+                            setIsCustomMedia(false);
+                            setSelectedMediaUrl(link.url);
+                            setSelectedMediaTitle(link.title || "");
+                          }}
+                          className={`flex cursor-pointer items-center justify-between rounded-md border p-2.5 transition-colors ${
+                            isSelected
+                              ? "border-cf-orange bg-cf-orange/10 text-foreground"
+                              : "border-border bg-background hover:bg-muted/50 text-muted-foreground"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="radio"
+                              name="headerMediaPreset"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="accent-cf-orange"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-foreground text-xs font-semibold truncate">
+                                {link.title || `Media Preset #${idx + 1}`}
+                                {link.isDefault ? " (⭐ Default)" : ""}
+                              </p>
+                              <p className="text-muted-foreground text-[10px] truncate max-w-[260px]">
+                                {link.url}
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-cf-orange hover:bg-cf-orange/10 shrink-0 rounded p-1 transition-colors"
+                            title="Open link in new tab"
+                          >
+                            <ExternalLink className="size-3" />
+                          </a>
+                        </div>
+                      );
+                    })}
+
+                    <div
+                      onClick={() => setIsCustomMedia(true)}
+                      className={`flex cursor-pointer items-center gap-2 rounded-md border p-2.5 transition-colors ${
+                        isCustomMedia
+                          ? "border-cf-orange bg-cf-orange/10 text-foreground"
+                          : "border-border bg-background hover:bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="headerMediaPreset"
+                        checked={isCustomMedia}
+                        onChange={() => {}}
+                        className="accent-cf-orange"
+                      />
+                      <span className="text-xs font-medium">
+                        Custom Direct Media Link...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Media URL Input */}
+              {(isCustomMedia || configuredMediaLinks.length === 0) && (
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center justify-between">
+                    <span>Direct Media URL (HTTPS) *</span>
+                    {activeMediaUrl && /^https?:\/\//i.test(activeMediaUrl) && (
+                      <a
+                        href={activeMediaUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-cf-orange inline-flex items-center gap-0.5 lowercase hover:underline"
+                      >
+                        <span>Test link</span>
+                        <ExternalLink className="size-2.5" />
+                      </a>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <LinkIcon className="text-muted-foreground absolute left-2.5 top-2.5 size-3.5" />
+                    <input
+                      type="url"
+                      value={customMediaUrl}
+                      onChange={(e) => {
+                        setIsCustomMedia(true);
+                        setCustomMediaUrl(e.target.value);
+                      }}
+                      placeholder={
+                        mediaFormat === "IMAGE"
+                          ? "https://example.com/banner.jpg"
+                          : mediaFormat === "VIDEO"
+                            ? "https://example.com/tour.mp4"
+                            : "https://example.com/brochure.pdf"
+                      }
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pl-8 pr-2 text-xs focus:ring-1 focus:outline-none"
+                    />
+                  </div>
+                  {mediaFormat === "DOCUMENT" && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-muted-foreground text-[10px] font-semibold uppercase">
+                        Document Display Name (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedMediaTitle}
+                        onChange={(e) => setSelectedMediaTitle(e.target.value)}
+                        placeholder="e.g. Brochure.pdf"
+                        className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-2.5 py-1 text-xs focus:ring-1 focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Variables Configuration Section */}
           {allVarKeys.length > 0 && (
@@ -665,6 +935,51 @@ export function SendTemplateDialog({
                 Live Message Preview
               </label>
               <div className="border-border bg-accent/30 text-foreground space-y-2 rounded-lg border p-3.5 leading-relaxed">
+                {isMediaHeader && activeMediaUrl && (
+                  <div className="border-border/60 border-b pb-2">
+                    {mediaFormat === "IMAGE" && (
+                      <div className="overflow-hidden rounded border border-border/80 bg-black/5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={activeMediaUrl}
+                          alt="Header Preview"
+                          className="max-h-36 w-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display =
+                              "none";
+                          }}
+                        />
+                      </div>
+                    )}
+                    {mediaFormat === "VIDEO" && (
+                      <div className="overflow-hidden rounded border border-border/80 bg-black">
+                        <video
+                          src={activeMediaUrl}
+                          controls
+                          className="max-h-36 w-full object-contain"
+                        />
+                      </div>
+                    )}
+                    {mediaFormat === "DOCUMENT" && (
+                      <div className="bg-background flex items-center justify-between rounded border border-border p-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="text-red-500 size-4 shrink-0" />
+                          <span className="truncate text-[11px] font-medium">
+                            {selectedMediaTitle || "Document_Attachment.pdf"}
+                          </span>
+                        </div>
+                        <a
+                          href={activeMediaUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-cf-orange hover:bg-cf-orange/10 shrink-0 rounded p-1"
+                        >
+                          <ExternalLink className="size-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {renderedHeaderText && (
                   <div className="text-foreground border-border/60 border-b pb-1.5 text-xs font-semibold">
                     {renderedHeaderText}

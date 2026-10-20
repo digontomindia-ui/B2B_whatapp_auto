@@ -13,8 +13,11 @@ import {
   Users,
   Layers,
   MessageSquare,
-  Download
+  Download,
+  Wallet,
+  ExternalLink
 } from "lucide-react";
+import Link from "next/link";
 import {
   useQuery,
   useMutation,
@@ -244,6 +247,30 @@ export default function DashboardPage() {
   });
 
   const bulkJobs = bulkJobsData?.jobs || [];
+
+  // 5. Fetch Funds Data Query
+  const { data: fundsApiResponse } = useQuery<{
+    error: boolean;
+    data: {
+      summary: {
+        balance: number;
+        currencySymbol: string;
+        totalSpend: number;
+        accountHealth: string;
+        addFundsUrl: string;
+      };
+    };
+  }>({
+    queryKey: ["fundsData"],
+    queryFn: async () => {
+      const res = await fetch("/api/funds");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30000
+  });
+
+  const fundsSummary = fundsApiResponse?.data?.summary;
 
   // Mutations for sending
   const sendTextMutation = useMutation({
@@ -514,6 +541,41 @@ export default function DashboardPage() {
 
           {/* Right Action Area */}
           <div className="flex items-center gap-2">
+            {/* Funds Details on Dashboard */}
+            {fundsSummary && (
+              <div className="border-border bg-muted/40 hidden items-center gap-2 rounded-md border px-2.5 py-1 text-xs md:flex">
+                <Link
+                  href="/funds"
+                  className="flex items-center gap-1.5 text-foreground hover:text-cf-orange transition-colors"
+                  title="View Funds &amp; Analytics"
+                >
+                  <Wallet className="size-3.5 text-cf-orange shrink-0" />
+                  <span className="text-muted-foreground text-[11px]">Funds Left:</span>
+                  <span className="font-mono font-bold">
+                    {fundsSummary.currencySymbol}
+                    {fundsSummary.balance.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </span>
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" title="Healthy Balance"></span>
+                </Link>
+
+                <div className="h-3 w-px bg-border"></div>
+
+                <a
+                  href={fundsSummary.addFundsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cf-orange hover:text-[#e87516] inline-flex items-center gap-0.5 text-[11px] font-semibold transition-colors"
+                  title="Add Funds via WhatsApp Manager"
+                >
+                  <span>+ Add</span>
+                  <ExternalLink className="size-2.5" />
+                </a>
+              </div>
+            )}
+
             {selectedCustomerIds.size > 0 ? (
               <div className="bg-cf-orange/10 border-cf-orange/30 flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs">
                 <span className="text-cf-orange font-semibold whitespace-nowrap">

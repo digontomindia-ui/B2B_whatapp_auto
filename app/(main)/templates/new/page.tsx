@@ -23,7 +23,11 @@ import {
   Pin,
   X,
   Settings2,
-  Check
+  Check,
+  Link as LinkIcon,
+  Star,
+  Zap,
+  TrendingUp
 } from "lucide-react";
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -129,6 +133,14 @@ interface TemplateButtonInput {
   phoneNumber?: string;
 }
 
+export interface HeaderMediaLinkInput {
+  id: string;
+  url: string;
+  title: string;
+  type: "IMAGE" | "VIDEO" | "DOCUMENT";
+  isDefault: boolean;
+}
+
 export default function NewTemplatePage() {
   const router = useRouter();
   const { hasPermission, isOwner } = useAuth();
@@ -140,6 +152,7 @@ export default function NewTemplatePage() {
     "MARKETING" | "UTILITY" | "AUTHENTICATION"
   >("MARKETING");
   const [language, setLanguage] = useState("en_US");
+  const [enableInsights, setEnableInsights] = useState(true);
 
   // Header State
   const [headerType, setHeaderType] = useState<HeaderType>("NONE");
@@ -152,6 +165,104 @@ export default function NewTemplatePage() {
     fallback: "",
     staticValue: "Annual Day 2026"
   });
+
+  // Header Media Links State (Multiple media links for header)
+  const [headerMediaLinks, setHeaderMediaLinks] = useState<
+    HeaderMediaLinkInput[]
+  >([]);
+  const [activePreviewMediaId, setActivePreviewMediaId] = useState<string>("");
+
+  function handleSelectHeaderType(type: HeaderType) {
+    setHeaderType(type);
+    if (["IMAGE", "VIDEO", "DOCUMENT"].includes(type)) {
+      setHeaderMediaLinks((prev) => {
+        if (prev.length === 0) {
+          const newId = crypto.randomUUID();
+          setActivePreviewMediaId(newId);
+          return [
+            {
+              id: newId,
+              url: "",
+              title: "",
+              type: type as "IMAGE" | "VIDEO" | "DOCUMENT",
+              isDefault: true
+            }
+          ];
+        }
+        return prev;
+      });
+    }
+  }
+
+  function addMediaLink(overrideType?: "IMAGE" | "VIDEO" | "DOCUMENT") {
+    const newId = crypto.randomUUID();
+    const mediaType =
+      overrideType ||
+      (["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType)
+        ? (headerType as "IMAGE" | "VIDEO" | "DOCUMENT")
+        : "IMAGE");
+    setHeaderMediaLinks((prev) => [
+      ...prev,
+      {
+        id: newId,
+        url: "",
+        title: "",
+        type: mediaType,
+        isDefault: prev.length === 0
+      }
+    ]);
+    setActivePreviewMediaId(newId);
+  }
+
+  function updateMediaLink(
+    id: string,
+    updates: Partial<HeaderMediaLinkInput>
+  ) {
+    setHeaderMediaLinks((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          return { ...item, ...updates };
+        }
+        if (updates.isDefault) {
+          return { ...item, isDefault: false };
+        }
+        return item;
+      })
+    );
+  }
+
+  function removeMediaLink(id: string) {
+    setHeaderMediaLinks((prev) => {
+      const filtered = prev.filter((item) => item.id !== id);
+      if (filtered.length > 0 && !filtered.some((item) => item.isDefault)) {
+        filtered[0].isDefault = true;
+      }
+      return filtered;
+    });
+    if (activePreviewMediaId === id) {
+      setActivePreviewMediaId("");
+    }
+  }
+
+  function setPrimaryMediaLink(id: string) {
+    setHeaderMediaLinks((prev) =>
+      prev.map((item) => ({
+        ...item,
+        isDefault: item.id === id
+      }))
+    );
+    setActivePreviewMediaId(id);
+  }
+
+  const activeMediaLink = useMemo(() => {
+    if (!["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType)) return null;
+    if (headerMediaLinks.length === 0) return null;
+    return (
+      headerMediaLinks.find((l) => l.id === activePreviewMediaId) ||
+      headerMediaLinks.find((l) => l.isDefault) ||
+      headerMediaLinks[0]
+    );
+  }, [headerType, headerMediaLinks, activePreviewMediaId]);
 
   // Body State
   const [bodyText, setBodyText] = useState("");
@@ -537,6 +648,30 @@ export default function NewTemplatePage() {
       }
     }
 
+    // Validate media header links if headerType is IMAGE, VIDEO, or DOCUMENT
+    if (["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType)) {
+      const validLinks = headerMediaLinks.filter(
+        (l) => l.url.trim().length > 0
+      );
+      if (validLinks.length === 0) {
+        toast.error(
+          `Please provide at least one direct media URL for the ${headerType.toLowerCase()} header`
+        );
+        return;
+      }
+
+      for (let i = 0; i < validLinks.length; i++) {
+        const link = validLinks[i];
+        const trimmed = link.url.trim();
+        if (!/^https?:\/\//i.test(trimmed)) {
+          toast.error(
+            `Media link #${i + 1} (${link.title || "Untitled"}) must start with http:// or https://`
+          );
+          return;
+        }
+      }
+    }
+
     // Validate buttons
     for (const btn of buttons) {
       if (!btn.text.trim()) {
@@ -579,20 +714,46 @@ export default function NewTemplatePage() {
         name: cleanName,
         category,
         language,
+        enableInsights,
         header:
           headerType !== "NONE"
-            ? {
-                type: headerType,
-                text: headerType === "TEXT" ? headerText.trim() : undefined,
-                example:
-                  headerType === "TEXT" && headerText.includes("{{1}}")
-                    ? [headerExampleVal]
-                    : undefined,
-                variableMapping:
-                  headerType === "TEXT" && headerText.includes("{{1}}")
-                    ? headerVarConfig
-                    : undefined
-              }
+            ? headerType === "TEXT"
+              ? {
+                  type: "TEXT" as const,
+                  text: headerText.trim(),
+                  example:
+                    headerText.includes("{{1}}")
+                      ? [headerExampleVal]
+                      : undefined,
+                  variableMapping:
+                    headerText.includes("{{1}}")
+                      ? headerVarConfig
+                      : undefined
+                }
+              : {
+                  type: headerType,
+                  mediaLinks: (() => {
+                    const valid = headerMediaLinks.filter((l) =>
+                      l.url.trim()
+                    );
+                    const hasDefault = valid.some((l) => l.isDefault);
+                    return valid.map((l, idx) => ({
+                      id: l.id,
+                      url: l.url.trim(),
+                      title: l.title.trim() || undefined,
+                      type: l.type,
+                      isDefault: hasDefault ? l.isDefault : idx === 0
+                    }));
+                  })(),
+                  example: (() => {
+                    const valid = headerMediaLinks.filter((l) =>
+                      l.url.trim()
+                    );
+                    const def =
+                      valid.find((l) => l.isDefault) || valid[0];
+                    return def?.url ? [def.url.trim()] : undefined;
+                  })()
+                }
             : undefined,
         body: {
           text: bodyText.trim(),
@@ -803,6 +964,39 @@ export default function NewTemplatePage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Insights & Analytics Tracking */}
+                <div className="border-border bg-muted/40 sm:col-span-2 rounded-lg border p-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className="bg-cf-orange/15 text-cf-orange mt-0.5 rounded p-1.5 shrink-0">
+                        <Zap className="size-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-foreground text-xs font-semibold">
+                            Template Insights &amp; Analytics
+                          </span>
+                          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.2 text-[10px] font-semibold">
+                            Auto-Enabled ⚡
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed mt-0.5">
+                          Automatically turns on link tracking, button click rates, read delivery metrics, and message spend analytics on Meta and in the CRM Funds dashboard.
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex cursor-pointer items-center shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={enableInsights}
+                        onChange={(e) => setEnableInsights(e.target.checked)}
+                        className="peer sr-only"
+                      />
+                      <div className="h-5 w-9 rounded-full bg-muted-foreground/30 peer-checked:bg-cf-orange peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:size-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full"></div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -834,7 +1028,7 @@ export default function NewTemplatePage() {
                     <button
                       key={tab.type}
                       type="button"
-                      onClick={() => setHeaderType(tab.type)}
+                      onClick={() => handleSelectHeaderType(tab.type)}
                       className={`cursor-pointer rounded-md border py-1.5 text-center text-xs font-medium transition-colors ${
                         isActive
                           ? "border-cf-orange bg-cf-orange/10 text-cf-orange font-semibold"
@@ -1013,22 +1207,205 @@ export default function NewTemplatePage() {
                 </div>
               )}
 
-              {/* Media Header Explanation */}
+              {/* Media Header Manager (Multiple Links, Direct Link Only, No Upload) */}
               {["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType) && (
-                <div className="border-border bg-muted/20 flex items-start gap-2.5 rounded-lg border p-3 text-xs">
-                  <Info className="text-cf-orange mt-0.5 size-4 shrink-0" />
-                  <div className="text-muted-foreground leading-relaxed">
-                    <strong className="text-foreground">
-                      {headerType === "IMAGE"
-                        ? "Image Banner"
-                        : headerType === "VIDEO"
-                          ? "Video Clip"
-                          : "PDF Document"}
-                    </strong>{" "}
-                    header will be defined for this template. The actual media
-                    file URL or attachment is provided when sending messages to
-                    individual contacts or during broadcast.
+                <div className="space-y-4 pt-1">
+                  {/* Top banner highlighting direct links & no file uploads */}
+                  <div className="border-border bg-muted/20 space-y-1.5 rounded-lg border p-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                        <LinkIcon className="text-cf-orange size-3.5" />
+                        <span>Header Media Links (Multiple Links Preset)</span>
+                      </div>
+                      <span className="bg-cf-orange/10 text-cf-orange rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        Link URL Only • No Upload
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground text-[11px] leading-relaxed">
+                      Enter direct media URLs (e.g. hosted images, CDN video streams, or PDF links). You can add multiple media links as presets to choose from during message sends. The link marked with ⭐ will be used as the default sample for Meta review.
+                    </p>
                   </div>
+
+                  {/* List of Media Links */}
+                  <div className="space-y-3">
+                    {headerMediaLinks.map((mediaLink, index) => {
+                      const isValidUrl = /^https?:\/\//i.test(
+                        mediaLink.url.trim()
+                      );
+                      const isDefault = mediaLink.isDefault;
+                      const isPreviewActive =
+                        activeMediaLink?.id === mediaLink.id;
+
+                      return (
+                        <div
+                          key={mediaLink.id}
+                          className={`bg-card rounded-lg border p-3.5 space-y-3 transition-colors ${
+                            isDefault
+                              ? "border-cf-orange/60 shadow-xs"
+                              : "border-border/80"
+                          }`}
+                        >
+                          {/* Item Header */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[11px] font-bold">
+                                #{index + 1}
+                              </span>
+                              <span className="text-foreground text-xs font-semibold">
+                                {mediaLink.title ||
+                                  `Media Link #${index + 1}`}
+                              </span>
+                              {isDefault ? (
+                                <span className="bg-cf-orange/10 text-cf-orange inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold">
+                                  <Star className="size-3 fill-cf-orange" />
+                                  <span>Default Sample</span>
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {!isDefault && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPrimaryMediaLink(mediaLink.id)
+                                  }
+                                  className="border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[11px] transition-colors"
+                                  title="Mark as default sample for Meta template registration"
+                                >
+                                  <Star className="size-3" />
+                                  <span>Make Default</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActivePreviewMediaId(mediaLink.id)
+                                }
+                                className={`inline-flex cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                                  isPreviewActive
+                                    ? "border-cf-orange bg-cf-orange text-white font-semibold"
+                                    : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+                                }`}
+                                title="Preview this media in the phone mockup"
+                              >
+                                <span>Preview</span>
+                              </button>
+
+                              {headerMediaLinks.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeMediaLink(mediaLink.id)
+                                  }
+                                  className="text-muted-foreground hover:text-destructive cursor-pointer rounded p-1 transition-colors"
+                                  title="Remove this media link"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Inputs Grid */}
+                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 text-xs">
+                            {/* URL Input */}
+                            <div className="sm:col-span-6 space-y-1">
+                              <label className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center justify-between">
+                                <span>Direct Media Link URL *</span>
+                                {isValidUrl && (
+                                  <a
+                                    href={mediaLink.url.trim()}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="text-cf-orange inline-flex items-center gap-0.5 hover:underline lowercase font-normal"
+                                  >
+                                    <span>Test link</span>
+                                    <ExternalLink className="size-2.5" />
+                                  </a>
+                                )}
+                              </label>
+                              <div className="relative">
+                                <LinkIcon className="text-muted-foreground absolute left-2.5 top-2.5 size-3.5" />
+                                <input
+                                  type="url"
+                                  required
+                                  value={mediaLink.url}
+                                  onChange={(e) =>
+                                    updateMediaLink(mediaLink.id, {
+                                      url: e.target.value
+                                    })
+                                  }
+                                  placeholder={
+                                    mediaLink.type === "IMAGE"
+                                      ? "https://example.com/banner.jpg"
+                                      : mediaLink.type === "VIDEO"
+                                        ? "https://example.com/tour.mp4"
+                                        : "https://example.com/brochure.pdf"
+                                  }
+                                  className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pl-8 pr-2 text-xs focus:ring-1 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Label/Title Input */}
+                            <div className="sm:col-span-4 space-y-1">
+                              <label className="text-muted-foreground text-[10px] font-semibold uppercase">
+                                Title / Label (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={mediaLink.title}
+                                onChange={(e) =>
+                                  updateMediaLink(mediaLink.id, {
+                                    title: e.target.value
+                                  })
+                                }
+                                placeholder="e.g. Admission Prospectus"
+                                className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Format selector */}
+                            <div className="sm:col-span-2 space-y-1">
+                              <label className="text-muted-foreground text-[10px] font-semibold uppercase">
+                                Format
+                              </label>
+                              <select
+                                value={mediaLink.type}
+                                onChange={(e) =>
+                                  updateMediaLink(mediaLink.id, {
+                                    type: e.target.value as
+                                      | "IMAGE"
+                                      | "VIDEO"
+                                      | "DOCUMENT"
+                                  })
+                                }
+                                className="border-border bg-background text-foreground focus:ring-cf-orange w-full rounded border px-2 py-1.5 text-xs focus:ring-1 focus:outline-none"
+                              >
+                                <option value="IMAGE">Image</option>
+                                <option value="VIDEO">Video</option>
+                                <option value="DOCUMENT">Document</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add Another Link Button */}
+                  <button
+                    type="button"
+                    onClick={() => addMediaLink()}
+                    className="border-border hover:border-cf-orange hover:bg-cf-orange/5 text-muted-foreground hover:text-cf-orange flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed py-2 text-xs font-semibold transition-colors"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>
+                      + Add Another Media Link (Image / Video / Document)
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1635,41 +2012,162 @@ export default function NewTemplatePage() {
               <div className="bg-card text-foreground border-border/50 max-w-[90%] space-y-2 rounded-lg rounded-tl-none border p-3 shadow-md">
                 {/* Header Preview */}
                 {headerType !== "NONE" && (
-                  <div>
+                  <div className="space-y-1.5">
                     {headerType === "TEXT" && previewHeader && (
                       <h4 className="text-foreground text-xs font-bold">
                         {previewHeader}
                       </h4>
                     )}
 
-                    {headerType === "IMAGE" && (
-                      <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
-                        <div className="text-muted-foreground flex flex-col items-center gap-1">
-                          <ImageIcon className="text-cf-orange size-6" />
-                          <span className="text-[10px]">
-                            Image Header Banner
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                    {["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType) && (
+                      <div className="space-y-1.5">
+                        {/* Multiple media links switcher tabs inside preview */}
+                        {headerMediaLinks.length > 1 && (
+                          <div className="flex flex-wrap items-center gap-1 pb-1">
+                            {headerMediaLinks.map((ml, idx) => {
+                              const isActive = activeMediaLink?.id === ml.id;
+                              return (
+                                <button
+                                  key={ml.id}
+                                  type="button"
+                                  onClick={() => setActivePreviewMediaId(ml.id)}
+                                  className={`cursor-pointer rounded px-2 py-0.5 text-[10px] transition-colors ${
+                                    isActive
+                                      ? "bg-cf-orange font-bold text-white shadow-2xs"
+                                      : "bg-muted text-muted-foreground hover:text-foreground"
+                                  }`}
+                                  title={ml.url || "No URL provided"}
+                                >
+                                  {ml.type === "IMAGE"
+                                    ? "🖼️"
+                                    : ml.type === "VIDEO"
+                                      ? "🎥"
+                                      : "📄"}{" "}
+                                  {ml.title
+                                    ? ml.title.slice(0, 14)
+                                    : `Link #${idx + 1}`}
+                                  {ml.isDefault ? " ⭐" : ""}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
 
-                    {headerType === "VIDEO" && (
-                      <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
-                        <div className="text-muted-foreground flex flex-col items-center gap-1">
-                          <Video className="text-cf-orange size-6" />
-                          <span className="text-[10px]">
-                            Video Header Media
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                        {/* Active media preview rendering */}
+                        {(() => {
+                          const currentType =
+                            activeMediaLink?.type || headerType;
+                          const currentUrl = activeMediaLink?.url?.trim();
+                          const currentTitle = activeMediaLink?.title?.trim();
 
-                    {headerType === "DOCUMENT" && (
-                      <div className="bg-muted/80 border-border/80 flex items-center gap-2 rounded border p-2">
-                        <FileText className="text-cf-orange size-5" />
-                        <span className="text-foreground truncate font-mono text-[11px]">
-                          Document_Attachment.pdf
-                        </span>
+                          if (currentType === "IMAGE") {
+                            if (currentUrl && /^https?:\/\//i.test(currentUrl)) {
+                              return (
+                                <div className="relative overflow-hidden rounded border border-border/80 bg-black/5">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={currentUrl}
+                                    alt={currentTitle || "Header Preview"}
+                                    className="max-h-44 w-full object-cover"
+                                    onError={(e) => {
+                                      (
+                                        e.currentTarget as HTMLElement
+                                      ).style.display = "none";
+                                      const fallback = e.currentTarget
+                                        .nextElementSibling as HTMLElement;
+                                      if (fallback) fallback.style.display = "flex";
+                                    }}
+                                  />
+                                  <div
+                                    style={{ display: "none" }}
+                                    className="bg-muted/80 flex h-32 flex-col items-center justify-center gap-1 p-2 text-center text-muted-foreground"
+                                  >
+                                    <ImageIcon className="text-cf-orange size-6" />
+                                    <span className="text-[10px] font-medium text-foreground">
+                                      {currentTitle || "Image Header"}
+                                    </span>
+                                    <span className="text-[9px] text-muted-foreground truncate max-w-[200px]">
+                                      {currentUrl}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
+                                <div className="text-muted-foreground flex flex-col items-center gap-1 text-center p-2">
+                                  <ImageIcon className="text-cf-orange size-6" />
+                                  <span className="text-[10px] font-semibold text-foreground">
+                                    {currentTitle || "Image Header Banner"}
+                                  </span>
+                                  <span className="text-[9px] text-muted-foreground">
+                                    Enter direct image URL on the left
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (currentType === "VIDEO") {
+                            if (currentUrl && /^https?:\/\//i.test(currentUrl)) {
+                              return (
+                                <div className="relative overflow-hidden rounded border border-border/80 bg-black">
+                                  <video
+                                    src={currentUrl}
+                                    controls
+                                    className="max-h-44 w-full object-contain"
+                                  />
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="bg-muted/80 border-border/80 flex h-32 items-center justify-center rounded border">
+                                <div className="text-muted-foreground flex flex-col items-center gap-1 text-center p-2">
+                                  <Video className="text-cf-orange size-6" />
+                                  <span className="text-[10px] font-semibold text-foreground">
+                                    {currentTitle || "Video Header Media"}
+                                  </span>
+                                  <span className="text-[9px] text-muted-foreground">
+                                    Enter direct video URL (MP4) on the left
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (currentType === "DOCUMENT") {
+                            return (
+                              <div className="bg-muted/80 border-border/80 flex items-center justify-between rounded border p-2.5 shadow-2xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="rounded bg-red-500/10 p-1.5 text-red-600 dark:text-red-400">
+                                    <FileText className="size-4 shrink-0" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-foreground truncate font-medium text-[11px]">
+                                      {currentTitle || "Document_Attachment.pdf"}
+                                    </p>
+                                    <p className="text-muted-foreground text-[9px] truncate max-w-[170px]">
+                                      {currentUrl || "Direct PDF / Document Link"}
+                                    </p>
+                                  </div>
+                                </div>
+                                {currentUrl && /^https?:\/\//i.test(currentUrl) && (
+                                  <a
+                                    href={currentUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="text-cf-orange hover:bg-cf-orange/10 shrink-0 rounded p-1 transition-colors"
+                                    title="Open document link"
+                                  >
+                                    <ExternalLink className="size-3" />
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })()}
                       </div>
                     )}
                   </div>

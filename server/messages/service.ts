@@ -578,14 +578,75 @@ export async function sendOutboundTemplateMessage({
         >) ||
         {};
 
+      const autoComps: unknown[] = [];
+
+      // Auto-resolve header if present
+      const headerComp = tmpl?.components.find((c) => c.type === "HEADER");
+      if (headerComp) {
+        const hFormat = (headerComp.format || "TEXT").toUpperCase();
+        if (["IMAGE", "VIDEO", "DOCUMENT"].includes(hFormat)) {
+          const ex = headerComp.examples as Record<string, unknown> | null;
+          const raw = headerComp.rawJson as Record<string, unknown> | null;
+          const links = (ex?.mediaLinks || raw?.mediaLinks) as Array<{
+            url: string;
+            isDefault?: boolean;
+            title?: string;
+            type?: string;
+          }> | undefined;
+          const defaultLink = links?.find((l) => l.isDefault) || links?.[0];
+          if (defaultLink?.url) {
+            const fmt = hFormat.toLowerCase();
+            autoComps.push({
+              type: "header",
+              parameters: [
+                {
+                  type: fmt,
+                  [fmt]: {
+                    link: defaultLink.url,
+                    ...(fmt === "document"
+                      ? { filename: defaultLink.title || "Document.pdf" }
+                      : {})
+                  }
+                }
+              ]
+            });
+          }
+        } else if (hFormat === "TEXT" && headerComp.text?.includes("{{1}}")) {
+          const hMapping =
+            ((headerComp.examples as Record<string, unknown>)
+              ?.variableMapping as Record<string, unknown>) ||
+            ((headerComp.rawJson as Record<string, unknown>)
+              ?.variableMapping as Record<string, unknown>);
+          if (hMapping) {
+            const hVal = resolveCustomerTemplateVariable(
+              customer,
+              hMapping as unknown as {
+                type?: string;
+                field?: string;
+                customField?: string;
+                fallback?: string;
+                staticValue?: string;
+                sample?: string;
+              }
+            );
+            autoComps.push({
+              type: "header",
+              parameters: [{ type: "text", text: hVal || "Valued Customer" }]
+            });
+          }
+        }
+      }
+
       if (varKeys.length > 0) {
         const parameters = varKeys.map((k) => {
           const mapping = rawMappings[k];
           const textVal = resolveCustomerTemplateVariable(customer, mapping);
           return { type: "text", text: textVal || "Valued Customer" };
         });
-        resolvedComponents = [{ type: "body", parameters }];
+        autoComps.push({ type: "body", parameters });
       }
+
+      resolvedComponents = autoComps;
     }
   }
 

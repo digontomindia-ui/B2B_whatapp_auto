@@ -451,6 +451,153 @@ export class WhatsAppClient {
       raw: res.data
     };
   }
+
+  /**
+   * Fetch WABA account info, currency, and insights status
+   */
+  async getWabaInfo(wabaId?: string): Promise<{
+    success: boolean;
+    data?: {
+      id: string;
+      name?: string;
+      currency?: string;
+      timezone_id?: string;
+      account_review_status?: string;
+      is_enabled_for_insights?: boolean;
+      extended_credits?: unknown;
+    };
+    error?: string;
+  }> {
+    const accountId = wabaId || this.businessId;
+    if (!accountId) {
+      return { success: false, error: "Missing WhatsApp Business Account ID" };
+    }
+
+    const res = await this.callGraphApi<{
+      id: string;
+      name?: string;
+      currency?: string;
+      timezone_id?: string;
+      account_review_status?: string;
+      is_enabled_for_insights?: boolean;
+      extended_credits?: unknown;
+      error?: unknown;
+    }>(
+      `${accountId}?fields=id,name,currency,timezone_id,account_review_status,is_enabled_for_insights,extended_credits`,
+      { method: "GET" }
+    );
+
+    if (!res.ok) {
+      const { message } = this.parseError(res.data);
+      return {
+        success: false,
+        error: message || "Failed to fetch WABA info"
+      };
+    }
+
+    return { success: true, data: res.data };
+  }
+
+  /**
+   * Fetch payment transactions / credit activity from Meta
+   */
+  async getPaymentTransactions(wabaId?: string): Promise<{
+    success: boolean;
+    transactions?: Array<Record<string, unknown>>;
+    error?: string;
+  }> {
+    const accountId = wabaId || this.businessId;
+    if (!accountId) {
+      return { success: false, error: "Missing WhatsApp Business Account ID" };
+    }
+
+    const res = await this.callGraphApi<{
+      data?: Array<Record<string, unknown>>;
+      error?: unknown;
+    }>(`${accountId}/payment_transactions?limit=50`, { method: "GET" });
+
+    if (!res.ok) {
+      const { message } = this.parseError(res.data);
+      return {
+        success: false,
+        error: message || "Failed to fetch payment transactions"
+      };
+    }
+
+    return { success: true, transactions: res.data?.data || [] };
+  }
+
+  /**
+   * Fetch template analytics from Meta
+   */
+  async getTemplateAnalytics(
+    wabaId?: string,
+    start?: number,
+    end?: number
+  ): Promise<{
+    success: boolean;
+    analytics?: unknown;
+    error?: string;
+  }> {
+    const accountId = wabaId || this.businessId;
+    if (!accountId) {
+      return { success: false, error: "Missing WhatsApp Business Account ID" };
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const startUnix = start || now - 30 * 24 * 3600;
+    const endUnix = end || now;
+
+    const res = await this.callGraphApi<{
+      template_analytics?: unknown;
+      error?: unknown;
+    }>(
+      `${accountId}?fields=template_analytics.start(${startUnix}).end(${endUnix}).granularity(DAY)`,
+      { method: "GET" }
+    );
+
+    if (!res.ok) {
+      const { message } = this.parseError(res.data);
+      return {
+        success: false,
+        error: message || "Failed to fetch template analytics"
+      };
+    }
+
+    return { success: true, analytics: res.data?.template_analytics };
+  }
+
+  /**
+   * Activate / Enable template analytics & insights on WABA
+   */
+  async enableTemplateAnalytics(wabaId?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    const accountId = wabaId || this.businessId;
+    if (!accountId) {
+      return { success: false, error: "Missing WhatsApp Business Account ID" };
+    }
+
+    // Attempt to enable insights on WABA if supported by Graph API
+    const res = await this.callGraphApi<{ success?: boolean; error?: unknown }>(
+      `${accountId}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ is_enabled_for_insights: true })
+      }
+    );
+
+    if (!res.ok) {
+      const { message } = this.parseError(res.data);
+      return {
+        success: false,
+        error: message || "Could not auto-enable insights on Meta"
+      };
+    }
+
+    return { success: true };
+  }
 }
 
 export const whatsappClient = WhatsAppClient.getInstance();
