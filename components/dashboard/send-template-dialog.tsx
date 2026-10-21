@@ -113,9 +113,7 @@ export function SendTemplateDialog({
 
   const mediaFormat = useMemo(() => {
     return (rawHeaderComponent?.format?.toUpperCase() || "IMAGE") as
-      | "IMAGE"
-      | "VIDEO"
-      | "DOCUMENT";
+      "IMAGE" | "VIDEO" | "DOCUMENT";
   }, [rawHeaderComponent]);
 
   const configuredMediaLinks = useMemo(() => {
@@ -666,7 +664,8 @@ export function SendTemplateDialog({
               {configuredMediaLinks.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-muted-foreground text-[11px]">
-                    Choose from template preset media links or enter a custom link:
+                    Choose from template preset media links or enter a custom
+                    link:
                   </p>
                   <div className="space-y-1.5">
                     {configuredMediaLinks.map((link, idx) => {
@@ -686,7 +685,7 @@ export function SendTemplateDialog({
                               : "border-border bg-background hover:bg-muted/50 text-muted-foreground"
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
                             <input
                               type="radio"
                               name="headerMediaPreset"
@@ -695,11 +694,11 @@ export function SendTemplateDialog({
                               className="accent-cf-orange"
                             />
                             <div className="min-w-0">
-                              <p className="text-foreground text-xs font-semibold truncate">
+                              <p className="text-foreground truncate text-xs font-semibold">
                                 {link.title || `Media Preset #${idx + 1}`}
                                 {link.isDefault ? " (⭐ Default)" : ""}
                               </p>
-                              <p className="text-muted-foreground text-[10px] truncate max-w-[260px]">
+                              <p className="text-muted-foreground max-w-[260px] truncate text-[10px]">
                                 {link.url}
                               </p>
                             </div>
@@ -744,7 +743,7 @@ export function SendTemplateDialog({
               {/* Custom Media URL Input */}
               {(isCustomMedia || configuredMediaLinks.length === 0) && (
                 <div className="space-y-1.5 pt-1">
-                  <label className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center justify-between">
+                  <label className="text-muted-foreground flex items-center justify-between text-[10px] font-semibold uppercase">
                     <span>Direct Media URL (HTTPS) *</span>
                     {activeMediaUrl && /^https?:\/\//i.test(activeMediaUrl) && (
                       <a
@@ -759,7 +758,7 @@ export function SendTemplateDialog({
                     )}
                   </label>
                   <div className="relative">
-                    <LinkIcon className="text-muted-foreground absolute left-2.5 top-2.5 size-3.5" />
+                    <LinkIcon className="text-muted-foreground absolute top-2.5 left-2.5 size-3.5" />
                     <input
                       type="url"
                       value={customMediaUrl}
@@ -774,7 +773,7 @@ export function SendTemplateDialog({
                             ? "https://example.com/tour.mp4"
                             : "https://example.com/brochure.pdf"
                       }
-                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pl-8 pr-2 text-xs focus:ring-1 focus:outline-none"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border py-1.5 pr-2 pl-8 text-xs focus:ring-1 focus:outline-none"
                     />
                   </div>
                   {mediaFormat === "DOCUMENT" && (
@@ -938,7 +937,7 @@ export function SendTemplateDialog({
                 {isMediaHeader && activeMediaUrl && (
                   <div className="border-border/60 border-b pb-2">
                     {mediaFormat === "IMAGE" && (
-                      <div className="overflow-hidden rounded border border-border/80 bg-black/5">
+                      <div className="border-border/80 overflow-hidden rounded border bg-black/5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={activeMediaUrl}
@@ -952,7 +951,7 @@ export function SendTemplateDialog({
                       </div>
                     )}
                     {mediaFormat === "VIDEO" && (
-                      <div className="overflow-hidden rounded border border-border/80 bg-black">
+                      <div className="border-border/80 overflow-hidden rounded border bg-black">
                         <video
                           src={activeMediaUrl}
                           controls
@@ -961,9 +960,9 @@ export function SendTemplateDialog({
                       </div>
                     )}
                     {mediaFormat === "DOCUMENT" && (
-                      <div className="bg-background flex items-center justify-between rounded border border-border p-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="text-red-500 size-4 shrink-0" />
+                      <div className="bg-background border-border flex items-center justify-between rounded border p-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <FileText className="size-4 shrink-0 text-red-500" />
                           <span className="truncate text-[11px] font-medium">
                             {selectedMediaTitle || "Document_Attachment.pdf"}
                           </span>

@@ -38,10 +38,7 @@ interface ImportDialogProps {
 }
 
 // Map row column headers flexibly
-function getFieldValue(
-  row: Record<string, string>,
-  aliases: string[]
-): string {
+function getFieldValue(row: Record<string, string>, aliases: string[]): string {
   if (!row) return "";
   const normalizedKeys = Object.keys(row).map((k) => ({
     original: k,
@@ -216,34 +213,35 @@ export function ImportDialog({
   }
 
   // Detect duplicates across parsedRows
-  const { phoneToIndicesMap, duplicateGroups, duplicateRowIndexSet } = useMemo(() => {
-    const map = new Map<string, number[]>();
-    const dupRowSet = new Set<number>();
+  const { phoneToIndicesMap, duplicateGroups, duplicateRowIndexSet } =
+    useMemo(() => {
+      const map = new Map<string, number[]>();
+      const dupRowSet = new Set<number>();
 
-    parsedRows.forEach((row, idx) => {
-      const rawPhone = getRowPhone(row);
-      const normalized = normalizePhoneNumber(rawPhone) || rawPhone.trim();
-      if (normalized) {
-        const list = map.get(normalized) || [];
-        list.push(idx);
-        map.set(normalized, list);
+      parsedRows.forEach((row, idx) => {
+        const rawPhone = getRowPhone(row);
+        const normalized = normalizePhoneNumber(rawPhone) || rawPhone.trim();
+        if (normalized) {
+          const list = map.get(normalized) || [];
+          list.push(idx);
+          map.set(normalized, list);
+        }
+      });
+
+      const groups: Array<{ phone: string; indices: number[] }> = [];
+      for (const [phone, indices] of map.entries()) {
+        if (indices.length > 1) {
+          groups.push({ phone, indices });
+          indices.forEach((i) => dupRowSet.add(i));
+        }
       }
-    });
 
-    const groups: Array<{ phone: string; indices: number[] }> = [];
-    for (const [phone, indices] of map.entries()) {
-      if (indices.length > 1) {
-        groups.push({ phone, indices });
-        indices.forEach((i) => dupRowSet.add(i));
-      }
-    }
-
-    return {
-      phoneToIndicesMap: map,
-      duplicateGroups: groups,
-      duplicateRowIndexSet: dupRowSet
-    };
-  }, [parsedRows]);
+      return {
+        phoneToIndicesMap: map,
+        duplicateGroups: groups,
+        duplicateRowIndexSet: dupRowSet
+      };
+    }, [parsedRows]);
 
   function handleFileChange(selectedFile: File) {
     if (!selectedFile.name.toLowerCase().endsWith(".csv")) {
@@ -508,7 +506,8 @@ export function ImportDialog({
                 Import Contacts from CSV
               </h2>
               <p className="text-muted-foreground text-[11px]">
-                Import customer contacts with strict phone uniqueness and duplicate resolution
+                Import customer contacts with strict phone uniqueness and
+                duplicate resolution
               </p>
             </div>
           </div>
@@ -532,7 +531,7 @@ export function ImportDialog({
               className={`flex cursor-pointer items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors ${
                 activeTab === "review"
                   ? "border-cf-orange text-cf-orange font-bold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground border-transparent"
               }`}
             >
               <span>1. Review Contacts</span>
@@ -546,13 +545,13 @@ export function ImportDialog({
               onClick={() => setActiveTab("duplicates")}
               className={`flex cursor-pointer items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors ${
                 activeTab === "duplicates"
-                  ? "border-amber-500 text-amber-600 dark:text-amber-400 font-bold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? "border-amber-500 font-bold text-amber-600 dark:text-amber-400"
+                  : "text-muted-foreground hover:text-foreground border-transparent"
               }`}
             >
               <AlertTriangle className="size-3.5 text-amber-500" />
               <span>2. Resolve Duplicates</span>
-              <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full px-2 py-0.5 text-[10px] font-bold">
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
                 {duplicateGroups.length}
               </span>
             </button>
@@ -571,7 +570,8 @@ export function ImportDialog({
                     Import Completed Successfully
                   </h3>
                   <p className="text-muted-foreground mt-0.5 text-[11px]">
-                    Your contacts have been processed and deduplicated into your CRM.
+                    Your contacts have been processed and deduplicated into your
+                    CRM.
                   </p>
                 </div>
               </div>
@@ -588,7 +588,7 @@ export function ImportDialog({
                 </div>
 
                 <div className="border-border bg-background rounded-lg border p-3 text-center">
-                  <div className="text-emerald-600 dark:text-emerald-400 text-[10px] font-medium uppercase">
+                  <div className="text-[10px] font-medium text-emerald-600 uppercase dark:text-emerald-400">
                     New Created
                   </div>
                   <div className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
@@ -629,8 +629,7 @@ export function ImportDialog({
                         className="flex items-center justify-between p-2"
                       >
                         <span className="font-mono text-xs font-semibold">
-                          Row #{err.row}{" "}
-                          {err.phone && `(${err.phone})`}
+                          Row #{err.row} {err.phone && `(${err.phone})`}
                         </span>
                         <span className="text-rose-500">{err.reason}</span>
                       </div>
@@ -642,22 +641,27 @@ export function ImportDialog({
           ) : activeTab === "duplicates" && duplicateGroups.length > 0 ? (
             /* TAB 2: RESOLVE DUPLICATE CONTACTS */
             <div className="space-y-4">
-              <div className="border-amber-500/30 bg-amber-500/10 rounded-lg border p-3.5">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5">
                 <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="mt-0.5 size-4 text-amber-500 shrink-0" />
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
                   <div>
                     <h4 className="text-foreground text-xs font-semibold">
-                      Resolve Duplicate Phone Numbers ({duplicateGroups.length} Conflict Groups)
+                      Resolve Duplicate Phone Numbers ({duplicateGroups.length}{" "}
+                      Conflict Groups)
                     </h4>
                     <p className="text-muted-foreground mt-0.5 text-[11px]">
-                      Each customer must have a unique phone number. Please choose which contact record to keep and import for each phone number below:
+                      Each customer must have a unique phone number. Please
+                      choose which contact record to keep and import for each
+                      phone number below:
                     </p>
                   </div>
                 </div>
 
                 {/* Quick actions bar */}
                 <div className="mt-2.5 flex items-center gap-2 border-t border-amber-500/20 pt-2 text-[11px]">
-                  <span className="text-muted-foreground text-[10px]">Quick select:</span>
+                  <span className="text-muted-foreground text-[10px]">
+                    Quick select:
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -666,9 +670,11 @@ export function ImportDialog({
                         updated[g.phone] = g.indices[0];
                       });
                       setDuplicateSelections(updated);
-                      toast.success("First contact selected for all duplicate numbers");
+                      toast.success(
+                        "First contact selected for all duplicate numbers"
+                      );
                     }}
-                    className="border-border bg-background text-foreground hover:bg-muted rounded border px-2 py-0.5 font-medium cursor-pointer"
+                    className="border-border bg-background text-foreground hover:bg-muted cursor-pointer rounded border px-2 py-0.5 font-medium"
                   >
                     Keep First Row for All
                   </button>
@@ -680,9 +686,11 @@ export function ImportDialog({
                         updated[g.phone] = g.indices[g.indices.length - 1];
                       });
                       setDuplicateSelections(updated);
-                      toast.success("Last contact selected for all duplicate numbers");
+                      toast.success(
+                        "Last contact selected for all duplicate numbers"
+                      );
                     }}
-                    className="border-border bg-background text-foreground hover:bg-muted rounded border px-2 py-0.5 font-medium cursor-pointer"
+                    className="border-border bg-background text-foreground hover:bg-muted cursor-pointer rounded border px-2 py-0.5 font-medium"
                   >
                     Keep Last Row for All
                   </button>
@@ -701,7 +709,7 @@ export function ImportDialog({
                       {/* Group Header */}
                       <div className="border-border bg-muted/30 flex items-center justify-between border-b px-3.5 py-2">
                         <div className="flex items-center gap-2">
-                          <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                          <span className="rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">
                             #{groupIdx + 1}
                           </span>
                           <span className="text-foreground font-mono text-xs font-semibold">
@@ -718,7 +726,8 @@ export function ImportDialog({
                         {group.indices.map((rowIdx) => {
                           const rowData = parsedRows[rowIdx];
                           const isChosen = selectedIdx === rowIdx;
-                          const name = getRowName(rowData) || "No name provided";
+                          const name =
+                            getRowName(rowData) || "No name provided";
                           const company = getRowCompany(rowData);
                           const address = getRowAddress(rowData);
                           const groupName = getRowGroup(rowData);
@@ -762,7 +771,7 @@ export function ImportDialog({
                                     <span className="text-foreground text-xs font-semibold">
                                       {name}
                                     </span>
-                                    <span className="border-border bg-muted/60 text-muted-foreground rounded border px-1.5 py-0.2 font-mono text-[9px]">
+                                    <span className="border-border bg-muted/60 text-muted-foreground py-0.2 rounded border px-1.5 font-mono text-[9px]">
                                       CSV Row #{rowIdx + 1}
                                     </span>
                                   </div>
@@ -773,41 +782,53 @@ export function ImportDialog({
                                   )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted-foreground sm:grid-cols-3">
+                                <div className="text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-3">
                                   {company && (
                                     <div className="flex items-center gap-1">
-                                      <Briefcase className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground truncate">{company}</span>
+                                      <Briefcase className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate">
+                                        {company}
+                                      </span>
                                     </div>
                                   )}
                                   {groupName && (
                                     <div className="flex items-center gap-1">
-                                      <Building2 className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground truncate">{groupName}</span>
+                                      <Building2 className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate">
+                                        {groupName}
+                                      </span>
                                     </div>
                                   )}
                                   {assignToVal && (
                                     <div className="flex items-center gap-1">
-                                      <Mail className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground truncate">{assignToVal}</span>
+                                      <Mail className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate">
+                                        {assignToVal}
+                                      </span>
                                     </div>
                                   )}
                                   {tagVal && (
                                     <div className="flex items-center gap-1">
-                                      <Tag className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground truncate">{tagVal}</span>
+                                      <Tag className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate">
+                                        {tagVal}
+                                      </span>
                                     </div>
                                   )}
                                   {address && (
                                     <div className="col-span-2 flex items-center gap-1">
-                                      <MapPin className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground truncate">{address}</span>
+                                      <MapPin className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate">
+                                        {address}
+                                      </span>
                                     </div>
                                   )}
                                   {noteVal && (
                                     <div className="col-span-2 flex items-center gap-1">
-                                      <FileText className="size-3 shrink-0 text-cf-orange" />
-                                      <span className="text-foreground italic truncate">Note: {noteVal}</span>
+                                      <FileText className="text-cf-orange size-3 shrink-0" />
+                                      <span className="text-foreground truncate italic">
+                                        Note: {noteVal}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -824,9 +845,9 @@ export function ImportDialog({
                               [group.phone]: "skip"
                             }));
                           }}
-                          className={`flex cursor-pointer items-center gap-2 rounded px-2.5 py-1.5 text-xs text-muted-foreground transition-colors select-none ${
+                          className={`text-muted-foreground flex cursor-pointer items-center gap-2 rounded px-2.5 py-1.5 text-xs transition-colors select-none ${
                             selectedIdx === "skip"
-                              ? "bg-red-500/10 text-red-600 dark:text-red-400 font-semibold"
+                              ? "bg-red-500/10 font-semibold text-red-600 dark:text-red-400"
                               : "hover:bg-muted/40"
                           }`}
                         >
@@ -840,9 +861,12 @@ export function ImportDialog({
                                 [group.phone]: "skip"
                               }));
                             }}
-                            className="accent-red-500 cursor-pointer"
+                            className="cursor-pointer accent-red-500"
                           />
-                          <span>Skip this phone number entirely (do not import either contact)</span>
+                          <span>
+                            Skip this phone number entirely (do not import
+                            either contact)
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -877,14 +901,18 @@ export function ImportDialog({
                       }
                     }}
                   />
-                  <div className="bg-cf-orange/10 text-cf-orange group-hover:scale-110 rounded-full p-3.5 transition-transform">
+                  <div className="bg-cf-orange/10 text-cf-orange rounded-full p-3.5 transition-transform group-hover:scale-110">
                     <Upload className="size-6" />
                   </div>
                   <h3 className="text-foreground mt-3 text-xs font-semibold">
                     Click to select or drag and drop your CSV file
                   </h3>
                   <p className="text-muted-foreground mt-1 max-w-sm text-[11px]">
-                    Supported columns: <strong>name</strong>, <strong>ph_no</strong>, <strong>company name</strong>, <strong>address</strong>, <strong>tag</strong>, <strong>group</strong>, <strong>note</strong>, <strong>assign to</strong>.
+                    Supported columns: <strong>name</strong>,{" "}
+                    <strong>ph_no</strong>, <strong>company name</strong>,{" "}
+                    <strong>address</strong>, <strong>tag</strong>,{" "}
+                    <strong>group</strong>, <strong>note</strong>,{" "}
+                    <strong>assign to</strong>.
                   </p>
                 </div>
               ) : (
@@ -918,7 +946,8 @@ export function ImportDialog({
               {/* Sample Template Link */}
               <div className="bg-muted/20 border-border/60 flex items-center justify-between rounded-lg border p-2.5 text-xs">
                 <span className="text-muted-foreground text-[11px]">
-                  Need formatting guidance? Download our sample CSV template with all 8 fields:
+                  Need formatting guidance? Download our sample CSV template
+                  with all 8 fields:
                 </span>
                 <button
                   type="button"
@@ -932,15 +961,19 @@ export function ImportDialog({
 
               {/* Duplicate Banner Alert if duplicates detected */}
               {parsedRows.length > 0 && duplicateGroups.length > 0 && (
-                <div className="border-amber-500/40 bg-amber-500/10 flex items-start justify-between rounded-lg border p-3 text-xs">
+                <div className="flex items-start justify-between rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="mt-0.5 size-4 text-amber-500 shrink-0" />
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
                     <div>
                       <span className="text-foreground font-semibold">
-                        {duplicateGroups.length} duplicate phone number groups detected ({duplicateRowIndexSet.size} contacts affected)
+                        {duplicateGroups.length} duplicate phone number groups
+                        detected ({duplicateRowIndexSet.size} contacts affected)
                       </span>
                       <p className="text-muted-foreground mt-0.5 text-[11px]">
-                        Phone numbers must be unique. Duplicate rows are highlighted in the table below. When ready, click &quot;Next: Resolve Duplicates&quot; to choose which contact to accept.
+                        Phone numbers must be unique. Duplicate rows are
+                        highlighted in the table below. When ready, click
+                        &quot;Next: Resolve Duplicates&quot; to choose which
+                        contact to accept.
                       </p>
                     </div>
                   </div>
@@ -948,7 +981,7 @@ export function ImportDialog({
                   <button
                     type="button"
                     onClick={() => setActiveTab("duplicates")}
-                    className="bg-amber-500 text-white hover:bg-amber-600 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded px-2.5 py-1 text-xs font-semibold shadow-xs"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white shadow-xs hover:bg-amber-600"
                   >
                     <span>Resolve</span>
                     <ArrowRight className="size-3" />
@@ -962,21 +995,22 @@ export function ImportDialog({
                   <div className="text-foreground border-border flex items-center justify-between border-b pb-1.5 text-xs font-semibold">
                     <span className="flex items-center gap-1.5">
                       <Eye className="text-cf-orange size-3.5" />
-                      Detected Columns Mapping ({detectedHeaders.length} headers found)
+                      Detected Columns Mapping ({detectedHeaders.length} headers
+                      found)
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
                     {/* ph_no */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <Phone className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <Phone className="text-cf-orange size-3" />
                         ph_no (Required)
                       </div>
-                      <div className="text-foreground mt-0.5 flex items-center gap-1 font-mono font-medium truncate">
+                      <div className="text-foreground mt-0.5 flex items-center gap-1 truncate font-mono font-medium">
                         {phoneHeader ? (
                           <>
-                            <Check className="size-3 text-emerald-500 shrink-0" />
+                            <Check className="size-3 shrink-0 text-emerald-500" />
                             <span className="truncate">{phoneHeader}</span>
                           </>
                         ) : (
@@ -989,105 +1023,125 @@ export function ImportDialog({
 
                     {/* name */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <UserCheck className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <UserCheck className="text-cf-orange size-3" />
                         name
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {nameHeader ? (
                           <span className="text-foreground">{nameHeader}</span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* company name */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <Briefcase className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <Briefcase className="text-cf-orange size-3" />
                         company name
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {companyHeader ? (
-                          <span className="text-foreground">{companyHeader}</span>
+                          <span className="text-foreground">
+                            {companyHeader}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* address */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <MapPin className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <MapPin className="text-cf-orange size-3" />
                         address
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {addressHeader ? (
-                          <span className="text-foreground">{addressHeader}</span>
+                          <span className="text-foreground">
+                            {addressHeader}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* tag */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <Tag className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <Tag className="text-cf-orange size-3" />
                         tag (commas)
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {tagsHeader ? (
                           <span className="text-foreground">{tagsHeader}</span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* group */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <Building2 className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <Building2 className="text-cf-orange size-3" />
                         group
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {groupHeader ? (
                           <span className="text-foreground">{groupHeader}</span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* note */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <FileText className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <FileText className="text-cf-orange size-3" />
                         note
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {notesHeader ? (
                           <span className="text-foreground">{notesHeader}</span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
 
                     {/* assign to */}
                     <div className="bg-muted/40 border-border/60 rounded border p-2">
-                      <div className="text-muted-foreground text-[10px] font-semibold uppercase flex items-center gap-1">
-                        <Mail className="size-3 text-cf-orange" />
+                      <div className="text-muted-foreground flex items-center gap-1 text-[10px] font-semibold uppercase">
+                        <Mail className="text-cf-orange size-3" />
                         assign to
                       </div>
                       <div className="text-foreground mt-0.5 truncate font-mono">
                         {assignToHeader ? (
-                          <span className="text-foreground">{assignToHeader}</span>
+                          <span className="text-foreground">
+                            {assignToHeader}
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground italic">(optional)</span>
+                          <span className="text-muted-foreground italic">
+                            (optional)
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1116,7 +1170,9 @@ export function ImportDialog({
                           Update existing contacts (Recommended)
                         </span>
                         <p className="text-muted-foreground text-[11px]">
-                          If a customer already exists in the CRM, update details, company, address, append new tags, and notes instead of skipping.
+                          If a customer already exists in the CRM, update
+                          details, company, address, append new tags, and notes
+                          instead of skipping.
                         </p>
                       </div>
                     </label>
@@ -1144,10 +1200,11 @@ export function ImportDialog({
                     <div className="flex items-center gap-2">
                       <span>Data Preview & Selection</span>
                       <span className="bg-cf-orange/10 text-cf-orange rounded-full px-2 py-0.5 font-mono text-[10px] font-medium">
-                        {selectedRowIndices.size} of {parsedRows.length} selected
+                        {selectedRowIndices.size} of {parsedRows.length}{" "}
+                        selected
                       </span>
                       {duplicateGroups.length > 0 && (
-                        <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold">
+                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">
                           {duplicateRowIndexSet.size} duplicate entries
                         </span>
                       )}
@@ -1209,8 +1266,10 @@ export function ImportDialog({
                           const isChecked = selectedRowIndices.has(idx);
                           const isDuplicate = duplicateRowIndexSet.has(idx);
                           const rawPhone = getRowPhone(row);
-                          const normPhone = normalizePhoneNumber(rawPhone) || rawPhone.trim();
-                          const dupGroupCount = phoneToIndicesMap.get(normPhone)?.length || 1;
+                          const normPhone =
+                            normalizePhoneNumber(rawPhone) || rawPhone.trim();
+                          const dupGroupCount =
+                            phoneToIndicesMap.get(normPhone)?.length || 1;
 
                           return (
                             <tr
@@ -1219,8 +1278,8 @@ export function ImportDialog({
                               className={`cursor-pointer transition-colors ${
                                 isDuplicate
                                   ? isChecked
-                                    ? "bg-amber-500/10 hover:bg-amber-500/15 border-l-2 border-l-amber-500"
-                                    : "bg-amber-500/5 opacity-50 border-l-2 border-l-amber-500"
+                                    ? "border-l-2 border-l-amber-500 bg-amber-500/10 hover:bg-amber-500/15"
+                                    : "border-l-2 border-l-amber-500 bg-amber-500/5 opacity-50"
                                   : isChecked
                                     ? "bg-cf-orange/5 hover:bg-cf-orange/10"
                                     : "hover:bg-muted/20 opacity-50"
@@ -1242,9 +1301,11 @@ export function ImportDialog({
                               </td>
                               <td className="p-2">
                                 {isDuplicate ? (
-                                  <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold">
+                                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
                                     <AlertTriangle className="size-2.5" />
-                                    <span>Duplicate ({dupGroupCount} rows)</span>
+                                    <span>
+                                      Duplicate ({dupGroupCount} rows)
+                                    </span>
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground text-[10px]">
@@ -1314,7 +1375,8 @@ export function ImportDialog({
                   <>
                     <Upload className="size-3.5" />
                     <span>
-                      Confirm & Import ({buildFinalRowsToImport().length} Contacts)
+                      Confirm & Import ({buildFinalRowsToImport().length}{" "}
+                      Contacts)
                     </span>
                   </>
                 )}
@@ -1336,11 +1398,15 @@ export function ImportDialog({
               {duplicateGroups.length > 0 ? (
                 <button
                   type="button"
-                  disabled={!file || selectedRowIndices.size === 0 || !phoneHeader}
+                  disabled={
+                    !file || selectedRowIndices.size === 0 || !phoneHeader
+                  }
                   onClick={() => setActiveTab("duplicates")}
-                  className="bg-amber-600 hover:bg-amber-700 text-white inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <span>Next: Resolve Duplicates ({duplicateGroups.length})</span>
+                  <span>
+                    Next: Resolve Duplicates ({duplicateGroups.length})
+                  </span>
                   <ArrowRight className="size-3.5" />
                 </button>
               ) : (

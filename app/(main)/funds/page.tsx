@@ -13,10 +13,7 @@ import {
   Copy,
   Check,
   Clock,
-  ShieldCheck,
-  Info,
-  Pencil,
-  X
+  ShieldCheck
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -86,40 +83,6 @@ export default function FundsPage() {
     setCopiedWaba(true);
     toast.success("WABA ID copied to clipboard");
     setTimeout(() => setCopiedWaba(false), 2000);
-  }
-
-  // Edit WhatsApp Account Balance helper
-  const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [newBalanceInput, setNewBalanceInput] = useState("");
-  const [isSavingBalance, setIsSavingBalance] = useState(false);
-
-  async function handleSaveBalance() {
-    const num = parseFloat(newBalanceInput);
-    if (isNaN(num) || num < 0) {
-      toast.error("Please enter a valid positive number for balance");
-      return;
-    }
-    try {
-      setIsSavingBalance(true);
-      const res = await fetch("/api/funds", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ balance: num })
-      });
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.message || "Failed to update balance");
-      }
-      toast.success(json.message || "Balance updated successfully");
-      setIsEditingBalance(false);
-      refetch();
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update balance"
-      );
-    } finally {
-      setIsSavingBalance(false);
-    }
   }
 
   // Filtered transactions
@@ -241,92 +204,47 @@ export default function FundsPage() {
           <>
             {/* Top 4 KPI Summary Cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Card 1: Available Balance */}
+              {/* Card 1: WhatsApp Prepaid Wallet */}
               <div className="border-border bg-card relative overflow-hidden rounded-xl border p-4.5 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Available Funds Left
+                    WhatsApp Prepaid Wallet
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                     <span className="size-1.5 animate-pulse rounded-full bg-emerald-500"></span>
-                    {summary.accountHealth}
+                    {summary.qualityRating
+                      ? `ACTIVE (${summary.qualityRating})`
+                      : "CONNECTED"}
                   </span>
                 </div>
 
-                <div className="mt-3 flex items-baseline justify-between gap-1">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-muted-foreground text-xl font-semibold">
-                      {currencySymbol}
-                    </span>
-                    <span className="text-foreground font-mono text-3xl font-extrabold tracking-tight">
-                      {summary.balance.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
+                <div className="mt-3">
+                  <div className="text-foreground text-xl font-bold tracking-tight">
+                    Managed in Meta
                   </div>
-                  <button
-                    onClick={() => {
-                      setNewBalanceInput(String(summary.balance));
-                      setIsEditingBalance(!isEditingBalance);
-                    }}
-                    title="Update WhatsApp Account Balance"
-                    className="border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium shadow-2xs transition-colors"
+                </div>
+
+                <div className="border-border mt-3 border-t pt-2.5">
+                  <a
+                    href={summary.addFundsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cf-orange inline-flex items-center gap-1 text-[11px] font-semibold hover:underline"
                   >
-                    <Pencil className="size-3" />
-                    <span>Edit</span>
-                  </button>
-                </div>
-
-                {isEditingBalance && (
-                  <div className="border-border bg-muted/40 mt-3 rounded-lg border p-2.5">
-                    <div className="text-muted-foreground mb-1.5 text-[11px] font-medium">
-                      Set WhatsApp Wallet Balance ({currencySymbol}):
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={newBalanceInput}
-                        onChange={(e) => setNewBalanceInput(e.target.value)}
-                        className="border-border bg-background text-foreground focus:ring-cf-orange w-full rounded-md border px-2.5 py-1 font-mono text-xs focus:ring-1 focus:outline-none"
-                        placeholder="e.g. 88.00"
-                        autoFocus
-                      />
-                      <button
-                        onClick={handleSaveBalance}
-                        disabled={isSavingBalance}
-                        className="bg-cf-orange text-white hover:bg-[#e87516] inline-flex cursor-pointer items-center rounded-md px-2.5 py-1 text-xs font-semibold shadow-xs disabled:opacity-50"
-                      >
-                        {isSavingBalance ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        onClick={() => setIsEditingBalance(false)}
-                        className="text-muted-foreground hover:text-foreground inline-flex cursor-pointer p-1"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-muted-foreground border-border mt-3 flex items-center justify-between border-t pt-2.5 text-[11px]">
-                  <span>Est. remaining messages:</span>
-                  <span className="text-foreground font-mono font-semibold">
-                    ~{summary.estimatedRemainingMessages.toLocaleString()} msgs
-                  </span>
+                    <span>Open WhatsApp Manager Billing</span>
+                    <ExternalLink className="size-3" />
+                  </a>
                 </div>
               </div>
 
-              {/* Card 2: Total Campaign Spends */}
+              {/* Card 2: Total Meta Cloud Spend */}
               <div className="border-border bg-card relative overflow-hidden rounded-xl border p-4.5 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Total Campaign Spends
+                    Total Meta Cloud Spend
                   </span>
                   <span className="bg-cf-orange/15 text-cf-orange border-cf-orange/20 rounded-full border px-2 py-0.5 text-[10px] font-semibold">
-                    Meta Cloud API
+                    Live Meta API
                   </span>
                 </div>
 
@@ -335,7 +253,7 @@ export default function FundsPage() {
                     {currencySymbol}
                   </span>
                   <span className="text-foreground font-mono text-3xl font-extrabold tracking-tight">
-                    {summary.totalSpend.toLocaleString("en-IN", {
+                    {summary.metaTotalSpend.toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
                     })}
@@ -343,13 +261,9 @@ export default function FundsPage() {
                 </div>
 
                 <div className="text-muted-foreground border-border mt-3 flex items-center justify-between border-t pt-2.5 text-[11px]">
-                  <span>
-                    Marketing: {currencySymbol}
-                    {summary.marketingSpend}
-                  </span>
-                  <span>
-                    Utility: {currencySymbol}
-                    {summary.utilitySpend}
+                  <span>Billed Volume (30d):</span>
+                  <span className="text-foreground font-mono font-semibold">
+                    {summary.metaTotalVolume} msgs billed by Meta
                   </span>
                 </div>
               </div>
@@ -399,7 +313,9 @@ export default function FundsPage() {
                     {summary.wabaName || "Mariya Technoindia Pvt Ltd"}
                   </div>
                   <div className="text-muted-foreground mt-1 flex items-center justify-between font-mono text-[11px]">
-                    <span>Asset: {summary.assetId || summary.wabaId}</span>
+                    <span>
+                      {summary.displayPhoneNumber || "+91 78966 68697"}
+                    </span>
                     <button
                       onClick={handleCopyWaba}
                       className="border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors"
@@ -422,18 +338,10 @@ export default function FundsPage() {
                 </div>
 
                 <div className="border-border mt-3 border-t pt-2.5">
-                  <a
-                    href={
-                      summary.addFundsUrl ||
-                      "https://business.facebook.com/latest/whatsapp_manager/overview?business_id=1123162246252430&asset_id=1172496625076498"
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cf-orange inline-flex items-center gap-1 text-[11px] font-semibold transition-colors hover:text-[#e87516]"
-                  >
-                    <span>Open WhatsApp Manager Overview</span>
-                    <ExternalLink className="size-3" />
-                  </a>
+                  <div className="text-muted-foreground flex items-center justify-between text-[11px]">
+                    <span>Portfolio ID:</span>
+                    <span className="font-mono">{summary.metaBusinessId}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -654,16 +562,17 @@ export default function FundsPage() {
                 <div className="space-y-4 p-5">
                   {/* Real-time Notice Banner */}
                   <div className="border-border bg-muted/40 flex items-start gap-3 rounded-lg border p-3.5">
-                    <Info className="text-cf-orange mt-0.5 size-4 shrink-0" />
+                    <ShieldCheck className="text-cf-orange mt-0.5 size-4 shrink-0" />
                     <div className="text-xs">
                       <span className="text-foreground font-semibold">
-                        Live In-Memory Transaction Ledger
+                        Live Meta Cloud API Billing Activity
                       </span>
-                      <p className="text-muted-foreground mt-0.5 text-[11px]">
-                        This ledger reflects real-time billing activity, prepaid
-                        wallet funds, and template message dispatches strictly
-                        for WhatsApp Business Account {summary.assetId} without
-                        persisting transaction records into your database.
+                      <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
+                        This ledger reflects real-time messaging usage charges
+                        fetched directly from Meta Graph API for WhatsApp
+                        Business Account {summary.assetId}, alongside direct CRM
+                        template dispatches without saving transaction rows in
+                        your database.
                       </p>
                     </div>
                   </div>

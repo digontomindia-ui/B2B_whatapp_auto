@@ -149,9 +149,7 @@ export function CreateCustomerDialog({
           </div>
 
           <div>
-            <label className="text-foreground font-semibold">
-              Custom Name
-            </label>
+            <label className="text-foreground font-semibold">Custom Name</label>
             <input
               type="text"
               value={customName}

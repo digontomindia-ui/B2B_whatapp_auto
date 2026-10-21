@@ -290,7 +290,7 @@ export function CustomerDetailsSheet({
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="e.g. Sector 12, RK Puram, New Delhi 110022"
-            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 resize-none"
+            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange w-full resize-none rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
 

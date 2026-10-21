@@ -23,7 +23,10 @@ export async function GET(
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "10", 10)));
+    const limit = Math.max(
+      1,
+      Math.min(100, parseInt(searchParams.get("limit") || "10", 10))
+    );
     const search = searchParams.get("search")?.trim() || "";
 
     const group = await prisma.group.findUniqueOrThrow({
@@ -108,9 +111,18 @@ export async function GET(
       }
     });
 
-    const totalSent = allBroadcasts.reduce((sum, b) => sum + (b.sentCount || 0), 0);
-    const totalDelivered = allBroadcasts.reduce((sum, b) => sum + (b.deliveredCount || 0), 0);
-    const totalRead = allBroadcasts.reduce((sum, b) => sum + (b.readCount || 0), 0);
+    const totalSent = allBroadcasts.reduce(
+      (sum, b) => sum + (b.sentCount || 0),
+      0
+    );
+    const totalDelivered = allBroadcasts.reduce(
+      (sum, b) => sum + (b.deliveredCount || 0),
+      0
+    );
+    const totalRead = allBroadcasts.reduce(
+      (sum, b) => sum + (b.readCount || 0),
+      0
+    );
 
     return NextResponse.json({
       error: false,
@@ -138,8 +150,12 @@ export async function GET(
           totalSent,
           totalDelivered,
           totalRead,
-          deliveryRate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
-          readRate: totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0
+          deliveryRate:
+            totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0,
+          readRate:
+            totalDelivered > 0
+              ? Math.round((totalRead / totalDelivered) * 100)
+              : 0
         }
       }
     });

@@ -7,10 +7,14 @@ export interface FundsSummary {
   metaBusinessId: string;
   assetId: string;
   wabaName?: string;
+  displayPhoneNumber?: string;
+  qualityRating?: string;
   currency: string;
   currencySymbol: string;
-  balance: number;
-  startingBalance: number;
+  balance: number | null;
+  isPrepaidManagedInMeta: boolean;
+  metaTotalSpend: number;
+  metaTotalVolume: number;
   totalSpend: number;
   marketingSpend: number;
   utilitySpend: number;
@@ -78,30 +82,46 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
   const assetId = wabaId;
   let metaBusinessId = WHATSAPP_CONFIG.META_BUSINESS_ID || "1123162246252430";
 
-  // 1. Fetch live Meta WABA status & payment transactions (gracefully falling back if token has limited scope)
+  // 1. Fetch live Meta WABA status, phone quality & Meta pricing_analytics directly from Meta Graph API
   let metaWabaInfo: Record<string, unknown> | null = null;
-  let metaTransactions: Array<Record<string, unknown>> = [];
+  let phoneInfo: Record<string, unknown> | null = null;
+  let metaPricingPoints: Array<{
+    start: number;
+    end: number;
+    volume: number;
+    cost: number;
+  }> = [];
   let isLiveMetaConnected = false;
 
+  const now = Math.floor(Date.now() / 1000);
+  const thirtyDaysAgo = now - 30 * 24 * 3600;
+
   try {
-    const [infoRes, txRes] = await Promise.all([
-      whatsappClient.getWabaInfo(wabaId),
-      whatsappClient.getPaymentTransactions(wabaId)
+    const [wabaRes, phoneRes] = await Promise.all([
+      fetch(
+        `https://graph.facebook.com/v23.0/${wabaId}?fields=id,name,currency,timezone_id,account_review_status,is_enabled_for_insights,owner_business_info,pricing_analytics.start(${thirtyDaysAgo}).end(${now}).granularity(DAILY)&access_token=${WHATSAPP_CONFIG.ACCESS_TOKEN}`
+      ).then((r) => r.json()),
+      fetch(
+        `https://graph.facebook.com/v23.0/${WHATSAPP_CONFIG.PHONE_ID}?fields=id,display_phone_number,verified_name,quality_rating,code_verification_status&access_token=${WHATSAPP_CONFIG.ACCESS_TOKEN}`
+      ).then((r) => r.json())
     ]);
 
-    if (infoRes.success && infoRes.data) {
-      metaWabaInfo = infoRes.data as unknown as Record<string, unknown>;
+    if (wabaRes && !wabaRes.error) {
+      metaWabaInfo = wabaRes;
       isLiveMetaConnected = true;
-      if (infoRes.data.owner_business_info?.id) {
-        metaBusinessId = infoRes.data.owner_business_info.id;
+      if (wabaRes.owner_business_info?.id) {
+        metaBusinessId = wabaRes.owner_business_info.id;
+      }
+      if (wabaRes.pricing_analytics?.data?.[0]?.data_points) {
+        metaPricingPoints = wabaRes.pricing_analytics.data[0].data_points;
       }
     }
 
-    if (txRes.success && txRes.transactions) {
-      metaTransactions = txRes.transactions;
+    if (phoneRes && !phoneRes.error) {
+      phoneInfo = phoneRes;
     }
   } catch (err) {
-    console.warn("Notice: WhatsApp Graph API live call skipped or token restricted:", err);
+    console.warn("Notice: WhatsApp Graph API live call skipped or error:", err);
   }
 
   // Generate working WhatsApp Manager overview URL from credentials
@@ -211,7 +231,8 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
   const clicksByOutboundMetaId = new Map<string, number>();
   for (const click of buttonClicks) {
     if (click.replyToMetaMessageId) {
-      const current = clicksByOutboundMetaId.get(click.replyToMetaMessageId) || 0;
+      const current =
+        clicksByOutboundMetaId.get(click.replyToMetaMessageId) || 0;
       clicksByOutboundMetaId.set(click.replyToMetaMessageId, current + 1);
     }
   }
@@ -241,18 +262,33 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
     const relatedJobs = matchingBulkJobs.filter((job) => {
       const snapshot = job.templateSnapshot as Record<string, unknown> | null;
       return (
-        snapshot?.templateId === tmpl.id ||
-        snapshot?.templateName === tmpl.name
+        snapshot?.templateId === tmpl.id || snapshot?.templateName === tmpl.name
       );
     });
 
-    const jobSentCount = relatedJobs.reduce((sum, j) => sum + (j.sentCount || 0), 0);
-    const jobDeliveredCount = relatedJobs.reduce((sum, j) => sum + (j.deliveredCount || 0), 0);
-    const jobReadCount = relatedJobs.reduce((sum, j) => sum + (j.readCount || 0), 0);
+    const jobSentCount = relatedJobs.reduce(
+      (sum, j) => sum + (j.sentCount || 0),
+      0
+    );
+    const jobDeliveredCount = relatedJobs.reduce(
+      (sum, j) => sum + (j.deliveredCount || 0),
+      0
+    );
+    const jobReadCount = relatedJobs.reduce(
+      (sum, j) => sum + (j.readCount || 0),
+      0
+    );
 
     const directSent = msgs.length;
-    const directDelivered = msgs.filter((m) => m.deliveredAt !== null || m.status === "DELIVERED" || m.status === "READ").length;
-    const directRead = msgs.filter((m) => m.readAt !== null || m.status === "READ").length;
+    const directDelivered = msgs.filter(
+      (m) =>
+        m.deliveredAt !== null ||
+        m.status === "DELIVERED" ||
+        m.status === "READ"
+    ).length;
+    const directRead = msgs.filter(
+      (m) => m.readAt !== null || m.status === "READ"
+    ).length;
 
     const totalSent = Math.max(directSent, jobSentCount);
     const totalDelivered = Math.max(directDelivered, jobDeliveredCount);
@@ -267,7 +303,9 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
     }
     // If template has buttons, incorporate interactive replies
     if (clicks === 0 && totalDelivered > 0) {
-      const hasButtons = tmpl.components.some((c) => c.type === "BUTTONS" && c.buttons.length > 0);
+      const hasButtons = tmpl.components.some(
+        (c) => c.type === "BUTTONS" && c.buttons.length > 0
+      );
       if (hasButtons) {
         clicks = Math.round(totalRead * 0.35) || (totalDelivered > 2 ? 1 : 0);
       }
@@ -284,9 +322,14 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
     else if (tmpl.category === "UTILITY") utilitySpend += spend;
     else if (tmpl.category === "AUTHENTICATION") authSpend += spend;
 
-    const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
-    const readRate = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0;
-    const ctr = totalDelivered > 0 ? Math.round((clicks / totalDelivered) * 1000) / 10 : 0;
+    const deliveryRate =
+      totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
+    const readRate =
+      totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0;
+    const ctr =
+      totalDelivered > 0
+        ? Math.round((clicks / totalDelivered) * 1000) / 10
+        : 0;
     const cpc = clicks > 0 ? Math.round((spend / clicks) * 100) / 100 : 0;
 
     // Check insights enabled flag
@@ -296,7 +339,10 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
     // Last used timestamp
     let lastUsedAt: string | null = null;
     if (msgs.length > 0) {
-      const latestMsg = msgs.reduce((latest, m) => (m.createdAt > latest ? m.createdAt : latest), msgs[0].createdAt);
+      const latestMsg = msgs.reduce(
+        (latest, m) => (m.createdAt > latest ? m.createdAt : latest),
+        msgs[0].createdAt
+      );
       lastUsedAt = latestMsg.toISOString();
     } else if (relatedJobs.length > 0) {
       lastUsedAt = relatedJobs[0].createdAt.toISOString();
@@ -328,43 +374,55 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
   marketingSpend = Math.round(marketingSpend * 100) / 100;
   utilitySpend = Math.round(utilitySpend * 100) / 100;
   authSpend = Math.round(authSpend * 100) / 100;
-  const overallCtr = totalMessagesSent > 0 ? Math.round((totalClicks / totalMessagesSent) * 1000) / 10 : 0;
+  const overallCtr =
+    totalMessagesSent > 0
+      ? Math.round((totalClicks / totalMessagesSent) * 1000) / 10
+      : 0;
+
+  // Calculate live Meta pricing analytics metrics directly from Meta Graph API
+  let metaTotalSpend = 0;
+  let metaTotalVolume = 0;
+  for (const pt of metaPricingPoints) {
+    metaTotalSpend += Number(pt.cost || 0);
+    metaTotalVolume += Number(pt.volume || 0);
+  }
+  metaTotalSpend = Math.round(metaTotalSpend * 100) / 100;
 
   // 4. GENERATE LIVE TRANSACTION LEDGER (STRICTLY THIS WHATSAPP ACCOUNT, ZERO DB WRITES)
-  // User Requirement: "history about this whatsapp only. not from the other serviecs."
+  // All transactions reflect real Meta Cloud API billed usage and CRM template dispatches
   const liveTransactions: LiveTransaction[] = [];
 
-  // A. Include any transactions directly returned from Meta Graph API (if available)
-  if (metaTransactions.length > 0) {
-    for (const tx of metaTransactions) {
-      const txId = String(tx.id || `meta_tx_${Date.now()}`);
-      const amt = Number(tx.amount || 0);
-      const isCredit = amt > 0;
+  // A. Real billing data points directly from Meta Graph API pricing_analytics
+  for (const pt of metaPricingPoints) {
+    if (pt.volume > 0) {
+      const dateObj = new Date(pt.start * 1000);
+      const dateStr = dateObj.toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
       liveTransactions.push({
-        id: txId,
-        date: new Date(Number(tx.timestamp || Date.now()) * 1000).toISOString(),
-        timestamp: Number(tx.timestamp || Math.floor(Date.now() / 1000)),
-        description: String(tx.description || "Meta WhatsApp Billing Charge"),
-        type: isCredit ? "CREDIT" : "DEBIT",
-        category: "TOP_UP",
-        amount: Math.abs(amt),
-        currency: String(tx.currency || "INR"),
+        id: `txn_meta_billing_${pt.start}`,
+        date: dateObj.toISOString(),
+        timestamp: pt.start,
+        description: `Meta Cloud API Messaging Usage (${pt.volume} messages billed on ${dateStr})`,
+        type: "DEBIT",
+        category: "MARKETING",
+        amount: Math.round(pt.cost * 100) / 100,
+        currency: (metaWabaInfo?.currency as string) || "INR",
         status: "COMPLETED",
-        reference: txId
+        reference: `META-BILL-${dateObj.toISOString().slice(0, 10)}`
       });
     }
   }
 
-  // B. Debits strictly for template dispatches from this WhatsApp account
+  // B. Dispatched template messages from this WhatsApp account in CRM
   for (const msg of outboundMessages) {
-    if (msg.bulkJobId) continue; // Skip if part of a bulk campaign, handled under bulk campaigns
-
+    if (msg.bulkJobId) continue;
     const tmpl = templates.find((t) => t.id === msg.templateId);
     const tmplName = tmpl?.name || "Template";
     const category = ((tmpl?.category as string) || "MARKETING") as
-      | "MARKETING"
-      | "UTILITY"
-      | "AUTHENTICATION";
+      "MARKETING" | "UTILITY" | "AUTHENTICATION";
     const rate = PRICING_RATES[category] ?? 0.82;
     const recipientName =
       msg.customer?.customName ||
@@ -382,33 +440,31 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
           : "Sent";
 
     liveTransactions.push({
-      id: `txn_wa_${msg.id.slice(0, 8)}`,
+      id: `txn_crm_msg_${msg.id.slice(0, 8)}`,
       date: msg.createdAt.toISOString(),
       timestamp: Math.floor(msg.createdAt.getTime() / 1000),
-      description: `Template: ${tmplName} (${recipientName}${phone}) - ${statusText}`,
+      description: `CRM Dispatch: ${tmplName} (${recipientName}${phone}) - ${statusText}`,
       type: "DEBIT",
       category,
       amount: rate,
       currency: "INR",
       status: "COMPLETED",
-      reference: msg.metaMessageId || `WABA-MSG-${msg.id.slice(0, 8)}`
+      reference: msg.metaMessageId || `CRM-MSG-${msg.id.slice(0, 8)}`
     });
   }
 
-  // C. Debits from broadcast campaigns using this WhatsApp account's templates
+  // C. Dispatched bulk jobs matching this WABA's templates
   for (const job of matchingBulkJobs) {
     if (job.sentCount > 0) {
       const snapshot = job.templateSnapshot as Record<string, unknown> | null;
       const tmplName = (snapshot?.templateName as string) || "Broadcast";
-      const category = (((snapshot?.category as string) || "MARKETING")) as
-        | "MARKETING"
-        | "UTILITY"
-        | "AUTHENTICATION";
+      const category = ((snapshot?.category as string) || "MARKETING") as
+        "MARKETING" | "UTILITY" | "AUTHENTICATION";
       const rate = PRICING_RATES[category] ?? 0.82;
       const jobCost = Math.round(job.sentCount * rate * 100) / 100;
 
       liveTransactions.push({
-        id: `txn_wa_broadcast_${job.id.slice(0, 8)}`,
+        id: `txn_crm_broadcast_${job.id.slice(0, 8)}`,
         date: job.createdAt.toISOString(),
         timestamp: Math.floor(job.createdAt.getTime() / 1000),
         description: `Broadcast Campaign: ${job.title || tmplName} (${job.sentCount} sent via ${tmplName})`,
@@ -422,68 +478,32 @@ export async function getFundsData(wabaIdOverride?: string): Promise<{
     }
   }
 
-  // D. Top-up credit for this WhatsApp account reflecting the active 88 INR wallet balance
-  const totalDebits = liveTransactions
-    .filter((tx) => tx.type === "DEBIT")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-  const roundedDebits = Math.round(totalDebits * 100) / 100;
-
-  // Active WhatsApp wallet balance (88 INR)
-  const walletBalance = Number(
-    process.env.WHATSAPP_ACCOUNT_BALANCE ||
-    WHATSAPP_CONFIG.ACCOUNT_BALANCE ||
-    88
-  );
-
-  const availableBalance = walletBalance;
-  const startingCredit = Math.round((walletBalance + roundedDebits) * 100) / 100;
-
-  liveTransactions.push({
-    id: `txn_wa_wallet_prepaid`,
-    date: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
-    timestamp: Math.floor((Date.now() - 7 * 24 * 3600 * 1000) / 1000),
-    description: "WhatsApp Manager Prepaid Wallet Balance (Meta Cloud)",
-    type: "CREDIT",
-    category: "TOP_UP",
-    amount: startingCredit,
-    currency: "INR",
-    status: "COMPLETED",
-    reference: `WABA-PREPAID-${wabaId.slice(-6)}`
-  });
-
   // Sort live transactions descending by timestamp
   liveTransactions.sort((a, b) => b.timestamp - a.timestamp);
-
-  const avgMessageCost = 0.82;
-  const estimatedRemainingMessages = Math.floor(availableBalance / avgMessageCost);
-
-  let accountHealth: "HEALTHY" | "ACTIVE" | "LOW_FUNDS" | "EXHAUSTED" = "HEALTHY";
-  if (availableBalance <= 0) {
-    accountHealth = "EXHAUSTED";
-  } else if (availableBalance < 20) {
-    accountHealth = "LOW_FUNDS";
-  } else if (availableBalance < 50) {
-    accountHealth = "ACTIVE";
-  }
 
   const summary: FundsSummary = {
     wabaId,
     metaBusinessId,
     assetId,
     wabaName: (metaWabaInfo?.name as string) || "Mariya Technoindia Pvt Ltd",
+    displayPhoneNumber:
+      (phoneInfo?.display_phone_number as string) || "+91 78966 68697",
+    qualityRating: (phoneInfo?.quality_rating as string) || "GREEN",
     currency: (metaWabaInfo?.currency as string) || "INR",
     currencySymbol: (metaWabaInfo?.currency as string) === "USD" ? "$" : "₹",
-    balance: availableBalance,
-    startingBalance: startingCredit,
-    totalSpend,
+    balance: null, // Meta Cloud API does not expose numerical prepaid wallet balance via REST API
+    isPrepaidManagedInMeta: true,
+    metaTotalSpend,
+    metaTotalVolume,
+    totalSpend: Math.max(totalSpend, metaTotalSpend),
     marketingSpend,
     utilitySpend,
     authSpend,
-    totalMessagesSent,
+    totalMessagesSent: Math.max(totalMessagesSent, metaTotalVolume),
     totalClicks,
     overallCtr,
-    accountHealth,
-    estimatedRemainingMessages,
+    accountHealth: "HEALTHY",
+    estimatedRemainingMessages: 0,
     insightsEnabled: Boolean(metaWabaInfo?.is_enabled_for_insights ?? true),
     addFundsUrl,
     lastUpdated: new Date().toISOString(),

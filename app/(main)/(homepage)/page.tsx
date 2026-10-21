@@ -252,9 +252,10 @@ export default function DashboardPage() {
     error: boolean;
     data: {
       summary: {
-        balance: number;
+        balance: number | null;
         currencySymbol: string;
         totalSpend: number;
+        metaTotalSpend?: number;
         accountHealth: string;
         addFundsUrl: string;
       };
@@ -549,15 +550,33 @@ export default function DashboardPage() {
                   title="View Funds &amp; Analytics"
                 >
                   <span className="font-mono font-bold">
-                    {fundsSummary.currencySymbol}
-                    {fundsSummary.balance.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
+                    {typeof fundsSummary.balance === "number" ? (
+                      <>
+                        {fundsSummary.currencySymbol}
+                        {fundsSummary.balance.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </>
+                    ) : (
+                      <>
+                        {fundsSummary.currencySymbol}
+                        {(fundsSummary.metaTotalSpend ?? 0).toLocaleString(
+                          "en-IN",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          }
+                        )}{" "}
+                        <span className="text-muted-foreground text-[10px] font-normal">
+                          spent
+                        </span>
+                      </>
+                    )}
                   </span>
                   <span
                     className="size-1.5 animate-pulse rounded-full bg-emerald-500"
-                    title="Healthy Balance"
+                    title="Healthy WhatsApp Account"
                   ></span>
                 </Link>
 

@@ -334,57 +334,58 @@ export default function TemplatesPage() {
                       {/* Header Component */}
                       {headerComp && (
                         <div className="text-foreground border-border/50 border-b pb-1.5 text-[11px] font-semibold">
-                          {headerComp.format === "TEXT" ? (
-                            headerComp.text
-                          ) : (
-                            (() => {
-                              const ex = headerComp.examples as Record<
-                                string,
-                                unknown
-                              > | null;
-                              const raw = (
-                                headerComp as unknown as Record<string, unknown>
-                              )?.rawJson as Record<string, unknown> | null;
-                              const links = (ex?.mediaLinks ||
-                                raw?.mediaLinks) as
-                                | Array<{
-                                    url: string;
-                                    title?: string;
-                                    type?: string;
-                                    isDefault?: boolean;
-                                  }>
-                                | undefined;
-                              const def =
-                                links?.find((l) => l.isDefault) || links?.[0];
-                              return (
-                                <div className="space-y-1">
-                                  <div className="text-muted-foreground flex items-center justify-between">
-                                    <span className="flex items-center gap-1 font-semibold text-foreground">
-                                      {headerComp.format === "IMAGE" ? (
-                                        <ImageIcon className="text-cf-orange size-3" />
-                                      ) : headerComp.format === "VIDEO" ? (
-                                        <Video className="text-cf-orange size-3" />
-                                      ) : (
-                                        <FileText className="text-cf-orange size-3" />
-                                      )}
-                                      <span>Header: {headerComp.format}</span>
-                                    </span>
-                                    {links && links.length > 0 && (
-                                      <span className="bg-cf-orange/10 text-cf-orange rounded px-1.5 py-0.5 font-mono text-[9px] font-bold">
-                                        {links.length} media preset
-                                        {links.length > 1 ? "s" : ""}
+                          {headerComp.format === "TEXT"
+                            ? headerComp.text
+                            : (() => {
+                                const ex = headerComp.examples as Record<
+                                  string,
+                                  unknown
+                                > | null;
+                                const raw = (
+                                  headerComp as unknown as Record<
+                                    string,
+                                    unknown
+                                  >
+                                )?.rawJson as Record<string, unknown> | null;
+                                const links = (ex?.mediaLinks ||
+                                  raw?.mediaLinks) as
+                                  | Array<{
+                                      url: string;
+                                      title?: string;
+                                      type?: string;
+                                      isDefault?: boolean;
+                                    }>
+                                  | undefined;
+                                const def =
+                                  links?.find((l) => l.isDefault) || links?.[0];
+                                return (
+                                  <div className="space-y-1">
+                                    <div className="text-muted-foreground flex items-center justify-between">
+                                      <span className="text-foreground flex items-center gap-1 font-semibold">
+                                        {headerComp.format === "IMAGE" ? (
+                                          <ImageIcon className="text-cf-orange size-3" />
+                                        ) : headerComp.format === "VIDEO" ? (
+                                          <Video className="text-cf-orange size-3" />
+                                        ) : (
+                                          <FileText className="text-cf-orange size-3" />
+                                        )}
+                                        <span>Header: {headerComp.format}</span>
                                       </span>
+                                      {links && links.length > 0 && (
+                                        <span className="bg-cf-orange/10 text-cf-orange rounded px-1.5 py-0.5 font-mono text-[9px] font-bold">
+                                          {links.length} media preset
+                                          {links.length > 1 ? "s" : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {def && (
+                                      <div className="text-muted-foreground truncate font-mono text-[10px]">
+                                        ⭐ {def.title || def.url}
+                                      </div>
                                     )}
                                   </div>
-                                  {def && (
-                                    <div className="text-muted-foreground truncate font-mono text-[10px]">
-                                      ⭐ {def.title || def.url}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()
-                          )}
+                                );
+                              })()}
                         </div>
                       )}
 

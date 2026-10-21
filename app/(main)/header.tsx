@@ -66,9 +66,10 @@ export function Header() {
     error: boolean;
     data: {
       summary: {
-        balance: number;
+        balance: number | null;
         currencySymbol: string;
         accountHealth: string;
+        metaTotalSpend?: number;
       };
     };
   }>({
@@ -127,15 +128,30 @@ export function Header() {
             className="border-border bg-muted/50 hover:bg-muted text-foreground hover:border-cf-orange/40 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-2xs transition-colors"
             title="View WhatsApp Funds & Balance Details"
           >
-            <Wallet className="size-3.5 text-cf-orange shrink-0" />
+            <Wallet className="text-cf-orange size-3.5 shrink-0" />
             <span className="font-mono text-xs font-semibold">
-              {fundsSummary.currencySymbol}
-              {fundsSummary.balance.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-              })}
+              {typeof fundsSummary.balance === "number" ? (
+                <>
+                  {fundsSummary.currencySymbol}
+                  {fundsSummary.balance.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </>
+              ) : (
+                <>
+                  {fundsSummary.currencySymbol}
+                  {(fundsSummary.metaTotalSpend ?? 0).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}{" "}
+                  <span className="text-muted-foreground text-[10px] font-normal">
+                    spent
+                  </span>
+                </>
+              )}
             </span>
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500"></span>
           </Link>
         )}
 

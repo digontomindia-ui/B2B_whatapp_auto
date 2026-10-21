@@ -63,10 +63,7 @@ export function Sidebar() {
       icon: FolderKanban,
       visible:
         isOwner ||
-        hasAnyPermission([
-          PERMISSIONS.GROUP_MANAGE,
-          PERMISSIONS.CUSTOMER_VIEW
-        ])
+        hasAnyPermission([PERMISSIONS.GROUP_MANAGE, PERMISSIONS.CUSTOMER_VIEW])
     },
     {
       label: "Import & Export",

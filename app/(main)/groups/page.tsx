@@ -44,7 +44,7 @@ const PRESET_COLORS = [
   "#ec4899", // Pink
   "#f59e0b", // Amber
   "#06b6d4", // Cyan
-  "#64748b"  // Slate
+  "#64748b" // Slate
 ];
 
 export default function GroupsPage() {
@@ -74,7 +74,11 @@ export default function GroupsPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string; description?: string; color: string }) => {
+    mutationFn: async (payload: {
+      name: string;
+      description?: string;
+      color: string;
+    }) => {
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,13 +95,21 @@ export default function GroupsPage() {
       resetForm();
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to create group");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create group"
+      );
     }
   });
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: { name: string; description?: string; color: string } }) => {
+    mutationFn: async ({
+      id,
+      payload
+    }: {
+      id: string;
+      payload: { name: string; description?: string; color: string };
+    }) => {
       const res = await fetch(`/api/groups/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -114,7 +126,9 @@ export default function GroupsPage() {
       resetForm();
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to update group");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update group"
+      );
     }
   });
 
@@ -132,7 +146,9 @@ export default function GroupsPage() {
       setGroupToDelete(null);
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to delete group");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete group"
+      );
     }
   });
 
@@ -216,7 +232,8 @@ export default function GroupsPage() {
                   Customer Groups
                 </h1>
                 <p className="text-muted-foreground text-xs">
-                  Organize contacts into schools, branches, or customer segments for targeted broadcasts.
+                  Organize contacts into schools, branches, or customer segments
+                  for targeted broadcasts.
                 </p>
               </div>
             </div>
@@ -226,7 +243,7 @@ export default function GroupsPage() {
             {canManage && (
               <button
                 onClick={openCreateModal}
-                className="bg-cf-orange hover:bg-[#e87516] text-white shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-md transition-all active:scale-[0.98]"
+                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#e87516] active:scale-[0.98]"
               >
                 <Plus className="size-3.5" />
                 <span>Create Group</span>
@@ -241,7 +258,7 @@ export default function GroupsPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="border-border bg-card rounded-xl border p-4.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Total Groups
               </span>
               <FolderKanban className="text-cf-orange size-4" />
@@ -256,10 +273,10 @@ export default function GroupsPage() {
 
           <div className="border-border bg-card rounded-xl border p-4.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Grouped Contacts
               </span>
-              <Users className="text-blue-500 size-4" />
+              <Users className="size-4 text-blue-500" />
             </div>
             <div className="text-foreground mt-2 font-mono text-3xl font-extrabold">
               {totalCustomers.toLocaleString()}
@@ -271,10 +288,10 @@ export default function GroupsPage() {
 
           <div className="border-border bg-card rounded-xl border p-4.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Group Broadcasts
               </span>
-              <Radio className="text-emerald-500 size-4" />
+              <Radio className="size-4 text-emerald-500" />
             </div>
             <div className="text-foreground mt-2 font-mono text-3xl font-extrabold">
               {totalBroadcasts.toLocaleString()}
@@ -287,7 +304,7 @@ export default function GroupsPage() {
 
         {/* Search & Filter Bar */}
         <div className="flex items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative max-w-sm flex-1">
             <Search className="text-muted-foreground absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
             <input
               type="text"
@@ -298,7 +315,7 @@ export default function GroupsPage() {
             />
           </div>
 
-          <div className="text-muted-foreground text-xs font-mono">
+          <div className="text-muted-foreground font-mono text-xs">
             Showing {filteredGroups.length} of {groups.length} groups
           </div>
         </div>
@@ -320,7 +337,9 @@ export default function GroupsPage() {
               <FolderKanban className="size-6" />
             </div>
             <h3 className="text-foreground mt-3 text-sm font-semibold">
-              {search.trim() ? "No matching groups found" : "No groups created yet"}
+              {search.trim()
+                ? "No matching groups found"
+                : "No groups created yet"}
             </h3>
             <p className="text-muted-foreground mt-1 max-w-sm text-xs">
               {search.trim()
@@ -330,7 +349,7 @@ export default function GroupsPage() {
             {canManage && !search.trim() && (
               <button
                 onClick={openCreateModal}
-                className="bg-cf-orange hover:bg-[#e87516] text-white mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+                className="bg-cf-orange mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516]"
               >
                 <Plus className="size-3.5" />
                 <span>Create First Group</span>
@@ -427,7 +446,7 @@ export default function GroupsPage() {
 
                   <Link
                     href={`/groups/${group.id}`}
-                    className="text-cf-orange hover:text-[#e87516] inline-flex items-center gap-1 text-xs font-semibold transition-colors"
+                    className="text-cf-orange inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#e87516]"
                   >
                     <span>Manage Details</span>
                     <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
@@ -442,7 +461,7 @@ export default function GroupsPage() {
       {/* CREATE / EDIT GROUP MODAL */}
       {(isCreateOpen || editingGroup) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs select-none">
-          <div className="border-border bg-card w-full max-w-md rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="border-border bg-card animate-in fade-in zoom-in-95 w-full max-w-md rounded-xl border p-6 shadow-2xl">
             <div className="border-border flex items-center justify-between border-b pb-3">
               <h2 className="text-foreground text-sm font-bold">
                 {editingGroup ? "Edit Group" : "Create New Group"}
@@ -501,7 +520,9 @@ export default function GroupsPage() {
                       type="button"
                       onClick={() => setFormColor(c)}
                       className={`size-6 cursor-pointer rounded-full transition-transform ${
-                        formColor === c ? "ring-cf-orange scale-110 ring-2 ring-offset-2" : "opacity-80 hover:opacity-100"
+                        formColor === c
+                          ? "ring-cf-orange scale-110 ring-2 ring-offset-2"
+                          : "opacity-80 hover:opacity-100"
                       }`}
                       style={{ backgroundColor: c }}
                     />
@@ -523,8 +544,10 @@ export default function GroupsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                  className="bg-cf-orange hover:bg-[#e87516] text-white inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
                 >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="size-3 animate-spin" />
@@ -540,9 +563,9 @@ export default function GroupsPage() {
       {/* DELETE CONFIRMATION MODAL */}
       {groupToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs select-none">
-          <div className="border-border bg-card w-full max-w-sm rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="border-border bg-card animate-in fade-in zoom-in-95 w-full max-w-sm rounded-xl border p-6 shadow-2xl">
             <div className="flex items-start gap-3">
-              <div className="bg-destructive/15 text-destructive rounded-full p-2 shrink-0">
+              <div className="bg-destructive/15 text-destructive shrink-0 rounded-full p-2">
                 <ShieldAlert className="size-5" />
               </div>
               <div>
@@ -550,8 +573,10 @@ export default function GroupsPage() {
                   Delete Group?
                 </h3>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Are you sure you want to delete group &quot;{groupToDelete.name}&quot;?
-                  Customers belonging to this group will not be deleted; their group assignment will simply be cleared.
+                  Are you sure you want to delete group &quot;
+                  {groupToDelete.name}&quot;? Customers belonging to this group
+                  will not be deleted; their group assignment will simply be
+                  cleared.
                 </p>
               </div>
             </div>
@@ -568,7 +593,7 @@ export default function GroupsPage() {
                 type="button"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(groupToDelete.id)}
-                className="bg-destructive hover:bg-destructive/90 text-white inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold disabled:opacity-50"
+                className="bg-destructive hover:bg-destructive/90 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
               >
                 {deleteMutation.isPending && (
                   <Loader2 className="size-3 animate-spin" />

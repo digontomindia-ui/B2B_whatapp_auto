@@ -153,7 +153,9 @@ export default function GroupDetailPage({
           limit: String(pageSize),
           search: customerSearch
         });
-        const res = await fetch(`/api/groups/${groupId}?${queryParams.toString()}`);
+        const res = await fetch(
+          `/api/groups/${groupId}?${queryParams.toString()}`
+        );
         const json = await res.json();
         if (!res.ok || json.error) throw new Error(json.message);
         return json;
@@ -315,11 +317,13 @@ export default function GroupDetailPage({
           Group Not Found
         </h2>
         <p className="text-muted-foreground mt-1 text-xs">
-          {error instanceof Error ? error.message : "The group could not be loaded."}
+          {error instanceof Error
+            ? error.message
+            : "The group could not be loaded."}
         </p>
         <Link
           href="/groups"
-          className="bg-cf-orange text-white mt-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          className="bg-cf-orange mt-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
         >
           <ArrowLeft className="size-3.5" />
           <span>Back to Groups</span>
@@ -360,7 +364,8 @@ export default function GroupDetailPage({
                   />
                 </div>
                 <p className="text-muted-foreground text-xs">
-                  {group.description || "Customer group for broadcasts and segmented messaging."}
+                  {group.description ||
+                    "Customer group for broadcasts and segmented messaging."}
                 </p>
               </div>
             </div>
@@ -374,7 +379,7 @@ export default function GroupDetailPage({
                   setModalSearch("");
                   setModalSelectedIds(new Set());
                 }}
-                className="bg-cf-orange hover:bg-[#e87516] text-white shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold shadow-md transition-all active:scale-[0.98]"
+                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#e87516] active:scale-[0.98]"
               >
                 <UserPlus className="size-3.5" />
                 <span>+ Add Customers</span>
@@ -389,10 +394,10 @@ export default function GroupDetailPage({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Total Members
               </span>
-              <Users className="text-blue-500 size-4" />
+              <Users className="size-4 text-blue-500" />
             </div>
             <div className="text-foreground mt-2 font-mono text-2xl font-extrabold">
               {stats?.customerCount.toLocaleString() || 0}
@@ -404,7 +409,7 @@ export default function GroupDetailPage({
 
           <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Broadcast Campaigns
               </span>
               <Radio className="text-cf-orange size-4" />
@@ -419,25 +424,26 @@ export default function GroupDetailPage({
 
           <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Delivery Success
               </span>
-              <CheckCircle2 className="text-emerald-500 size-4" />
+              <CheckCircle2 className="size-4 text-emerald-500" />
             </div>
             <div className="text-foreground mt-2 font-mono text-2xl font-extrabold">
               {stats?.deliveryRate || 0}%
             </div>
             <p className="text-muted-foreground mt-1 text-[11px]">
-              {stats?.totalDelivered.toLocaleString() || 0} of {stats?.totalSent.toLocaleString() || 0} delivered
+              {stats?.totalDelivered.toLocaleString() || 0} of{" "}
+              {stats?.totalSent.toLocaleString() || 0} delivered
             </p>
           </div>
 
           <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                 Read Rate
               </span>
-              <Clock className="text-purple-500 size-4" />
+              <Clock className="size-4 text-purple-500" />
             </div>
             <div className="text-foreground mt-2 font-mono text-2xl font-extrabold">
               {stats?.readRate || 0}%
@@ -449,9 +455,9 @@ export default function GroupDetailPage({
         </div>
 
         {/* Tabs Bar */}
-        <div className="border-border bg-card rounded-xl border shadow-xs overflow-hidden">
+        <div className="border-border bg-card overflow-hidden rounded-xl border shadow-xs">
           <div className="border-border flex items-center justify-between border-b px-5 py-3">
-            <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg">
+            <div className="bg-muted/60 flex items-center gap-1 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab("customers")}
                 className={`inline-flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-all ${
@@ -462,7 +468,7 @@ export default function GroupDetailPage({
               >
                 <Users className="size-3.5" />
                 <span>Customers in Group</span>
-                <span className="bg-cf-orange/15 text-cf-orange text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                <span className="bg-cf-orange/15 text-cf-orange py-0.2 rounded-full px-1.5 font-mono text-[10px]">
                   {stats?.customerCount || 0}
                 </span>
               </button>
@@ -477,30 +483,32 @@ export default function GroupDetailPage({
               >
                 <Radio className="size-3.5" />
                 <span>Broadcast History</span>
-                <span className="bg-muted-foreground/15 text-muted-foreground text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                <span className="bg-muted-foreground/15 text-muted-foreground py-0.2 rounded-full px-1.5 font-mono text-[10px]">
                   {stats?.broadcastCount || 0}
                 </span>
               </button>
             </div>
 
-            {activeTab === "customers" && selectedCustomerIds.size > 0 && canManage && (
-              <button
-                onClick={handleRemoveSelected}
-                disabled={removeCustomersMutation.isPending}
-                className="bg-destructive/15 text-destructive hover:bg-destructive/25 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-              >
-                <UserMinus className="size-3.5" />
-                <span>Remove {selectedCustomerIds.size} Selected</span>
-              </button>
-            )}
+            {activeTab === "customers" &&
+              selectedCustomerIds.size > 0 &&
+              canManage && (
+                <button
+                  onClick={handleRemoveSelected}
+                  disabled={removeCustomersMutation.isPending}
+                  className="bg-destructive/15 text-destructive hover:bg-destructive/25 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
+                >
+                  <UserMinus className="size-3.5" />
+                  <span>Remove {selectedCustomerIds.size} Selected</span>
+                </button>
+              )}
           </div>
 
           {/* TAB 1: CUSTOMERS TABLE (PAGINATED) */}
           {activeTab === "customers" && (
-            <div className="p-5 space-y-4">
+            <div className="space-y-4 p-5">
               {/* Search & Actions Bar */}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative flex-1 max-w-sm">
+                <div className="relative max-w-sm flex-1">
                   <Search className="text-muted-foreground absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
                   <input
                     type="text"
@@ -524,7 +532,7 @@ export default function GroupDetailPage({
                       }}
                       className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
                     >
-                      <Plus className="size-3 text-cf-orange" />
+                      <Plus className="text-cf-orange size-3" />
                       <span>Add Customers</span>
                     </button>
                   )}
@@ -532,12 +540,12 @@ export default function GroupDetailPage({
               </div>
 
               {/* Table */}
-              <div className="border-border rounded-lg border overflow-x-auto">
+              <div className="border-border overflow-x-auto rounded-lg border">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/50 text-muted-foreground border-border border-b text-[11px] font-semibold uppercase tracking-wider">
+                  <thead className="bg-muted/50 text-muted-foreground border-border border-b text-[11px] font-semibold tracking-wider uppercase">
                     <tr>
                       {canManage && (
-                        <th className="px-3 py-3 w-8">
+                        <th className="w-8 px-3 py-3">
                           <input
                             type="checkbox"
                             checked={
@@ -555,7 +563,9 @@ export default function GroupDetailPage({
                       <th className="px-3 py-3">Status</th>
                       <th className="px-3 py-3">State</th>
                       <th className="px-3 py-3">Added Date</th>
-                      {canManage && <th className="px-4 py-3 text-right">Actions</th>}
+                      {canManage && (
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-border divide-y">
@@ -582,14 +592,16 @@ export default function GroupDetailPage({
                                 type="checkbox"
                                 checked={selectedCustomerIds.has(c.id)}
                                 onChange={() => toggleSelectCustomer(c.id)}
-                                className="accent-cf-orange rounded cursor-pointer"
+                                className="accent-cf-orange cursor-pointer rounded"
                               />
                             </td>
                           )}
 
                           <td className="px-4 py-3">
-                            <div className="font-semibold text-foreground">
-                              {c.customName || c.whatsappName || "Unnamed Contact"}
+                            <div className="text-foreground font-semibold">
+                              {c.customName ||
+                                c.whatsappName ||
+                                "Unnamed Contact"}
                             </div>
                             {c.whatsappName && c.customName && (
                               <div className="text-muted-foreground text-[10px]">
@@ -598,11 +610,11 @@ export default function GroupDetailPage({
                             )}
                           </td>
 
-                          <td className="px-3 py-3 font-mono text-muted-foreground">
+                          <td className="text-muted-foreground px-3 py-3 font-mono">
                             {c.normalizedPhone || c.phoneNumber}
                           </td>
 
-                          <td className="px-3 py-3 text-muted-foreground">
+                          <td className="text-muted-foreground px-3 py-3">
                             {c.companyName || "—"}
                           </td>
 
@@ -612,8 +624,8 @@ export default function GroupDetailPage({
                                 c.status === "HOT"
                                   ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
                                   : c.status === "WARM"
-                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                  : "bg-sky-500/15 text-sky-600 dark:text-sky-400"
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                    : "bg-sky-500/15 text-sky-600 dark:text-sky-400"
                               }`}
                             >
                               {c.status}
@@ -632,7 +644,7 @@ export default function GroupDetailPage({
                             </span>
                           </td>
 
-                          <td className="px-3 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                          <td className="text-muted-foreground px-3 py-3 font-mono text-[11px] whitespace-nowrap">
                             {new Date(c.createdAt).toLocaleDateString()}
                           </td>
 
@@ -657,9 +669,10 @@ export default function GroupDetailPage({
 
               {/* Pagination Controls */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
+                <div className="border-border flex items-center justify-between border-t pt-3 text-xs">
                   <div className="text-muted-foreground font-mono">
-                    Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+                    Page {pagination.page} of {pagination.totalPages} (
+                    {pagination.total} total)
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -691,10 +704,10 @@ export default function GroupDetailPage({
 
           {/* TAB 2: BROADCASTS TABLE */}
           {activeTab === "broadcasts" && (
-            <div className="p-5 space-y-4">
-              <div className="border-border rounded-lg border overflow-x-auto">
+            <div className="space-y-4 p-5">
+              <div className="border-border overflow-x-auto rounded-lg border">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/50 text-muted-foreground border-border border-b text-[11px] font-semibold uppercase tracking-wider">
+                  <thead className="bg-muted/50 text-muted-foreground border-border border-b text-[11px] font-semibold tracking-wider uppercase">
                     <tr>
                       <th className="px-4 py-3">Broadcast Title</th>
                       <th className="px-3 py-3">Type</th>
@@ -723,7 +736,7 @@ export default function GroupDetailPage({
                           className="hover:bg-muted/30 transition-colors"
                         >
                           <td className="px-4 py-3">
-                            <div className="font-semibold text-foreground">
+                            <div className="text-foreground font-semibold">
                               {b.title || "Broadcast Job"}
                             </div>
                             <div className="text-muted-foreground font-mono text-[10px]">
@@ -743,10 +756,10 @@ export default function GroupDetailPage({
                                 b.status === "COMPLETED"
                                   ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                                   : b.status === "PARTIAL"
-                                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                  : b.status === "RUNNING"
-                                  ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                                  : "bg-destructive/15 text-destructive"
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                    : b.status === "RUNNING"
+                                      ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                      : "bg-destructive/15 text-destructive"
                               }`}
                             >
                               {b.status}
@@ -757,7 +770,7 @@ export default function GroupDetailPage({
                             {b.totalRecipients.toLocaleString()}
                           </td>
 
-                          <td className="px-3 py-3 text-right font-mono font-semibold text-foreground">
+                          <td className="text-foreground px-3 py-3 text-right font-mono font-semibold">
                             {b.sentCount.toLocaleString()}
                           </td>
 
@@ -769,7 +782,7 @@ export default function GroupDetailPage({
                             {b.readCount.toLocaleString()}
                           </td>
 
-                          <td className="px-4 py-3 text-right font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                          <td className="text-muted-foreground px-4 py-3 text-right font-mono text-[11px] whitespace-nowrap">
                             {new Date(b.createdAt).toLocaleString("en-IN", {
                               month: "short",
                               day: "numeric",
@@ -791,14 +804,15 @@ export default function GroupDetailPage({
       {/* ADD CUSTOMERS MODAL */}
       {isAddCustomersOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs select-none">
-          <div className="border-border bg-card flex max-h-[85vh] w-full max-w-xl flex-col rounded-xl border shadow-2xl animate-in fade-in zoom-in-95 overflow-hidden">
+          <div className="border-border bg-card animate-in fade-in zoom-in-95 flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border shadow-2xl">
             <div className="border-border flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-foreground text-sm font-bold">
                   Add Customers to &quot;{group.name}&quot;
                 </h2>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  Select contacts to assign to this group. Customers belong to one group at a time.
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  Select contacts to assign to this group. Customers belong to
+                  one group at a time.
                 </p>
               </div>
               <button
@@ -810,7 +824,7 @@ export default function GroupDetailPage({
             </div>
 
             {/* Search Input */}
-            <div className="p-4 border-b border-border bg-muted/20">
+            <div className="border-border bg-muted/20 border-b p-4">
               <div className="relative">
                 <Search className="text-muted-foreground absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
                 <input
@@ -824,7 +838,7 @@ export default function GroupDetailPage({
             </div>
 
             {/* Contacts Selection List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 space-y-2 overflow-y-auto p-4">
               {isLoadingAvailable ? (
                 <div className="flex flex-col items-center justify-center py-8">
                   <Loader2 className="text-cf-orange size-6 animate-spin" />
@@ -846,7 +860,9 @@ export default function GroupDetailPage({
                       key={cust.id}
                       onClick={() => toggleModalSelect(cust.id)}
                       className={`border-border hover:border-cf-orange/40 flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors ${
-                        isSelected ? "bg-cf-orange/5 border-cf-orange" : "bg-card"
+                        isSelected
+                          ? "bg-cf-orange/5 border-cf-orange"
+                          : "bg-card"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -857,22 +873,33 @@ export default function GroupDetailPage({
                               : "border-border bg-background"
                           }`}
                         >
-                          {isSelected && <Check className="size-3 stroke-[3]" />}
+                          {isSelected && (
+                            <Check className="size-3 stroke-[3]" />
+                          )}
                         </div>
                         <div>
                           <div className="text-foreground text-xs font-semibold">
-                            {cust.customName || cust.whatsappName || "Unnamed Contact"}
+                            {cust.customName ||
+                              cust.whatsappName ||
+                              "Unnamed Contact"}
                           </div>
-                          <div className="text-muted-foreground font-mono text-[11px] flex items-center gap-2">
-                            <span>{cust.normalizedPhone || cust.phoneNumber}</span>
-                            {cust.companyName && <span>• {cust.companyName}</span>}
+                          <div className="text-muted-foreground flex items-center gap-2 font-mono text-[11px]">
+                            <span>
+                              {cust.normalizedPhone || cust.phoneNumber}
+                            </span>
+                            {cust.companyName && (
+                              <span>• {cust.companyName}</span>
+                            )}
                           </div>
                         </div>
                       </div>
 
                       {cust.group ? (
                         <div className="text-muted-foreground text-[10px]">
-                          Reassign from: <span className="font-semibold text-foreground">{cust.group.name}</span>
+                          Reassign from:{" "}
+                          <span className="text-foreground font-semibold">
+                            {cust.group.name}
+                          </span>
                         </div>
                       ) : (
                         <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px]">
@@ -886,8 +913,8 @@ export default function GroupDetailPage({
             </div>
 
             {/* Footer */}
-            <div className="border-border flex items-center justify-between border-t px-5 py-3 bg-card">
-              <span className="text-muted-foreground text-xs font-mono">
+            <div className="border-border bg-card flex items-center justify-between border-t px-5 py-3">
+              <span className="text-muted-foreground font-mono text-xs">
                 {modalSelectedIds.size} customer(s) selected
               </span>
 
@@ -902,8 +929,11 @@ export default function GroupDetailPage({
                 <button
                   type="button"
                   onClick={handleAddSelectedCustomers}
-                  disabled={modalSelectedIds.size === 0 || addCustomersMutation.isPending}
-                  className="bg-cf-orange hover:bg-[#e87516] text-white inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  disabled={
+                    modalSelectedIds.size === 0 ||
+                    addCustomersMutation.isPending
+                  }
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
                 >
                   {addCustomersMutation.isPending && (
                     <Loader2 className="size-3 animate-spin" />

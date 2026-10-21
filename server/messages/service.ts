@@ -587,12 +587,14 @@ export async function sendOutboundTemplateMessage({
         if (["IMAGE", "VIDEO", "DOCUMENT"].includes(hFormat)) {
           const ex = headerComp.examples as Record<string, unknown> | null;
           const raw = headerComp.rawJson as Record<string, unknown> | null;
-          const links = (ex?.mediaLinks || raw?.mediaLinks) as Array<{
-            url: string;
-            isDefault?: boolean;
-            title?: string;
-            type?: string;
-          }> | undefined;
+          const links = (ex?.mediaLinks || raw?.mediaLinks) as
+            | Array<{
+                url: string;
+                isDefault?: boolean;
+                title?: string;
+                type?: string;
+              }>
+            | undefined;
           const defaultLink = links?.find((l) => l.isDefault) || links?.[0];
           if (defaultLink?.url) {
             const fmt = hFormat.toLowerCase();

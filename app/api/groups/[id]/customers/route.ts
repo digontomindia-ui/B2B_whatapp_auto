@@ -5,7 +5,9 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 const customerIdsSchema = z.object({
-  customerIds: z.array(z.string().uuid("Valid customer ID required")).min(1, "At least one customer ID is required")
+  customerIds: z
+    .array(z.string().uuid("Valid customer ID required"))
+    .min(1, "At least one customer ID is required")
 });
 
 /**
@@ -25,7 +27,10 @@ export async function GET(
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim() || "";
-    const limit = Math.max(1, Math.min(50, parseInt(searchParams.get("limit") || "20", 10)));
+    const limit = Math.max(
+      1,
+      Math.min(50, parseInt(searchParams.get("limit") || "20", 10))
+    );
 
     const where: Record<string, unknown> = {
       // Not already in this group
@@ -79,7 +84,9 @@ export async function GET(
       ? (err as { statusCode?: number }).statusCode || 403
       : 500;
     const msg =
-      err instanceof Error ? err.message : "Failed to fetch available customers";
+      err instanceof Error
+        ? err.message
+        : "Failed to fetch available customers";
     return NextResponse.json(
       { error: true, message: msg, data: null },
       { status }

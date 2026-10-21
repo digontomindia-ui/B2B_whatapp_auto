@@ -55,9 +55,12 @@ export async function GET(request: NextRequest) {
         return job.recipients.some((r) => r.customer?.groupId === g.id);
       });
 
-      const lastJob = matchingJobs.reduce((latest, j) => {
-        return !latest || j.createdAt > latest.createdAt ? j : latest;
-      }, null as (typeof allBulkJobs)[0] | null);
+      const lastJob = matchingJobs.reduce(
+        (latest, j) => {
+          return !latest || j.createdAt > latest.createdAt ? j : latest;
+        },
+        null as (typeof allBulkJobs)[0] | null
+      );
 
       return {
         id: g.id,
