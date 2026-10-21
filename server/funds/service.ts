@@ -1,5 +1,4 @@
 import prisma from "@/lib/prisma";
-import { whatsappClient } from "@/clients/whatsapp";
 import { WHATSAPP_CONFIG } from "@/lib/env";
 
 export interface FundsSummary {

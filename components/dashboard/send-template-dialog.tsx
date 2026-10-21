@@ -13,7 +13,7 @@ import {
   Link as LinkIcon,
   ExternalLink
 } from "lucide-react";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { formatDisplayPhone } from "@/utils/phone";
 import { useAuth } from "@/providers/auth";
@@ -138,33 +138,24 @@ export function SendTemplateDialog({
     return rawHeaderComponent;
   }, [isMediaHeader, rawHeaderComponent]);
 
-  useEffect(() => {
-    if (isMediaHeader) {
-      if (configuredMediaLinks.length > 0) {
-        const def =
-          configuredMediaLinks.find((l) => l.isDefault) ||
-          configuredMediaLinks[0];
-        setSelectedMediaUrl(def.url);
-        setSelectedMediaTitle(def.title || "");
-        setIsCustomMedia(false);
-        setCustomMediaUrl("");
-      } else {
-        setSelectedMediaUrl("");
-        setSelectedMediaTitle("");
-        setIsCustomMedia(true);
-        setCustomMediaUrl("");
-      }
-    } else {
-      setSelectedMediaUrl("");
-      setSelectedMediaTitle("");
-      setIsCustomMedia(false);
-      setCustomMediaUrl("");
-    }
+  const defaultPresetMedia = useMemo(() => {
+    if (!isMediaHeader || configuredMediaLinks.length === 0) return null;
+    return (
+      configuredMediaLinks.find((l) => l.isDefault) || configuredMediaLinks[0]
+    );
   }, [isMediaHeader, configuredMediaLinks]);
 
   const activeMediaUrl = useMemo(() => {
-    return isCustomMedia ? customMediaUrl.trim() : selectedMediaUrl.trim();
-  }, [isCustomMedia, customMediaUrl, selectedMediaUrl]);
+    if (!isMediaHeader) return "";
+    if (isCustomMedia) return customMediaUrl.trim();
+    return (selectedMediaUrl || defaultPresetMedia?.url || "").trim();
+  }, [
+    isMediaHeader,
+    isCustomMedia,
+    customMediaUrl,
+    selectedMediaUrl,
+    defaultPresetMedia
+  ]);
 
   const bodyText = bodyComponent?.text || "";
   const headerText = headerComponent?.text || "";
@@ -429,6 +420,10 @@ export function SendTemplateDialog({
     setSelectedTemplateId(id);
     setCustomConfigs({});
     setCustomValues({});
+    setSelectedMediaUrl("");
+    setSelectedMediaTitle("");
+    setIsCustomMedia(false);
+    setCustomMediaUrl("");
   }
 
   function handleConfigChange(
@@ -670,7 +665,10 @@ export function SendTemplateDialog({
                   <div className="space-y-1.5">
                     {configuredMediaLinks.map((link, idx) => {
                       const isSelected =
-                        !isCustomMedia && selectedMediaUrl === link.url;
+                        !isCustomMedia &&
+                        (selectedMediaUrl
+                          ? selectedMediaUrl === link.url
+                          : defaultPresetMedia?.url === link.url);
                       return (
                         <div
                           key={link.id || idx}
@@ -698,7 +696,7 @@ export function SendTemplateDialog({
                                 {link.title || `Media Preset #${idx + 1}`}
                                 {link.isDefault ? " (⭐ Default)" : ""}
                               </p>
-                              <p className="text-muted-foreground max-w-[260px] truncate text-[10px]">
+                              <p className="text-muted-foreground max-w-64 truncate text-[10px]">
                                 {link.url}
                               </p>
                             </div>
@@ -1005,7 +1003,7 @@ export function SendTemplateDialog({
             type="button"
             onClick={handleSend}
             disabled={!selectedTemplate || isSending}
-            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
+            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             {isSending && <Loader2 className="size-3.5 animate-spin" />}
             <span>Send Template Now</span>

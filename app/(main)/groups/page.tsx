@@ -6,16 +6,12 @@ import {
   Search,
   Users,
   Radio,
-  Calendar,
-  MoreVertical,
   Edit2,
   Trash2,
-  ExternalLink,
   Loader2,
   ShieldAlert,
   ArrowRight,
-  Clock,
-  Sparkles
+  Clock
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -243,7 +239,7 @@ export default function GroupsPage() {
             {canManage && (
               <button
                 onClick={openCreateModal}
-                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#e87516] active:scale-[0.98]"
+                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               >
                 <Plus className="size-3.5" />
                 <span>Create Group</span>
@@ -349,7 +345,7 @@ export default function GroupsPage() {
             {canManage && !search.trim() && (
               <button
                 onClick={openCreateModal}
-                className="bg-cf-orange mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516]"
+                className="bg-cf-orange mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white hover:opacity-90"
               >
                 <Plus className="size-3.5" />
                 <span>Create First Group</span>
@@ -446,7 +442,7 @@ export default function GroupsPage() {
 
                   <Link
                     href={`/groups/${group.id}`}
-                    className="text-cf-orange inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#e87516]"
+                    className="text-cf-orange inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:opacity-90"
                   >
                     <span>Manage Details</span>
                     <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
@@ -547,7 +543,7 @@ export default function GroupsPage() {
                   disabled={
                     createMutation.isPending || updateMutation.isPending
                   }
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {(createMutation.isPending || updateMutation.isPending) && (
                     <Loader2 className="size-3 animate-spin" />

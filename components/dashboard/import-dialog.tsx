@@ -16,7 +16,6 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
-  Users,
   Briefcase,
   MapPin,
   Tag,
@@ -771,7 +770,7 @@ export function ImportDialog({
                                     <span className="text-foreground text-xs font-semibold">
                                       {name}
                                     </span>
-                                    <span className="border-border bg-muted/60 text-muted-foreground py-0.2 rounded border px-1.5 font-mono text-[9px]">
+                                    <span className="border-border bg-muted/60 text-muted-foreground rounded border px-1.5 py-0.5 font-mono text-[9px]">
                                       CSV Row #{rowIdx + 1}
                                     </span>
                                   </div>
@@ -924,7 +923,7 @@ export function ImportDialog({
                     <div>
                       <div className="text-foreground flex items-center gap-2 text-xs font-semibold">
                         <span>{file.name}</span>
-                        <span className="bg-muted py-0.2 text-muted-foreground rounded px-1.5 font-mono text-[10px]">
+                        <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                           {parsedRows.length} rows detected
                         </span>
                       </div>
@@ -1345,7 +1344,7 @@ export function ImportDialog({
                 resetState();
                 onClose();
               }}
-              className="bg-cf-orange ml-auto cursor-pointer rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516]"
+              className="bg-cf-orange ml-auto cursor-pointer rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90"
             >
               Done & Close
             </button>
@@ -1364,7 +1363,7 @@ export function ImportDialog({
                 type="button"
                 disabled={isImporting}
                 onClick={handleExecuteImport}
-                className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#e87516] disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isImporting ? (
                   <>
@@ -1402,7 +1401,7 @@ export function ImportDialog({
                     !file || selectedRowIndices.size === 0 || !phoneHeader
                   }
                   onClick={() => setActiveTab("duplicates")}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <span>
                     Next: Resolve Duplicates ({duplicateGroups.length})
@@ -1419,7 +1418,7 @@ export function ImportDialog({
                     !phoneHeader
                   }
                   onClick={handleExecuteImport}
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-[#e87516] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white shadow-xs hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isImporting ? (
                     <>

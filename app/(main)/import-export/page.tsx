@@ -7,6 +7,7 @@ import {
   Download,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Search,
   Check,
   CheckSquare,
@@ -16,17 +17,33 @@ import {
   Loader2,
   Flame,
   Sun,
-  Snowflake
+  Snowflake,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  Phone
 } from "lucide-react";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EXPORTABLE_COLUMNS, type ImportResult } from "@/server/customers/csv";
 import Papa from "papaparse";
 import { toast } from "sonner";
-import { formatDisplayPhone } from "@/utils/phone";
+import { formatDisplayPhone, normalizePhoneNumber } from "@/utils/phone";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
-import { Lock } from "lucide-react";
+
+interface DuplicateEntry {
+  rowIndex: number;
+  rawPhone: string;
+  normalizedPhone: string;
+  row: Record<string, string>;
+}
+
+interface DuplicatePhoneGroup {
+  phone: string;
+  displayPhone: string;
+  entries: DuplicateEntry[];
+}
 
 export default function ImportExportPage() {
   const queryClient = useQueryClient();
@@ -44,6 +61,9 @@ export default function ImportExportPage() {
   // -------------------------------------------------------------
   // IMPORT STATE
   // -------------------------------------------------------------
+  const [importSubTab, setImportSubTab] = useState<
+    "preview" | "resolve_duplicates"
+  >("preview");
   const [importFile, setImportFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<Array<Record<string, string>>>(
     []
@@ -56,6 +76,9 @@ export default function ImportExportPage() {
   const [defaultTag, setDefaultTag] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [userDuplicateResolutions, setUserDuplicateResolutions] = useState<
+    Record<string, number>
+  >({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // -------------------------------------------------------------
@@ -111,6 +134,262 @@ export default function ImportExportPage() {
   const totalCount = customersData?.pagination?.total || customers.length;
 
   // -------------------------------------------------------------
+  // COLUMN MATCHING DETECTION (8 Standard Fields)
+  // -------------------------------------------------------------
+  function findMatchingHeader(keywords: string[]): string | null {
+    const found = detectedHeaders.find((h) => {
+      const cleaned = h
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_-]+/g, "");
+      return keywords.some(
+        (k) => cleaned === k.toLowerCase().replace(/[\s_-]+/g, "")
+      );
+    });
+    return found || null;
+  }
+
+  const phoneHeader = findMatchingHeader([
+    "ph_no",
+    "phno",
+    "ph_number",
+    "phone",
+    "phonenumber",
+    "phone_number",
+    "mobile",
+    "mobilenumber",
+    "mobile_number",
+    "contact",
+    "contactnumber",
+    "contact_number",
+    "whatsapp",
+    "number"
+  ]);
+
+  const nameHeader = findMatchingHeader([
+    "name",
+    "customname",
+    "fullname",
+    "contactname",
+    "firstname",
+    "customername"
+  ]);
+
+  const companyHeader = findMatchingHeader([
+    "company name",
+    "company_name",
+    "company",
+    "companyname",
+    "organization",
+    "business",
+    "firm"
+  ]);
+
+  const addressHeader = findMatchingHeader([
+    "address",
+    "physical address",
+    "physical_address",
+    "location",
+    "street",
+    "city"
+  ]);
+
+  const tagsHeader = findMatchingHeader([
+    "tag",
+    "tags",
+    "labels",
+    "label",
+    "category",
+    "categories"
+  ]);
+
+  const groupHeader = findMatchingHeader([
+    "group",
+    "group name",
+    "group_name",
+    "groups",
+    "customer_group",
+    "customergroup"
+  ]);
+
+  const notesHeader = findMatchingHeader([
+    "note",
+    "notes",
+    "custom note",
+    "custom_note",
+    "remarks",
+    "remark",
+    "comment",
+    "comments"
+  ]);
+
+  const assignToHeader = findMatchingHeader([
+    "assign to",
+    "assign_to",
+    "assigned to",
+    "assigned_to",
+    "staff email",
+    "staff_email",
+    "staffemail",
+    "staff",
+    "agent email",
+    "agent_email"
+  ]);
+
+  function getRowFieldValue(
+    row: Record<string, string>,
+    headerMatch: string | null,
+    aliases: string[]
+  ): string {
+    if (
+      headerMatch &&
+      row[headerMatch] !== undefined &&
+      row[headerMatch] !== null
+    ) {
+      const val = String(row[headerMatch]).trim();
+      if (val) return val;
+    }
+    const keys = Object.keys(row);
+    for (const alias of aliases) {
+      const target = alias.toLowerCase().replace(/[\s_-]+/g, "");
+      const match = keys.find(
+        (k) =>
+          k
+            .trim()
+            .toLowerCase()
+            .replace(/[\s_-]+/g, "") === target
+      );
+      if (match && row[match] !== undefined && row[match] !== null) {
+        const val = String(row[match]).trim();
+        if (val) return val;
+      }
+    }
+    return "";
+  }
+
+  // -------------------------------------------------------------
+  // DUPLICATE PHONE NUMBER DETECTION
+  // -------------------------------------------------------------
+  const { duplicateGroups, rowDuplicateMap, totalDuplicateRows } =
+    useMemo(() => {
+      if (parsedRows.length === 0) {
+        return {
+          duplicateGroups: [] as DuplicatePhoneGroup[],
+          rowDuplicateMap: new Map<
+            number,
+            { isDuplicate: boolean; count: number; phone: string }
+          >(),
+          totalDuplicateRows: 0
+        };
+      }
+
+      const phoneMap = new Map<string, DuplicateEntry[]>();
+
+      parsedRows.forEach((row, idx) => {
+        const rawPhone = getRowFieldValue(row, phoneHeader, [
+          "ph_no",
+          "phno",
+          "phone",
+          "phonenumber",
+          "mobile",
+          "contact",
+          "whatsapp",
+          "number"
+        ]);
+
+        if (rawPhone) {
+          const norm = normalizePhoneNumber(rawPhone) || rawPhone.trim();
+          if (norm) {
+            const list = phoneMap.get(norm) || [];
+            list.push({
+              rowIndex: idx,
+              rawPhone,
+              normalizedPhone: norm,
+              row
+            });
+            phoneMap.set(norm, list);
+          }
+        }
+      });
+
+      const dupGroups: DuplicatePhoneGroup[] = [];
+      const rowDup = new Map<
+        number,
+        { isDuplicate: boolean; count: number; phone: string }
+      >();
+      let totalDup = 0;
+
+      phoneMap.forEach((entries, normPhone) => {
+        if (entries.length > 1) {
+          dupGroups.push({
+            phone: normPhone,
+            displayPhone: formatDisplayPhone(normPhone),
+            entries
+          });
+          totalDup += entries.length;
+          entries.forEach((e) => {
+            rowDup.set(e.rowIndex, {
+              isDuplicate: true,
+              count: entries.length,
+              phone: normPhone
+            });
+          });
+        }
+      });
+
+      return {
+        duplicateGroups: dupGroups,
+        rowDuplicateMap: rowDup,
+        totalDuplicateRows: totalDup
+      };
+    }, [parsedRows, phoneHeader]);
+
+  // Purely derive duplicate resolutions from user manual choices or default to first entry
+  const duplicateResolutions = useMemo(() => {
+    const map: Record<string, number> = {};
+    duplicateGroups.forEach((group) => {
+      const userChoice = userDuplicateResolutions[group.phone];
+      if (
+        userChoice !== undefined &&
+        group.entries.some((e) => e.rowIndex === userChoice)
+      ) {
+        map[group.phone] = userChoice;
+      } else {
+        map[group.phone] = group.entries[0].rowIndex;
+      }
+    });
+    return map;
+  }, [duplicateGroups, userDuplicateResolutions]);
+
+  // Set of row indices discarded because another duplicate candidate was accepted
+  const duplicateDiscardedIndices = useMemo(() => {
+    const discarded = new Set<number>();
+    duplicateGroups.forEach((group) => {
+      const keptIndex = duplicateResolutions[group.phone];
+      group.entries.forEach((entry) => {
+        if (entry.rowIndex !== keptIndex) {
+          discarded.add(entry.rowIndex);
+        }
+      });
+    });
+    return discarded;
+  }, [duplicateGroups, duplicateResolutions]);
+
+  // Count of effective unique rows to be imported
+  const effectiveImportCount = useMemo(() => {
+    let count = 0;
+    parsedRows.forEach((_, idx) => {
+      if (
+        selectedImportRowIndices.has(idx) &&
+        !duplicateDiscardedIndices.has(idx)
+      ) {
+        count++;
+      }
+    });
+    return count;
+  }, [parsedRows, selectedImportRowIndices, duplicateDiscardedIndices]);
+
+  // -------------------------------------------------------------
   // IMPORT HANDLERS
   // -------------------------------------------------------------
   function handleFileChange(selectedFile: File) {
@@ -121,6 +400,7 @@ export default function ImportExportPage() {
 
     setImportFile(selectedFile);
     setImportResult(null);
+    setImportSubTab("preview");
 
     Papa.parse<Record<string, string>>(selectedFile, {
       header: true,
@@ -160,31 +440,65 @@ export default function ImportExportPage() {
     }
   }
 
+  function resetImportState() {
+    setImportFile(null);
+    setParsedRows([]);
+    setSelectedImportRowIndices(new Set());
+    setDetectedHeaders([]);
+    setImportResult(null);
+    setImportSubTab("preview");
+    setUserDuplicateResolutions({});
+  }
+
+  function handleAcceptAllFirst() {
+    const updated: Record<string, number> = {};
+    duplicateGroups.forEach((g) => {
+      updated[g.phone] = g.entries[0].rowIndex;
+    });
+    setUserDuplicateResolutions(updated);
+    toast.success("Selected first entry for all duplicate phone numbers");
+  }
+
+  function handleAcceptAllLast() {
+    const updated: Record<string, number> = {};
+    duplicateGroups.forEach((g) => {
+      updated[g.phone] = g.entries[g.entries.length - 1].rowIndex;
+    });
+    setUserDuplicateResolutions(updated);
+    toast.success("Selected last entry for all duplicate phone numbers");
+  }
+
   function downloadSampleCsv() {
     const sampleData = [
       {
-        phone: "+91 90461 13306",
+        ph_no: "+91 90461 13306",
         name: "Aquib Alam",
-        tags: "Admission 2026, VIP",
-        notes: "Met at education fair, requested fee details",
-        state: "ACTIVE",
-        staff_email: "staff@myschoolbranding.com"
+        "company name": "Mariya Technoindia",
+        address: "Salt Lake Sector V, Kolkata",
+        tag: "Admission 2026, VIP Parents",
+        group: "VIP Parents",
+        note: "Met at education fair, requested fee details",
+        "assign to": "staff@myschoolbranding.com"
       },
       {
-        phone: "+91 98765 43210",
+        ph_no: "+91 98765 43210",
         name: "John Doe",
-        tags: "Lead",
-        notes: "Follow up next Monday",
-        state: "ACTIVE",
-        staff_email: "counselor@myschoolbranding.com"
+        "company name": "Apex Global School",
+        address: "Park Street, Kolkata",
+        tag: "Lead, Prospect",
+        group: "New Enquiries",
+        note: "Follow up regarding admission brochure",
+        "assign to": "counselor@myschoolbranding.com"
       },
       {
-        phone: "+91 88888 77777",
+        ph_no: "+91 88888 77777",
         name: "Priya Sharma",
-        tags: "Alumni",
-        notes: "Prefers email notifications",
-        state: "OPTED_OUT",
-        staff_email: ""
+        "company name": "EduConsult",
+        address: "MG Road, Bangalore",
+        tag: "Alumni",
+        group: "Alumni Network",
+        note: "Prefers WhatsApp updates",
+        "assign to": ""
       }
     ];
 
@@ -207,8 +521,9 @@ export default function ImportExportPage() {
       return;
     }
 
-    const rowsToImport = parsedRows.filter((_, idx) =>
-      selectedImportRowIndices.has(idx)
+    const rowsToImport = parsedRows.filter(
+      (_, idx) =>
+        selectedImportRowIndices.has(idx) && !duplicateDiscardedIndices.has(idx)
     );
 
     if (rowsToImport.length === 0) {
@@ -237,6 +552,7 @@ export default function ImportExportPage() {
       }
 
       setImportResult(json.data);
+      setImportSubTab("preview");
       toast.success(json.message);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     } catch (err: unknown) {
@@ -376,50 +692,6 @@ export default function ImportExportPage() {
     }
   }
 
-  // Column matching detection
-  function findMatchingHeader(keywords: string[]): string | null {
-    const found = detectedHeaders.find((h) => {
-      const cleaned = h
-        .trim()
-        .toLowerCase()
-        .replace(/[\s_-]+/g, "");
-      return keywords.some(
-        (k) => cleaned === k.toLowerCase().replace(/[\s_-]+/g, "")
-      );
-    });
-    return found || null;
-  }
-
-  const phoneHeader = findMatchingHeader([
-    "phone",
-    "phonenumber",
-    "mobile",
-    "contact",
-    "number",
-    "whatsapp"
-  ]);
-  const nameHeader = findMatchingHeader([
-    "name",
-    "customname",
-    "fullname",
-    "contactname",
-    "firstname"
-  ]);
-  const tagsHeader = findMatchingHeader([
-    "tags",
-    "tag",
-    "labels",
-    "label",
-    "groups"
-  ]);
-  const notesHeader = findMatchingHeader([
-    "notes",
-    "note",
-    "remarks",
-    "comment"
-  ]);
-  const stateHeader = findMatchingHeader(["state", "status"]);
-
   if (!canImport && !canExport) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center">
@@ -440,7 +712,7 @@ export default function ImportExportPage() {
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
       {/* Top Tab Bar & Summary Header */}
-      <div className="border-border bg-card shrink-0 space-y-3 border-b p-4 shadow-2xs">
+      <div className="border-border bg-card shrink-0 space-y-3 border-b p-4 shadow-xs">
         <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           {/* Tabs */}
           <div className="border-border bg-muted/40 flex items-center gap-1.5 rounded-lg border p-1">
@@ -449,7 +721,7 @@ export default function ImportExportPage() {
                 onClick={() => setActiveTab("import")}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   activeTab === "import"
-                    ? "bg-background text-cf-orange shadow-2xs"
+                    ? "bg-background text-cf-orange font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -463,7 +735,7 @@ export default function ImportExportPage() {
                 onClick={() => setActiveTab("export")}
                 className={`flex cursor-pointer items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   activeTab === "export"
-                    ? "bg-background text-cf-orange shadow-2xs"
+                    ? "bg-background text-cf-orange font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -492,7 +764,7 @@ export default function ImportExportPage() {
           /* ========================================================= */
           /* IMPORT TAB CONTENT */
           /* ========================================================= */
-          <div className="mx-auto max-w-4xl space-y-5">
+          <div className="mx-auto max-w-5xl space-y-5">
             {/* Post-Import Results Card */}
             {importResult && (
               <div className="bg-card space-y-4 rounded-xl border border-emerald-500/30 p-5 shadow-xs">
@@ -500,11 +772,11 @@ export default function ImportExportPage() {
                   <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-500" />
                   <div>
                     <h3 className="text-foreground text-sm font-bold">
-                      Import Completed
+                      Import Completed Successfully
                     </h3>
                     <p className="text-muted-foreground mt-0.5 text-xs">
-                      Contacts processed with phone normalization and duplicate
-                      merging.
+                      Contacts processed with phone number uniqueness
+                      validation, group assignment, and duplicate merging.
                     </p>
                   </div>
                 </div>
@@ -569,14 +841,8 @@ export default function ImportExportPage() {
                 )}
 
                 <button
-                  onClick={() => {
-                    setImportFile(null);
-                    setParsedRows([]);
-                    setSelectedImportRowIndices(new Set());
-                    setDetectedHeaders([]);
-                    setImportResult(null);
-                  }}
-                  className="bg-cf-orange cursor-pointer rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516]"
+                  onClick={resetImportState}
+                  className="bg-cf-orange cursor-pointer rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                 >
                   Import Another File
                 </button>
@@ -593,8 +859,8 @@ export default function ImportExportPage() {
                         Step 1: Upload CSV File
                       </h3>
                       <p className="text-muted-foreground mt-0.5 text-xs">
-                        Accepts standard CSV with headers for phone, name, tags,
-                        notes, and status
+                        Supports: name, ph_no (unique), company name, address,
+                        tag, group, note, assign to
                       </p>
                     </div>
                     <button
@@ -635,7 +901,8 @@ export default function ImportExportPage() {
                         Click to select CSV file or drag & drop here
                       </p>
                       <p className="text-muted-foreground mt-1 text-[11px]">
-                        Files must be in UTF-8 .csv format
+                        Files must be in UTF-8 .csv format. Phone numbers must
+                        be unique.
                       </p>
                     </div>
                   ) : (
@@ -647,9 +914,15 @@ export default function ImportExportPage() {
                         <div>
                           <div className="text-foreground flex items-center gap-2 text-xs font-semibold">
                             <span>{importFile.name}</span>
-                            <span className="bg-muted py-0.2 text-muted-foreground rounded px-1.5 font-mono text-[10px]">
+                            <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                               {parsedRows.length} rows detected
                             </span>
+                            {duplicateGroups.length > 0 && (
+                              <span className="flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                <AlertTriangle className="size-3" />
+                                {duplicateGroups.length} duplicate numbers
+                              </span>
+                            )}
                           </div>
                           <div className="text-muted-foreground mt-0.5 text-[11px]">
                             {(importFile.size / 1024).toFixed(1)} KB • CSV
@@ -658,12 +931,7 @@ export default function ImportExportPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => {
-                          setImportFile(null);
-                          setParsedRows([]);
-                          setSelectedImportRowIndices(new Set());
-                          setDetectedHeaders([]);
-                        }}
+                        onClick={resetImportState}
                         className="border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer rounded border px-2.5 py-1 text-xs"
                       >
                         Change File
@@ -672,279 +940,855 @@ export default function ImportExportPage() {
                   )}
                 </div>
 
-                {/* Detected Header Mapping */}
-                {detectedHeaders.length > 0 && (
-                  <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
-                    <div className="border-border flex items-center justify-between border-b pb-2">
-                      <h3 className="text-foreground text-xs font-bold">
-                        Step 2: Detected Column Mapping
-                      </h3>
-                      <span className="text-muted-foreground font-mono text-[11px]">
-                        {detectedHeaders.length} total headers
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
-                      <div className="bg-muted/40 border-border/60 rounded border p-2.5">
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          Phone (Required)
-                        </span>
-                        <div className="text-foreground mt-1 flex items-center gap-1 font-mono font-medium">
-                          {phoneHeader ? (
-                            <>
-                              <Check className="size-3 text-emerald-500" />
-                              <span className="truncate">{phoneHeader}</span>
-                            </>
-                          ) : (
-                            <span className="text-destructive flex items-center gap-1 font-semibold">
-                              <AlertCircle className="size-3" /> Missing!
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/40 border-border/60 rounded border p-2.5">
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          Name
-                        </span>
-                        <div className="text-foreground mt-1 truncate font-mono">
-                          {nameHeader || (
-                            <span className="text-muted-foreground italic">
-                              (optional)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/40 border-border/60 rounded border p-2.5">
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          Tags
-                        </span>
-                        <div className="text-foreground mt-1 truncate font-mono">
-                          {tagsHeader || (
-                            <span className="text-muted-foreground italic">
-                              (optional)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/40 border-border/60 rounded border p-2.5">
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          Notes
-                        </span>
-                        <div className="text-foreground mt-1 truncate font-mono">
-                          {notesHeader || (
-                            <span className="text-muted-foreground italic">
-                              (optional)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/40 border-border/60 rounded border p-2.5">
-                        <span className="text-muted-foreground text-[10px] font-bold uppercase">
-                          Status
-                        </span>
-                        <div className="text-foreground mt-1 truncate font-mono">
-                          {stateHeader || (
-                            <span className="text-muted-foreground italic">
-                              ACTIVE
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Import Settings */}
+                {/* Subtab Stepper: Data Preview vs Resolve Duplicates */}
                 {parsedRows.length > 0 && (
-                  <div className="border-border bg-card space-y-4 rounded-xl border p-5 shadow-xs">
-                    <h3 className="text-foreground border-border border-b pb-2 text-xs font-bold">
-                      Step 3: Configuration & Duplication Strategy
-                    </h3>
-
-                    <div className="space-y-3">
-                      <label className="flex cursor-pointer items-start gap-2.5 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={updateExisting}
-                          onChange={(e) => setUpdateExisting(e.target.checked)}
-                          className="border-border text-cf-orange focus:ring-cf-orange mt-0.5 cursor-pointer rounded"
-                        />
-                        <div>
-                          <span className="text-foreground font-semibold">
-                            Update & merge existing contacts (Recommended)
-                          </span>
-                          <p className="text-muted-foreground text-[11px]">
-                            If phone exists in CRM, update name, notes, and
-                            merge tags instead of skipping.
-                          </p>
-                        </div>
-                      </label>
-
-                      <div>
-                        <label className="text-muted-foreground block text-[11px] font-semibold">
-                          Attach common tag to all imported contacts (optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={defaultTag}
-                          onChange={(e) => setDefaultTag(e.target.value)}
-                          placeholder="e.g. October Batch 2026, Education Expo"
-                          className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full max-w-md rounded-md border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Data Preview with Row Checkboxes */}
-                {parsedRows.length > 0 && (
-                  <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
-                    <div className="border-border text-foreground flex items-center justify-between border-b pb-2 text-xs font-semibold">
-                      <div className="flex items-center gap-2">
-                        <span>Step 4: Data Preview & Row Selection</span>
-                        <span className="bg-cf-orange/10 text-cf-orange rounded-full px-2 py-0.5 font-mono text-[10px] font-medium">
-                          {selectedImportRowIndices.size} of {parsedRows.length}{" "}
-                          selected
+                  <div className="border-border bg-card flex flex-col items-stretch justify-between gap-3 rounded-xl border p-2 shadow-xs sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setImportSubTab("preview")}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                          importSubTab === "preview"
+                            ? "bg-cf-orange/10 text-cf-orange border-cf-orange/30 border font-bold"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        }`}
+                      >
+                        <FileSpreadsheet className="size-3.5" />
+                        <span>1. File & Data Preview</span>
+                        <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+                          {parsedRows.length} rows
                         </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedImportRowIndices(
-                              new Set(parsedRows.map((_, i) => i))
-                            )
-                          }
-                          className="text-cf-orange cursor-pointer hover:underline"
-                        >
-                          Select All
-                        </button>
-                        <span className="text-muted-foreground">•</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedImportRowIndices(new Set())}
-                          className="text-muted-foreground hover:text-foreground cursor-pointer"
-                        >
-                          Deselect All
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="border-border max-h-72 overflow-x-auto rounded-lg border">
-                      <table className="w-full border-collapse text-left text-[11px]">
-                        <thead className="bg-muted/60 text-muted-foreground border-border sticky top-0 border-b">
-                          <tr>
-                            <th className="w-10 p-2.5 text-center">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  selectedImportRowIndices.size ===
-                                    parsedRows.length && parsedRows.length > 0
-                                }
-                                onChange={toggleSelectAllImportRows}
-                                className="border-border text-cf-orange focus:ring-cf-orange cursor-pointer rounded"
-                                title="Select / Deselect all rows"
-                              />
-                            </th>
-                            <th className="p-2.5 font-medium">#</th>
-                            {detectedHeaders.slice(0, 6).map((h, i) => (
-                              <th
-                                key={i}
-                                className="max-w-[150px] truncate p-2.5 font-medium"
-                              >
-                                {h}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-border/60 divide-y">
-                          {parsedRows.map((row, idx) => {
-                            const isChecked = selectedImportRowIndices.has(idx);
-                            return (
-                              <tr
-                                key={idx}
-                                onClick={() => toggleImportRow(idx)}
-                                className={`cursor-pointer transition-colors ${
-                                  isChecked
-                                    ? "bg-cf-orange/5 hover:bg-cf-orange/10"
-                                    : "hover:bg-muted/20 opacity-50"
-                                }`}
-                              >
-                                <td
-                                  className="p-2.5 text-center"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => toggleImportRow(idx)}
-                                    className="border-border text-cf-orange focus:ring-cf-orange cursor-pointer rounded"
-                                  />
-                                </td>
-                                <td className="text-muted-foreground p-2.5 font-mono">
-                                  {idx + 1}
-                                </td>
-                                {detectedHeaders.slice(0, 6).map((h, i) => (
-                                  <td
-                                    key={i}
-                                    className="text-foreground max-w-[150px] truncate p-2.5"
-                                  >
-                                    {row[h] || (
-                                      <span className="text-muted-foreground/40 italic">
-                                        —
-                                      </span>
-                                    )}
-                                  </td>
-                                ))}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="border-border flex items-center justify-between border-t pt-3">
-                      <span className="text-muted-foreground text-xs">
-                        Ready to import{" "}
-                        <strong>{selectedImportRowIndices.size}</strong> checked
-                        contacts
-                      </span>
+                      </button>
 
                       <button
-                        onClick={handleExecuteImport}
-                        disabled={
-                          isImporting ||
-                          selectedImportRowIndices.size === 0 ||
-                          !phoneHeader
-                        }
-                        className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        onClick={() => setImportSubTab("resolve_duplicates")}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                          importSubTab === "resolve_duplicates"
+                            ? "border border-amber-500/40 bg-amber-500/15 font-bold text-amber-600 dark:text-amber-400"
+                            : duplicateGroups.length > 0
+                              ? "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        }`}
                       >
-                        {isImporting ? (
-                          <>
-                            <Loader2 className="size-3.5 animate-spin" />
-                            <span>
-                              Processing {selectedImportRowIndices.size}{" "}
-                              Contacts...
-                            </span>
-                          </>
+                        <AlertTriangle className="size-3.5" />
+                        <span>2. Resolve Duplicates</span>
+                        {duplicateGroups.length > 0 ? (
+                          <span className="rounded-full bg-amber-500/25 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                            {duplicateGroups.length}
+                          </span>
                         ) : (
-                          <>
-                            <Upload className="size-3.5" />
-                            <span>
-                              Import {selectedImportRowIndices.size} Selected
-                              Contacts
-                            </span>
-                          </>
+                          <span className="text-muted-foreground text-[10px]">
+                            0
+                          </span>
                         )}
                       </button>
                     </div>
+
+                    <div className="text-muted-foreground px-2 text-[11px]">
+                      {duplicateGroups.length > 0 ? (
+                        <span className="font-medium text-amber-600 dark:text-amber-400">
+                          ⚠️ {totalDuplicateRows} rows share{" "}
+                          {duplicateGroups.length} numbers (Must choose 1 each)
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-3.5" /> All phone numbers in
+                          file are unique
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
+
+                {/* VIEW 1: DATA PREVIEW & CONFIGURATION */}
+                {parsedRows.length > 0 && importSubTab === "preview" && (
+                  <>
+                    {/* Step 2: Detected Column Mapping (8 User Fields) */}
+                    {detectedHeaders.length > 0 && (
+                      <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
+                        <div className="border-border flex items-center justify-between border-b pb-2">
+                          <h3 className="text-foreground text-xs font-bold">
+                            Step 2: Detected Field Mapping
+                          </h3>
+                          <span className="text-muted-foreground font-mono text-[11px]">
+                            {detectedHeaders.length} total headers in CSV
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                          {/* 1. ph_no */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Phone (ph_no) *
+                            </span>
+                            <div className="text-foreground mt-1 flex items-center gap-1 font-mono font-medium">
+                              {phoneHeader ? (
+                                <>
+                                  <Check className="size-3 shrink-0 text-emerald-500" />
+                                  <span className="truncate">
+                                    {phoneHeader}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-destructive flex items-center gap-1 font-semibold">
+                                  <AlertCircle className="size-3 shrink-0" />{" "}
+                                  Missing!
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 2. name */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Name (name)
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {nameHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {nameHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 3. company name */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Company Name
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {companyHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {companyHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 4. address */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Physical Address
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {addressHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {addressHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 5. tag */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Tag (comma-separated)
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {tagsHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {tagsHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 6. group */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Group (case-insensitive)
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {groupHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {groupHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 7. note */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Custom Note
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {notesHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {notesHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 8. assign to */}
+                          <div className="bg-muted/40 border-border/60 rounded border p-2.5">
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase">
+                              Assign To (Staff Email)
+                            </span>
+                            <div className="text-foreground mt-1 truncate font-mono">
+                              {assignToHeader ? (
+                                <span className="text-foreground font-medium">
+                                  {assignToHeader}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">
+                                  (optional)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 3: Import Settings */}
+                    <div className="border-border bg-card space-y-4 rounded-xl border p-5 shadow-xs">
+                      <h3 className="text-foreground border-border border-b pb-2 text-xs font-bold">
+                        Step 3: Configuration & Duplication Strategy
+                      </h3>
+
+                      <div className="space-y-3">
+                        <label className="flex cursor-pointer items-start gap-2.5 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={updateExisting}
+                            onChange={(e) =>
+                              setUpdateExisting(e.target.checked)
+                            }
+                            className="border-border text-cf-orange focus:ring-cf-orange mt-0.5 cursor-pointer rounded"
+                          />
+                          <div>
+                            <span className="text-foreground font-semibold">
+                              Update & merge existing CRM contacts (Recommended)
+                            </span>
+                            <p className="text-muted-foreground text-[11px]">
+                              If phone already exists in CRM, updates name,
+                              company, address, note, staff assignment and
+                              merges tags.
+                            </p>
+                          </div>
+                        </label>
+
+                        <div>
+                          <label className="text-muted-foreground block text-[11px] font-semibold">
+                            Attach common tag to all imported contacts
+                            (optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={defaultTag}
+                            onChange={(e) => setDefaultTag(e.target.value)}
+                            placeholder="e.g. October Batch 2026, Education Expo"
+                            className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-cf-orange mt-1 w-full max-w-md rounded-md border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 4: Data Preview with Row Checkboxes & Duplicate Warning */}
+                    <div className="border-border bg-card space-y-3 rounded-xl border p-5 shadow-xs">
+                      <div className="border-border text-foreground flex items-center justify-between border-b pb-2 text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span>Step 4: Data Preview & Row Selection</span>
+                          <span className="bg-cf-orange/10 text-cf-orange rounded-full px-2 py-0.5 font-mono text-[10px] font-medium">
+                            {selectedImportRowIndices.size} of{" "}
+                            {parsedRows.length} rows selected
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedImportRowIndices(
+                                new Set(parsedRows.map((_, i) => i))
+                              )
+                            }
+                            className="text-cf-orange cursor-pointer hover:underline"
+                          >
+                            Select All
+                          </button>
+                          <span className="text-muted-foreground">•</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedImportRowIndices(new Set())
+                            }
+                            className="text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            Deselect All
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Duplicate Warning Banner */}
+                      {duplicateGroups.length > 0 && (
+                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
+                            <div className="flex-1">
+                              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                                <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                                  Duplicate Contacts Detected (
+                                  {totalDuplicateRows} contacts sharing{" "}
+                                  {duplicateGroups.length} phone numbers)
+                                </h4>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setImportSubTab("resolve_duplicates")
+                                  }
+                                  className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-300"
+                                >
+                                  Resolve Duplicates Now{" "}
+                                  <ArrowRight className="size-3" />
+                                </button>
+                              </div>
+                              <p className="mt-1 text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                                Phone numbers must be unique. All duplicate
+                                contacts are marked with an amber badge below.
+                                Click{" "}
+                                <strong>
+                                  &quot;Next: Resolve Duplicates&quot;
+                                </strong>{" "}
+                                to choose which contact details to accept for
+                                each number.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="border-border max-h-72 overflow-x-auto rounded-lg border">
+                        <table className="w-full border-collapse text-left text-[11px]">
+                          <thead className="bg-muted/60 text-muted-foreground border-border sticky top-0 border-b">
+                            <tr>
+                              <th className="w-10 p-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    selectedImportRowIndices.size ===
+                                      parsedRows.length && parsedRows.length > 0
+                                  }
+                                  onChange={toggleSelectAllImportRows}
+                                  className="border-border text-cf-orange focus:ring-cf-orange cursor-pointer rounded"
+                                  title="Select / Deselect all rows"
+                                />
+                              </th>
+                              <th className="p-2.5 font-medium">#</th>
+                              <th className="p-2.5 font-medium">
+                                Duplicate Status
+                              </th>
+                              {detectedHeaders.slice(0, 6).map((h, i) => (
+                                <th
+                                  key={i}
+                                  className="max-w-40 truncate p-2.5 font-medium"
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-border/60 divide-y">
+                            {parsedRows.map((row, idx) => {
+                              const isChecked =
+                                selectedImportRowIndices.has(idx);
+                              const dupInfo = rowDuplicateMap.get(idx);
+                              const isDuplicate = !!dupInfo?.isDuplicate;
+
+                              return (
+                                <tr
+                                  key={idx}
+                                  onClick={() => toggleImportRow(idx)}
+                                  className={`cursor-pointer transition-colors ${
+                                    isDuplicate
+                                      ? "bg-amber-500/5 hover:bg-amber-500/10"
+                                      : isChecked
+                                        ? "bg-cf-orange/5 hover:bg-cf-orange/10"
+                                        : "hover:bg-muted/20 opacity-50"
+                                  }`}
+                                >
+                                  <td
+                                    className="p-2.5 text-center"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => toggleImportRow(idx)}
+                                      className="border-border text-cf-orange focus:ring-cf-orange cursor-pointer rounded"
+                                    />
+                                  </td>
+                                  <td className="text-muted-foreground p-2.5 font-mono">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="p-2.5">
+                                    {isDuplicate ? (
+                                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                        <AlertTriangle className="size-3" />
+                                        Duplicate ({dupInfo.count} rows)
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        <Check className="size-3" /> Unique
+                                      </span>
+                                    )}
+                                  </td>
+                                  {detectedHeaders.slice(0, 6).map((h, i) => (
+                                    <td
+                                      key={i}
+                                      className="text-foreground max-w-40 truncate p-2.5"
+                                    >
+                                      {row[h] || (
+                                        <span className="text-muted-foreground/40 italic">
+                                          —
+                                        </span>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="border-border flex flex-col items-center justify-between gap-3 border-t pt-3 sm:flex-row">
+                        <span className="text-muted-foreground text-center text-xs sm:text-left">
+                          {duplicateGroups.length > 0 ? (
+                            <>
+                              Found <strong>{duplicateGroups.length}</strong>{" "}
+                              duplicate numbers among{" "}
+                              <strong>{selectedImportRowIndices.size}</strong>{" "}
+                              checked rows.
+                            </>
+                          ) : (
+                            <>
+                              Ready to import{" "}
+                              <strong>{selectedImportRowIndices.size}</strong>{" "}
+                              unique checked contacts.
+                            </>
+                          )}
+                        </span>
+
+                        {duplicateGroups.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setImportSubTab("resolve_duplicates")
+                            }
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-amber-700"
+                          >
+                            <span>
+                              Next: Resolve Duplicates ({duplicateGroups.length}
+                              )
+                            </span>
+                            <ArrowRight className="size-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleExecuteImport}
+                            disabled={
+                              isImporting ||
+                              selectedImportRowIndices.size === 0 ||
+                              !phoneHeader
+                            }
+                            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isImporting ? (
+                              <>
+                                <Loader2 className="size-3.5 animate-spin" />
+                                <span>
+                                  Processing {selectedImportRowIndices.size}{" "}
+                                  Contacts...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="size-3.5" />
+                                <span>
+                                  Import {selectedImportRowIndices.size}{" "}
+                                  Selected Contacts
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* VIEW 2: RESOLVE DUPLICATE CONTACTS */}
+                {parsedRows.length > 0 &&
+                  importSubTab === "resolve_duplicates" && (
+                    <div className="space-y-4">
+                      {/* Header Card */}
+                      <div className="bg-card border-border space-y-3 rounded-xl border p-5 shadow-xs">
+                        <div className="border-border flex flex-col justify-between gap-3 border-b pb-3 sm:flex-row sm:items-center">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 shrink-0 rounded-lg bg-amber-500/15 p-2 text-amber-600 dark:text-amber-400">
+                              <AlertTriangle className="size-5" />
+                            </div>
+                            <div>
+                              <h3 className="text-foreground text-sm font-bold">
+                                Resolve Duplicate Contacts (
+                                {duplicateGroups.length} Conflicting Phone
+                                Numbers)
+                              </h3>
+                              <p className="text-muted-foreground mt-0.5 text-xs">
+                                Phone numbers must be unique. Select which
+                                contact to accept for each duplicate number
+                                below. Unselected duplicates will be excluded.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAcceptAllFirst}
+                              className="border-border bg-muted/40 hover:bg-muted text-foreground cursor-pointer rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                            >
+                              Keep All First
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAcceptAllLast}
+                              className="border-border bg-muted/40 hover:bg-muted text-foreground cursor-pointer rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors"
+                            >
+                              Keep All Last
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-[11px]">
+                          <span>
+                            Total Duplicate Rows in CSV:{" "}
+                            <strong className="text-foreground font-mono">
+                              {totalDuplicateRows}
+                            </strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Unique Numbers:{" "}
+                            <strong className="text-foreground font-mono">
+                              {duplicateGroups.length}
+                            </strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Duplicates to Exclude:{" "}
+                            <strong className="font-mono text-amber-600 dark:text-amber-400">
+                              {duplicateDiscardedIndices.size}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Duplicate Conflict Groups */}
+                      <div className="space-y-4">
+                        {duplicateGroups.map((group) => {
+                          const keptRowIndex =
+                            duplicateResolutions[group.phone];
+
+                          return (
+                            <div
+                              key={group.phone}
+                              className="bg-card border-border space-y-3 rounded-xl border p-4 shadow-xs"
+                            >
+                              <div className="border-border flex flex-col justify-between gap-2 border-b pb-2.5 sm:flex-row sm:items-center">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="bg-cf-orange/15 text-cf-orange rounded-md p-1.5">
+                                    <Phone className="size-4" />
+                                  </span>
+                                  <div>
+                                    <div className="text-foreground flex items-center gap-2 font-mono text-xs font-bold">
+                                      <span>{group.displayPhone}</span>
+                                      <span className="text-muted-foreground font-sans text-[10px] font-normal">
+                                        ({group.entries.length} duplicate
+                                        contacts in file)
+                                      </span>
+                                    </div>
+                                    <p className="text-muted-foreground mt-0.5 text-[11px]">
+                                      Select which contact to accept for this
+                                      phone number:
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className="self-start rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 sm:self-auto dark:text-emerald-400">
+                                  1 of {group.entries.length} chosen
+                                </span>
+                              </div>
+
+                              {/* Candidate Cards Grid */}
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                {group.entries.map((entry) => {
+                                  const isSelected =
+                                    keptRowIndex === entry.rowIndex;
+                                  const cName = getRowFieldValue(
+                                    entry.row,
+                                    nameHeader,
+                                    ["name", "customname", "fullname"]
+                                  );
+                                  const cCompany = getRowFieldValue(
+                                    entry.row,
+                                    companyHeader,
+                                    ["company name", "company_name", "company"]
+                                  );
+                                  const cAddress = getRowFieldValue(
+                                    entry.row,
+                                    addressHeader,
+                                    ["address", "physical address", "location"]
+                                  );
+                                  const cTag = getRowFieldValue(
+                                    entry.row,
+                                    tagsHeader,
+                                    ["tag", "tags", "label"]
+                                  );
+                                  const cGroup = getRowFieldValue(
+                                    entry.row,
+                                    groupHeader,
+                                    ["group", "group name", "groups"]
+                                  );
+                                  const cNote = getRowFieldValue(
+                                    entry.row,
+                                    notesHeader,
+                                    ["note", "notes", "remarks"]
+                                  );
+                                  const cAssign = getRowFieldValue(
+                                    entry.row,
+                                    assignToHeader,
+                                    ["assign to", "assign_to", "staff email"]
+                                  );
+
+                                  return (
+                                    <div
+                                      key={entry.rowIndex}
+                                      onClick={() => {
+                                        setUserDuplicateResolutions((prev) => ({
+                                          ...prev,
+                                          [group.phone]: entry.rowIndex
+                                        }));
+                                      }}
+                                      className={`cursor-pointer space-y-2.5 rounded-lg border p-3.5 text-xs transition-all ${
+                                        isSelected
+                                          ? "border-emerald-500 bg-emerald-500/5 shadow-xs ring-1 ring-emerald-500/40"
+                                          : "border-border/80 bg-muted/10 hover:bg-muted/30 opacity-75 hover:opacity-100"
+                                      }`}
+                                    >
+                                      <div className="border-border/50 flex items-center justify-between border-b pb-2">
+                                        <label className="flex cursor-pointer items-center gap-2 font-semibold">
+                                          <input
+                                            type="radio"
+                                            name={`duplicate_${group.phone}`}
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              setUserDuplicateResolutions(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  [group.phone]: entry.rowIndex
+                                                })
+                                              );
+                                            }}
+                                            className="cursor-pointer text-emerald-600 focus:ring-emerald-500"
+                                          />
+                                          <span className="text-foreground">
+                                            Row #{entry.rowIndex + 1}
+                                          </span>
+                                        </label>
+
+                                        {isSelected ? (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                            <Check className="size-3" /> Accept
+                                            This Entry
+                                          </span>
+                                        ) : (
+                                          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[10px]">
+                                            Will Exclude
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Fields list */}
+                                      <div className="space-y-1 text-[11px]">
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Name:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate font-medium">
+                                            {cName || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Company:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate">
+                                            {cCompany || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Group:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate font-medium">
+                                            {cGroup ? (
+                                              <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-[10px]">
+                                                {cGroup}
+                                              </span>
+                                            ) : (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Address:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate">
+                                            {cAddress || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Tag:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate">
+                                            {cTag || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Note:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate">
+                                            {cNote || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between gap-2">
+                                          <span className="text-muted-foreground font-medium">
+                                            Assign To:
+                                          </span>
+                                          <span className="text-foreground max-w-44 truncate">
+                                            {cAssign || (
+                                              <span className="text-muted-foreground/40 italic">
+                                                —
+                                              </span>
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bottom Action Footer for Duplicate Resolution */}
+                      <div className="bg-card border-border flex flex-col items-center justify-between gap-3 rounded-xl border p-4 shadow-xs sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => setImportSubTab("preview")}
+                          className="border-border bg-background hover:bg-muted text-foreground inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition-colors"
+                        >
+                          <ArrowLeft className="size-3.5" />
+                          <span>Back to Preview</span>
+                        </button>
+
+                        <div className="flex flex-col items-center gap-3 sm:flex-row">
+                          <span className="text-muted-foreground text-center text-xs sm:text-right">
+                            Will import{" "}
+                            <strong className="text-foreground font-mono">
+                              {effectiveImportCount}
+                            </strong>{" "}
+                            unique contacts ({duplicateDiscardedIndices.size}{" "}
+                            duplicate entries excluded)
+                          </span>
+
+                          <button
+                            onClick={handleExecuteImport}
+                            disabled={isImporting || effectiveImportCount === 0}
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isImporting ? (
+                              <>
+                                <Loader2 className="size-3.5 animate-spin" />
+                                <span>Importing Contacts...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="size-3.5" />
+                                <span>
+                                  Confirm & Import ({effectiveImportCount}{" "}
+                                  Unique Contacts)
+                                </span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -952,7 +1796,7 @@ export default function ImportExportPage() {
           /* ========================================================= */
           /* EXPORT TAB CONTENT */
           /* ========================================================= */
-          <div className="mx-auto max-w-4xl space-y-6">
+          <div className="mx-auto max-w-5xl space-y-6">
             <div className="border-border bg-card space-y-5 rounded-xl border p-6 shadow-xs">
               <div className="border-border border-b pb-3">
                 <h3 className="text-foreground text-sm font-bold">
@@ -1253,7 +2097,7 @@ export default function ImportExportPage() {
                               <td className="space-y-1 p-2">
                                 <div>
                                   <span
-                                    className={`py-0.2 rounded-full px-2 text-[10px] font-semibold ${
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                       c.state === "ACTIVE"
                                         ? "bg-emerald-500/10 text-emerald-600"
                                         : c.state === "BLOCKED"
@@ -1266,7 +2110,7 @@ export default function ImportExportPage() {
                                 </div>
                                 <div>
                                   <span
-                                    className={`py-0.2 inline-flex items-center gap-0.5 rounded px-1.5 text-[9px] font-bold tracking-wider uppercase ${
+                                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
                                       c.status === "HOT"
                                         ? "border border-rose-500/25 bg-rose-500/15 text-rose-600 dark:text-rose-400"
                                         : c.status === "WARM"
@@ -1278,7 +2122,7 @@ export default function ImportExportPage() {
                                   </span>
                                 </div>
                               </td>
-                              <td className="text-muted-foreground max-w-[120px] truncate p-2">
+                              <td className="text-muted-foreground max-w-32 truncate p-2">
                                 {c.tags?.map((t) => t.tag.name).join(", ") ||
                                   "—"}
                               </td>
@@ -1319,7 +2163,7 @@ export default function ImportExportPage() {
                 <button
                   onClick={handleExecuteExport}
                   disabled={isExporting || activeColumnCount === 0}
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold text-white shadow-2xs transition-colors hover:bg-[#e87516] disabled:opacity-50"
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:opacity-90 disabled:opacity-50"
                 >
                   {isExporting ? (
                     <>

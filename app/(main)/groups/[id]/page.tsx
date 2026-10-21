@@ -2,30 +2,22 @@
 
 import {
   ArrowLeft,
-  FolderKanban,
   Users,
   Radio,
   Plus,
-  Trash2,
   Search,
   CheckCircle2,
   Clock,
-  Send,
   UserMinus,
   UserPlus,
   Loader2,
   AlertCircle,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Building2,
-  Phone,
   Check
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, use } from "react";
-import { useRouter } from "next/navigation";
+import { useState, use } from "react";
 import { useAuth } from "@/providers/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { toast } from "sonner";
@@ -119,7 +111,6 @@ export default function GroupDetailPage({
 }) {
   const resolvedParams = use(params);
   const groupId = resolvedParams.id;
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { hasPermission, isOwner } = useAuth();
   const canManage = isOwner || hasPermission(PERMISSIONS.GROUP_MANAGE);
@@ -144,23 +135,22 @@ export default function GroupDetailPage({
   );
 
   // Fetch Group Details with paginated customers and broadcasts
-  const { data, isLoading, isError, error, refetch } =
-    useQuery<GroupDetailResponse>({
-      queryKey: ["group-detail", groupId, currentPage, customerSearch],
-      queryFn: async () => {
-        const queryParams = new URLSearchParams({
-          page: String(currentPage),
-          limit: String(pageSize),
-          search: customerSearch
-        });
-        const res = await fetch(
-          `/api/groups/${groupId}?${queryParams.toString()}`
-        );
-        const json = await res.json();
-        if (!res.ok || json.error) throw new Error(json.message);
-        return json;
-      }
-    });
+  const { data, isLoading, isError, error } = useQuery<GroupDetailResponse>({
+    queryKey: ["group-detail", groupId, currentPage, customerSearch],
+    queryFn: async () => {
+      const queryParams = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(pageSize),
+        search: customerSearch
+      });
+      const res = await fetch(
+        `/api/groups/${groupId}?${queryParams.toString()}`
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.message);
+      return json;
+    }
+  });
 
   const group = data?.data?.group;
   const customers = data?.data?.customers || [];
@@ -169,23 +159,20 @@ export default function GroupDetailPage({
   const stats = data?.data?.stats;
 
   // Query available customers to add to this group
-  const {
-    data: availableCustomersData,
-    isLoading: isLoadingAvailable,
-    refetch: refetchAvailable
-  } = useQuery<{ error: boolean; data: AvailableCustomerItem[] }>({
-    queryKey: ["available-customers", groupId, modalSearch],
-    queryFn: async () => {
-      const q = new URLSearchParams({ search: modalSearch, limit: "30" });
-      const res = await fetch(
-        `/api/groups/${groupId}/customers?${q.toString()}`
-      );
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.message);
-      return json;
-    },
-    enabled: isAddCustomersOpen
-  });
+  const { data: availableCustomersData, isLoading: isLoadingAvailable } =
+    useQuery<{ error: boolean; data: AvailableCustomerItem[] }>({
+      queryKey: ["available-customers", groupId, modalSearch],
+      queryFn: async () => {
+        const q = new URLSearchParams({ search: modalSearch, limit: "30" });
+        const res = await fetch(
+          `/api/groups/${groupId}/customers?${q.toString()}`
+        );
+        const json = await res.json();
+        if (!res.ok || json.error) throw new Error(json.message);
+        return json;
+      },
+      enabled: isAddCustomersOpen
+    });
 
   const availableCustomers = availableCustomersData?.data || [];
 
@@ -379,7 +366,7 @@ export default function GroupDetailPage({
                   setModalSearch("");
                   setModalSelectedIds(new Set());
                 }}
-                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#e87516] active:scale-[0.98]"
+                className="bg-cf-orange shadow-cf-orange/20 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
               >
                 <UserPlus className="size-3.5" />
                 <span>+ Add Customers</span>
@@ -468,7 +455,7 @@ export default function GroupDetailPage({
               >
                 <Users className="size-3.5" />
                 <span>Customers in Group</span>
-                <span className="bg-cf-orange/15 text-cf-orange py-0.2 rounded-full px-1.5 font-mono text-[10px]">
+                <span className="bg-cf-orange/15 text-cf-orange rounded-full px-1.5 py-0.5 font-mono text-[10px]">
                   {stats?.customerCount || 0}
                 </span>
               </button>
@@ -483,7 +470,7 @@ export default function GroupDetailPage({
               >
                 <Radio className="size-3.5" />
                 <span>Broadcast History</span>
-                <span className="bg-muted-foreground/15 text-muted-foreground py-0.2 rounded-full px-1.5 font-mono text-[10px]">
+                <span className="bg-muted-foreground/15 text-muted-foreground rounded-full px-1.5 py-0.5 font-mono text-[10px]">
                   {stats?.broadcastCount || 0}
                 </span>
               </button>
@@ -530,7 +517,7 @@ export default function GroupDetailPage({
                         setModalSearch("");
                         setModalSelectedIds(new Set());
                       }}
-                      className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-colors"
+                      className="border-border bg-background text-foreground hover:bg-muted inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-xs transition-colors"
                     >
                       <Plus className="text-cf-orange size-3" />
                       <span>Add Customers</span>
@@ -933,7 +920,7 @@ export default function GroupDetailPage({
                     modalSelectedIds.size === 0 ||
                     addCustomersMutation.isPending
                   }
-                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#e87516] disabled:opacity-50"
+                  className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {addCustomersMutation.isPending && (
                     <Loader2 className="size-3 animate-spin" />
