@@ -3,7 +3,7 @@ import { updateCustomer, deleteCustomer } from "@/server/customers/service";
 import prisma from "@/lib/prisma";
 import { CustomerState, CustomerStatus } from "@prisma/client";
 import { requirePermission, requireAnyPermission } from "@/lib/rbac";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { z } from "zod";
 
 const updateCustomerSchema = z.object({
@@ -21,6 +21,7 @@ const updateCustomerSchema = z.object({
   state: z.nativeEnum(CustomerState).optional(),
   status: z.nativeEnum(CustomerStatus).optional(),
   groupId: z.string().trim().optional().nullable(),
+  assignedStaffId: z.string().trim().optional().nullable(),
   tags: z.array(z.string()).optional()
 });
 
@@ -36,6 +37,7 @@ export async function GET(
       where: { id },
       include: {
         group: { select: { id: true, name: true, color: true } },
+        assignedStaff: { select: { id: true, name: true, email: true } },
         tags: { include: { tag: true } },
         conversations: {
           take: 1,
@@ -69,9 +71,10 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAnyPermission(request, [
+    const actor = await requireAnyPermission(request, [
       PERMISSIONS.CUSTOMER_EDIT,
-      PERMISSIONS.GROUP_MANAGE
+      PERMISSIONS.GROUP_MANAGE,
+      PERMISSIONS.CUSTOMER_ASSIGN
     ]);
 
     const { id } = await context.params;
@@ -87,6 +90,23 @@ export async function PATCH(
         },
         { status: 400 }
       );
+    }
+
+    if (parsed.data.assignedStaffId !== undefined) {
+      const canAssign =
+        actor.isOwner ||
+        hasPermission(actor.permissions, PERMISSIONS.CUSTOMER_ASSIGN);
+      if (!canAssign) {
+        return NextResponse.json(
+          {
+            error: true,
+            message:
+              "You do not have permission to assign or reassign customers",
+            data: null
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const updated = await updateCustomer(id, parsed.data);

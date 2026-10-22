@@ -4,7 +4,7 @@ import {
   findOrCreateCustomerByPhone
 } from "@/server/customers/service";
 import { requirePermission } from "@/lib/rbac";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { CustomerStatus } from "@prisma/client";
 import { z } from "zod";
 
@@ -24,6 +24,7 @@ const createCustomerSchema = z.object({
   notes: z.string().trim().optional().nullable(),
   status: z.nativeEnum(CustomerStatus).optional(),
   groupId: z.string().trim().optional().nullable(),
+  assignedStaffId: z.string().trim().optional().nullable(),
   tags: z.array(z.string()).optional()
 });
 
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requirePermission(request, PERMISSIONS.CUSTOMER_CREATE);
+    const actor = await requirePermission(request, PERMISSIONS.CUSTOMER_CREATE);
 
     const body = await request.json();
     const parsed = createCustomerSchema.safeParse(body);
@@ -119,6 +120,21 @@ export async function POST(request: NextRequest) {
           data: null
         },
         { status: 400 }
+      );
+    }
+
+    const canAssign =
+      actor.isOwner ||
+      hasPermission(actor.permissions, PERMISSIONS.CUSTOMER_ASSIGN);
+
+    if (parsed.data.assignedStaffId && !canAssign) {
+      return NextResponse.json(
+        {
+          error: true,
+          message: "You do not have permission to assign customers to staff",
+          data: null
+        },
+        { status: 403 }
       );
     }
 

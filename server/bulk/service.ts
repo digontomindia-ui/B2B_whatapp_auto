@@ -22,6 +22,7 @@ export async function createBulkMessageJob({
   components = [],
   customerIds,
   groupIds,
+  statuses,
   targetMode = "CUSTOM",
   assignedStaffId,
   variableConfigurations,
@@ -38,7 +39,8 @@ export async function createBulkMessageJob({
   components?: unknown[];
   customerIds?: string[];
   groupIds?: string[];
-  targetMode?: "ALL" | "CUSTOM" | "GROUPS";
+  statuses?: ("HOT" | "WARM" | "COLD")[];
+  targetMode?: "ALL" | "CUSTOM" | "GROUPS" | "STATUS";
   assignedStaffId?: string;
   variableConfigurations?: Record<string, unknown>;
   allowOverrideBlocked?: boolean;
@@ -61,6 +63,11 @@ export async function createBulkMessageJob({
       throw new Error("No groups selected for broadcast");
     }
     where.groupId = { in: groupIds };
+  } else if (targetMode === "STATUS") {
+    if (!statuses || statuses.length === 0) {
+      throw new Error("No lead statuses selected for broadcast");
+    }
+    where.status = { in: statuses };
   }
 
   // 1. Fetch customers to categorize eligibility
@@ -116,7 +123,8 @@ export async function createBulkMessageJob({
         queuedCount: total,
         rawMetadata: {
           targetMode,
-          groupIds: groupIds || []
+          groupIds: groupIds || [],
+          statuses: statuses || []
         }
       }
     });

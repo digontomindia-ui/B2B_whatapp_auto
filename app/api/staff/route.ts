@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listStaff, createStaff } from "@/server/staff/service";
-import { requirePermission, requireOwner } from "@/lib/rbac";
+import { requireAnyPermission, requireOwner } from "@/lib/rbac";
 import { PERMISSIONS } from "@/lib/permissions";
 import { z } from "zod";
 
@@ -14,7 +14,11 @@ const createStaffSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission(request, PERMISSIONS.STAFF_VIEW);
+    await requireAnyPermission(request, [
+      PERMISSIONS.STAFF_VIEW,
+      PERMISSIONS.CUSTOMER_ASSIGN,
+      PERMISSIONS.CUSTOMER_CREATE
+    ]);
     const staffMembers = await listStaff();
 
     return NextResponse.json({

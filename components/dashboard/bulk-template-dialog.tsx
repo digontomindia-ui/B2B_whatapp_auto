@@ -21,7 +21,10 @@ import {
   Video,
   FileText,
   Link as LinkIcon,
-  ExternalLink
+  ExternalLink,
+  Flame,
+  Sun,
+  Snowflake
 } from "lucide-react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import React, { useState, useMemo } from "react";
@@ -69,10 +72,15 @@ export function BulkTemplateDialog({
   const canBulkMarketing =
     isOwner || hasPermission(PERMISSIONS.BULK_MARKETING_SEND);
 
-  // 1. Tab state: "ALL" vs "CUSTOM" vs "GROUPS"
-  const [activeTab, setActiveTab] = useState<"ALL" | "CUSTOM" | "GROUPS">(
-    "ALL"
-  );
+  // 1. Tab state: "ALL" vs "CUSTOM" vs "GROUPS" vs "STATUS"
+  const [activeTab, setActiveTab] = useState<
+    "ALL" | "CUSTOM" | "GROUPS" | "STATUS"
+  >(() => (selectedCustomers.length > 0 ? "CUSTOM" : "ALL"));
+
+  // Status selection state (Tab 4: Hot, Warm, Cold)
+  const [selectedStatuses, setSelectedStatuses] = useState<
+    Set<"HOT" | "WARM" | "COLD">
+  >(() => new Set(["HOT", "WARM"]));
 
   // 2. Filter approved templates
   const approvedTemplates = useMemo(() => {
@@ -158,6 +166,23 @@ export function BulkTemplateDialog({
 
   function deselectAllGroups() {
     setSelectedGroupIds(new Set());
+  }
+
+  function toggleStatus(st: "HOT" | "WARM" | "COLD") {
+    setSelectedStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(st)) next.delete(st);
+      else next.add(st);
+      return next;
+    });
+  }
+
+  function selectAllStatuses() {
+    setSelectedStatuses(new Set(["HOT", "WARM", "COLD"]));
+  }
+
+  function deselectAllStatuses() {
+    setSelectedStatuses(new Set());
   }
 
   const activeTemplateId = selectedTemplateId || defaultTemplateId;
@@ -254,6 +279,24 @@ export function BulkTemplateDialog({
     active: number;
     blocked: number;
     optedOut: number;
+    hot?: number;
+    warm?: number;
+    cold?: number;
+    statusBreakdown?: {
+      HOT: { total: number; active: number; blocked: number; optedOut: number };
+      WARM: {
+        total: number;
+        active: number;
+        blocked: number;
+        optedOut: number;
+      };
+      COLD: {
+        total: number;
+        active: number;
+        blocked: number;
+        optedOut: number;
+      };
+    };
     scopedToStaff: boolean;
     staffName: string | null;
   }>({
@@ -487,6 +530,23 @@ export function BulkTemplateDialog({
   const blockedCount = statsData?.blocked ?? 0;
   const optedOutCount = statsData?.optedOut ?? 0;
 
+  const statusStats = useMemo(() => {
+    let total = 0;
+    let active = 0;
+    let blocked = 0;
+    let optedOut = 0;
+    selectedStatuses.forEach((st) => {
+      const item = statsData?.statusBreakdown?.[st];
+      if (item) {
+        total += item.total;
+        active += item.active;
+        blocked += item.blocked;
+        optedOut += item.optedOut;
+      }
+    });
+    return { total, active, blocked, optedOut };
+  }, [selectedStatuses, statsData?.statusBreakdown]);
+
   const eligibleCount = useMemo(() => {
     if (activeTab === "ALL") {
       return allowOverride ? totalAudience : activeAudience;
@@ -495,6 +555,9 @@ export function BulkTemplateDialog({
       return groups
         .filter((g) => selectedGroupIds.has(g.id))
         .reduce((sum, g) => sum + (g._count?.customers || 0), 0);
+    }
+    if (activeTab === "STATUS") {
+      return allowOverride ? statusStats.total : statusStats.active;
     }
     const checkedCustomers = allLoadedCustomCustomers.filter((c) =>
       checkedIds.has(c.id)
@@ -511,7 +574,8 @@ export function BulkTemplateDialog({
     allLoadedCustomCustomers,
     checkedIds,
     groups,
-    selectedGroupIds
+    selectedGroupIds,
+    statusStats
   ]);
 
   // Live rendered previews for bulk
@@ -610,6 +674,11 @@ export function BulkTemplateDialog({
       return;
     }
 
+    if (activeTab === "STATUS" && selectedStatuses.size === 0) {
+      toast.error("Please select at least one lead status (Hot, Warm, Cold)");
+      return;
+    }
+
     // Validate static variables
     for (const k of allVarKeys) {
       const cfg = effectiveConfigs[k];
@@ -699,6 +768,8 @@ export function BulkTemplateDialog({
             activeTab === "CUSTOM" ? Array.from(checkedIds) : undefined,
           groupIds:
             activeTab === "GROUPS" ? Array.from(selectedGroupIds) : undefined,
+          statuses:
+            activeTab === "STATUS" ? Array.from(selectedStatuses) : undefined,
           variableConfigurations: effectiveConfigs,
           components,
           allowOverrideBlocked: allowOverride
@@ -747,13 +818,13 @@ export function BulkTemplateDialog({
         <div className="flex-1 space-y-4 overflow-y-auto py-2 pr-1">
           {/* Target Audience Tabs */}
           <div className="space-y-2">
-            <div className="border-border bg-muted/30 grid grid-cols-3 gap-1 rounded-lg border p-1">
+            <div className="border-border bg-muted/30 grid grid-cols-2 gap-1 rounded-lg border p-1 sm:grid-cols-4">
               <button
                 type="button"
                 onClick={() => setActiveTab("ALL")}
                 className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-all ${
                   activeTab === "ALL"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -765,24 +836,41 @@ export function BulkTemplateDialog({
                 onClick={() => setActiveTab("CUSTOM")}
                 className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-all ${
                   activeTab === "CUSTOM"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <CheckSquare className="size-3.5" />
-                <span>Custom (Specifics)</span>
+                <span>Specific Customers</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("GROUPS")}
                 className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-all ${
                   activeTab === "GROUPS"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-background text-foreground font-bold shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Building2 className="size-3.5" />
                 <span>Groups</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("STATUS")}
+                className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === "STATUS"
+                    ? "bg-background text-foreground font-bold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Flame className="size-3.5 text-rose-500" />
+                <span>Lead Status</span>
+                {selectedStatuses.size > 0 && (
+                  <span className="bg-cf-orange/15 text-cf-orange ml-0.5 rounded-full px-1.5 py-0.5 font-mono text-[10px]">
+                    {selectedStatuses.size}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1089,6 +1177,201 @@ export function BulkTemplateDialog({
                     </strong>
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 4: LEAD STATUS (HOT, WARM, COLD) */}
+            {activeTab === "STATUS" && (
+              <div className="border-border bg-muted/20 space-y-3.5 rounded-lg border p-3.5">
+                <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                  <div>
+                    <h4 className="text-foreground text-xs font-semibold">
+                      Broadcast to Customers by Lead Status
+                    </h4>
+                    <p className="text-muted-foreground text-[11px]">
+                      Select one or more lead qualification statuses to
+                      broadcast to all matching customers.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={selectAllStatuses}
+                      className="text-cf-orange cursor-pointer hover:underline"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground">•</span>
+                    <button
+                      type="button"
+                      onClick={deselectAllStatuses}
+                      className="text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3 Status Cards */}
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  {/* HOT */}
+                  <div
+                    onClick={() => toggleStatus("HOT")}
+                    className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                      selectedStatuses.has("HOT")
+                        ? "text-foreground border-rose-500 bg-rose-500/10 ring-1 ring-rose-500/50"
+                        : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Flame className="size-4 fill-rose-500 text-rose-500" />
+                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                          HOT Leads
+                        </span>
+                      </div>
+                      <div
+                        className={`flex size-4 items-center justify-center rounded border ${
+                          selectedStatuses.has("HOT")
+                            ? "border-rose-500 bg-rose-500 text-white"
+                            : "border-border bg-background"
+                        }`}
+                      >
+                        {selectedStatuses.has("HOT") && (
+                          <Check className="size-3" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-foreground mt-2 font-mono text-xl font-bold">
+                      {statsData?.statusBreakdown?.HOT?.total || 0}
+                    </div>
+                    <p className="text-muted-foreground mt-0.5 text-[10px]">
+                      {statsData?.statusBreakdown?.HOT?.active || 0} active
+                      recipients
+                    </p>
+                  </div>
+
+                  {/* WARM */}
+                  <div
+                    onClick={() => toggleStatus("WARM")}
+                    className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                      selectedStatuses.has("WARM")
+                        ? "text-foreground border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/50"
+                        : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sun className="size-4 text-amber-500" />
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                          WARM Leads
+                        </span>
+                      </div>
+                      <div
+                        className={`flex size-4 items-center justify-center rounded border ${
+                          selectedStatuses.has("WARM")
+                            ? "border-amber-500 bg-amber-500 text-white"
+                            : "border-border bg-background"
+                        }`}
+                      >
+                        {selectedStatuses.has("WARM") && (
+                          <Check className="size-3" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-foreground mt-2 font-mono text-xl font-bold">
+                      {statsData?.statusBreakdown?.WARM?.total || 0}
+                    </div>
+                    <p className="text-muted-foreground mt-0.5 text-[10px]">
+                      {statsData?.statusBreakdown?.WARM?.active || 0} active
+                      recipients
+                    </p>
+                  </div>
+
+                  {/* COLD */}
+                  <div
+                    onClick={() => toggleStatus("COLD")}
+                    className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                      selectedStatuses.has("COLD")
+                        ? "text-foreground border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50"
+                        : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Snowflake className="size-4 text-sky-500" />
+                        <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
+                          COLD Leads
+                        </span>
+                      </div>
+                      <div
+                        className={`flex size-4 items-center justify-center rounded border ${
+                          selectedStatuses.has("COLD")
+                            ? "border-sky-500 bg-sky-500 text-white"
+                            : "border-border bg-background"
+                        }`}
+                      >
+                        {selectedStatuses.has("COLD") && (
+                          <Check className="size-3" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-foreground mt-2 font-mono text-xl font-bold">
+                      {statsData?.statusBreakdown?.COLD?.total || 0}
+                    </div>
+                    <p className="text-muted-foreground mt-0.5 text-[10px]">
+                      {statsData?.statusBreakdown?.COLD?.active || 0} active
+                      recipients
+                    </p>
+                  </div>
+                </div>
+
+                {/* Counts Breakdown for Selected Statuses */}
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                  <div className="border-border bg-background rounded border p-2">
+                    <span className="text-muted-foreground block text-[10px]">
+                      Eligible (Active)
+                    </span>
+                    <strong className="font-mono text-sm text-emerald-600 dark:text-emerald-400">
+                      {statusStats.active}
+                    </strong>
+                  </div>
+                  <div className="border-border bg-background rounded border p-2">
+                    <span className="text-muted-foreground block text-[10px]">
+                      Blocked
+                    </span>
+                    <strong className="font-mono text-sm text-red-500">
+                      {statusStats.blocked}
+                    </strong>
+                  </div>
+                  <div className="border-border bg-background rounded border p-2">
+                    <span className="text-muted-foreground block text-[10px]">
+                      Opted Out
+                    </span>
+                    <strong className="font-mono text-sm text-amber-500">
+                      {statusStats.optedOut}
+                    </strong>
+                  </div>
+                </div>
+
+                {(statusStats.blocked > 0 || statusStats.optedOut > 0) && (
+                  <div className="border-border flex items-center gap-2 border-t pt-2 text-[11px]">
+                    <input
+                      type="checkbox"
+                      id="bulk-status-override"
+                      checked={allowOverride}
+                      onChange={(e) => setAllowOverride(e.target.checked)}
+                      className="accent-cf-orange cursor-pointer rounded"
+                    />
+                    <label
+                      htmlFor="bulk-status-override"
+                      className="text-muted-foreground cursor-pointer"
+                    >
+                      Override safety filters (send to all{" "}
+                      <strong>{statusStats.total}</strong> matching customers)
+                    </label>
+                  </div>
+                )}
               </div>
             )}
           </div>

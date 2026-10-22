@@ -7,9 +7,10 @@ import { z } from "zod";
 const bulkMessageSchema = z.object({
   title: z.string().optional(),
   content: z.string().min(1, "Message content cannot be empty"),
-  targetMode: z.enum(["ALL", "CUSTOM", "GROUPS"]).default("CUSTOM"),
+  targetMode: z.enum(["ALL", "CUSTOM", "GROUPS", "STATUS"]).default("CUSTOM"),
   customerIds: z.array(z.string().uuid()).optional(),
   groupIds: z.array(z.string().uuid()).optional(),
+  statuses: z.array(z.enum(["HOT", "WARM", "COLD"])).optional(),
   allowOverrideBlocked: z.boolean().default(false)
 });
 
@@ -63,6 +64,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      parsed.data.targetMode === "STATUS" &&
+      (!parsed.data.statuses || parsed.data.statuses.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          error: true,
+          message:
+            "Please select at least one lead status (Hot, Warm, Cold) for broadcast",
+          data: null
+        },
+        { status: 400 }
+      );
+    }
+
     const assignedStaffId =
       actor.actorType === "staff" && !actor.isOwner ? actor.id : undefined;
 
@@ -73,6 +89,7 @@ export async function POST(request: NextRequest) {
       targetMode: parsed.data.targetMode,
       customerIds: parsed.data.customerIds,
       groupIds: parsed.data.groupIds,
+      statuses: parsed.data.statuses,
       assignedStaffId,
       allowOverrideBlocked: parsed.data.allowOverrideBlocked,
       createdByAdminId: actor.id

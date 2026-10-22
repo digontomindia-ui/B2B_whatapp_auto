@@ -194,6 +194,7 @@ export default function GroupsPage() {
 
   // Filtered groups
   const filteredGroups = useMemo(() => {
+    if (!groups?.length) return [];
     return groups.filter((g) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();

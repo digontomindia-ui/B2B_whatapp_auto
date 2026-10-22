@@ -4,6 +4,7 @@ import type { DashboardCustomer, DashboardGroup } from "./types";
 import {
   X,
   User,
+  UserCheck,
   MessageSquare,
   Shield,
   Tag as TagIcon,
@@ -42,6 +43,7 @@ interface CustomerDetailsSheetProps {
       state?: CustomerState;
       status?: CustomerStatus;
       groupId?: string | null;
+      assignedStaffId?: string | null;
       tags?: string[];
     }
   ) => Promise<void>;
@@ -55,6 +57,7 @@ export function CustomerDetailsSheet({
 }: CustomerDetailsSheetProps) {
   const { hasPermission, isOwner } = useAuth();
   const canEdit = isOwner || hasPermission(PERMISSIONS.CUSTOMER_EDIT);
+  const canAssign = isOwner || hasPermission(PERMISSIONS.CUSTOMER_ASSIGN);
   const canManageGroup =
     isOwner ||
     hasPermission(PERMISSIONS.GROUP_MANAGE) ||
@@ -73,6 +76,25 @@ export function CustomerDetailsSheet({
   });
   const groups = groupsData?.data || [];
 
+  const { data: staffData } = useQuery<{
+    error: boolean;
+    data: Array<{
+      id: string;
+      name: string;
+      email: string;
+      isActive: boolean;
+      role?: { name: string };
+    }>;
+  }>({
+    queryKey: ["staff-members"],
+    queryFn: async () => {
+      const res = await fetch("/api/staff");
+      return res.json();
+    },
+    enabled: isOpen && (canAssign || isOwner)
+  });
+  const staffMembers = (staffData?.data || []).filter((s) => s.isActive);
+
   const [customName, setCustomName] = useState(customer?.customName || "");
   const [companyName, setCompanyName] = useState(customer?.companyName || "");
   const [address, setAddress] = useState(customer?.address || "");
@@ -88,6 +110,9 @@ export function CustomerDetailsSheet({
   );
   const [groupId, setGroupId] = useState<string | null>(
     customer?.groupId || null
+  );
+  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(
+    customer?.assignedStaffId || null
   );
   const [tags, setTags] = useState<string[]>(
     customer?.tags?.map((t) => t.tag.name) || []
@@ -110,13 +135,14 @@ export function CustomerDetailsSheet({
     setState(customer.state);
     setStatus(customer.status || CustomerStatus.COLD);
     setGroupId(customer.groupId || null);
+    setAssignedStaffId(customer.assignedStaffId || null);
     setTags(customer.tags?.map((t) => t.tag.name) || []);
   }
 
   if (!isOpen || !customer) return null;
 
   async function handleSave() {
-    if (!canEdit) {
+    if (!canEdit && !canAssign && !canManageGroup) {
       toast.error("You do not have permission to edit customer details");
       return;
     }
@@ -131,6 +157,7 @@ export function CustomerDetailsSheet({
         state,
         status,
         groupId: groupId || null,
+        assignedStaffId: assignedStaffId || null,
         tags
       });
       toast.success("Customer details updated");
@@ -307,7 +334,7 @@ export function CustomerDetailsSheet({
               onClick={() => setStatus("HOT")}
               className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
                 status === "HOT"
-                  ? "border-rose-500 bg-rose-500/15 font-bold text-rose-600 shadow-2xs dark:text-rose-400"
+                  ? "border-rose-500 bg-rose-500/15 font-bold text-rose-600 shadow-xs dark:text-rose-400"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
@@ -320,7 +347,7 @@ export function CustomerDetailsSheet({
               onClick={() => setStatus("WARM")}
               className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
                 status === "WARM"
-                  ? "border-amber-500 bg-amber-500/15 font-bold text-amber-600 shadow-2xs dark:text-amber-400"
+                  ? "border-amber-500 bg-amber-500/15 font-bold text-amber-600 shadow-xs dark:text-amber-400"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
@@ -333,7 +360,7 @@ export function CustomerDetailsSheet({
               onClick={() => setStatus("COLD")}
               className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border py-2 text-xs font-semibold transition-colors ${
                 status === "COLD"
-                  ? "border-sky-500 bg-sky-500/15 font-bold text-sky-600 shadow-2xs dark:text-sky-400"
+                  ? "border-sky-500 bg-sky-500/15 font-bold text-sky-600 shadow-xs dark:text-sky-400"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
@@ -396,6 +423,56 @@ export function CustomerDetailsSheet({
                 {g.name}
               </option>
             ))}
+          </select>
+        </div>
+
+        {/* Assigned Staff (Assign / Reassign) */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-foreground flex items-center gap-1.5 font-semibold">
+              <UserCheck className="text-cf-orange size-3.5" />
+              <span>Assigned Staff</span>
+              {!canAssign && (
+                <span className="text-muted-foreground inline-flex items-center gap-0.5 text-[10px] font-normal">
+                  <Lock className="size-2.5" />
+                  Read-Only
+                </span>
+              )}
+            </label>
+            {assignedStaffId && canAssign && (
+              <button
+                type="button"
+                onClick={() => setAssignedStaffId(null)}
+                className="text-muted-foreground cursor-pointer text-[11px] hover:text-red-500"
+              >
+                Clear Assignment
+              </button>
+            )}
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            Assign or reassign this customer to a staff member for follow-ups
+            and management.
+          </p>
+          <select
+            disabled={!canAssign}
+            value={assignedStaffId || ""}
+            onChange={(e) => setAssignedStaffId(e.target.value || null)}
+            className="border-border bg-background text-foreground focus:ring-cf-orange w-full cursor-pointer rounded border px-3 py-1.5 text-xs focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">-- Unassigned --</option>
+            {staffMembers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.email}){s.role ? ` • ${s.role.name}` : ""}
+              </option>
+            ))}
+            {customer.assignedStaff &&
+              !staffMembers.some(
+                (s) => s.id === customer.assignedStaff?.id
+              ) && (
+                <option value={customer.assignedStaff.id}>
+                  {customer.assignedStaff.name} ({customer.assignedStaff.email})
+                </option>
+              )}
           </select>
         </div>
 
@@ -479,13 +556,13 @@ export function CustomerDetailsSheet({
           onClick={onClose}
           className="border-border bg-background text-muted-foreground hover:bg-muted cursor-pointer rounded border px-3 py-1.5 text-xs"
         >
-          {canEdit ? "Cancel" : "Close"}
+          {canEdit || canAssign || canManageGroup ? "Cancel" : "Close"}
         </button>
-        {canEdit && (
+        {(canEdit || canAssign || canManageGroup) && (
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#e87516] disabled:opacity-50"
+            className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded px-4 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {isSaving ? (
               <Loader2 className="size-3.5 animate-spin" />

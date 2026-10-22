@@ -393,9 +393,6 @@ export default function DashboardPage() {
 
             {/* Quick Filter: Status */}
             <div className="bg-muted/50 border-border flex items-center gap-1 rounded-md border p-0.5 text-[11px]">
-              <span className="text-muted-foreground hidden pr-0.5 pl-1.5 text-[10px] font-semibold tracking-wider uppercase sm:inline">
-                Status:
-              </span>
               <button
                 type="button"
                 onClick={() => setStatusFilter("all")}
@@ -449,11 +446,11 @@ export default function DashboardPage() {
               onChange={(e) => setDateRange(e.target.value)}
               className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
             >
-              <option value="all">Date: All Time</option>
+              <option value="all">All Time</option>
               <option value="today">Today</option>
               <option value="yesterday">Yesterday</option>
-              <option value="last7days">Last 7 Days</option>
-              <option value="last30days">Last 30 Days</option>
+              <option value="last7days">7 Days</option>
+              <option value="last30days">30 Days</option>
             </select>
 
             {/* Group filter dropdown */}
@@ -532,10 +529,10 @@ export default function DashboardPage() {
               onChange={(e) => setSort(e.target.value)}
               className="border-border bg-background text-foreground focus:ring-cf-orange cursor-pointer rounded-md border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
             >
-              <option value="newest_interaction">Sort: Newest Activity</option>
-              <option value="oldest_interaction">Sort: Oldest Activity</option>
-              <option value="newest_customer">Sort: Newest Contact</option>
-              <option value="oldest_customer">Sort: Oldest Contact</option>
+              <option value="newest_interaction">Newest Activity</option>
+              <option value="oldest_interaction">Oldest Activity</option>
+              <option value="newest_customer">Newest Contact</option>
+              <option value="oldest_customer">Oldest Contact</option>
             </select>
           </div>
 
@@ -648,7 +645,7 @@ export default function DashboardPage() {
                     className="bg-cf-orange inline-flex cursor-pointer items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-white shadow-2xs transition-colors hover:bg-[#e87516]"
                   >
                     <UserPlus className="size-3.5" />
-                    <span>Add Contact</span>
+                    <span>Add</span>
                   </button>
                 )}
               </div>

@@ -26,6 +26,11 @@ export interface DashboardCustomer {
   lastOutboundAt: string | null;
   notes: string | null;
   assignedStaffId?: string | null;
+  assignedStaff?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
   groupId?: string | null;
   group?: {
     id: string;

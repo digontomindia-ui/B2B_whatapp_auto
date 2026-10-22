@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       where.assignedStaffId = actor.id;
     }
 
-    const [total, active, blocked, optedOut, hot, warm, cold] =
+    const [total, active, blocked, optedOut, hot, warm, cold, statusGroups] =
       await Promise.all([
         prisma.customer.count({ where }),
         prisma.customer.count({
@@ -35,8 +35,32 @@ export async function GET(request: NextRequest) {
         }),
         prisma.customer.count({
           where: { ...where, status: "COLD" }
+        }),
+        prisma.customer.groupBy({
+          by: ["status", "state"],
+          where,
+          _count: { _all: true }
         })
       ]);
+
+    const statusBreakdown = {
+      HOT: { total: hot, active: 0, blocked: 0, optedOut: 0 },
+      WARM: { total: warm, active: 0, blocked: 0, optedOut: 0 },
+      COLD: { total: cold, active: 0, blocked: 0, optedOut: 0 }
+    };
+
+    statusGroups.forEach((g) => {
+      const s = g.status as "HOT" | "WARM" | "COLD";
+      if (statusBreakdown[s]) {
+        if (g.state === CustomerState.ACTIVE) {
+          statusBreakdown[s].active += g._count._all;
+        } else if (g.state === CustomerState.BLOCKED) {
+          statusBreakdown[s].blocked += g._count._all;
+        } else if (g.state === CustomerState.OPTED_OUT) {
+          statusBreakdown[s].optedOut += g._count._all;
+        }
+      }
+    });
 
     return NextResponse.json({
       error: false,
@@ -49,6 +73,7 @@ export async function GET(request: NextRequest) {
         hot,
         warm,
         cold,
+        statusBreakdown,
         scopedToStaff: isStaffScoped,
         staffName: isStaffScoped ? actor.name : null
       }

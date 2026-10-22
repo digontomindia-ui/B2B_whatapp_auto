@@ -13,6 +13,7 @@ export interface FindOrCreateCustomerInput {
   notes?: string | null;
   status?: CustomerStatus;
   groupId?: string | null;
+  assignedStaffId?: string | null;
   tags?: string[];
 }
 
@@ -54,6 +55,7 @@ export async function findOrCreateCustomerByPhone({
   notes,
   status,
   groupId,
+  assignedStaffId,
   tags = []
 }: FindOrCreateCustomerInput) {
   const normalized = normalizePhoneNumber(phone);
@@ -66,6 +68,7 @@ export async function findOrCreateCustomerByPhone({
     where: { normalizedPhone: normalized },
     include: {
       group: { select: { id: true, name: true, color: true } },
+      assignedStaff: { select: { id: true, name: true, email: true } },
       tags: { include: { tag: true } },
       conversations: { take: 1, orderBy: { createdAt: "desc" } }
     }
@@ -99,6 +102,12 @@ export async function findOrCreateCustomerByPhone({
     if (groupId !== undefined && groupId !== existing.groupId) {
       dataToUpdate.groupId = groupId;
     }
+    if (
+      assignedStaffId !== undefined &&
+      assignedStaffId !== existing.assignedStaffId
+    ) {
+      dataToUpdate.assignedStaffId = assignedStaffId || null;
+    }
 
     let updated = existing;
     if (Object.keys(dataToUpdate).length > 0) {
@@ -107,6 +116,7 @@ export async function findOrCreateCustomerByPhone({
         data: dataToUpdate,
         include: {
           group: { select: { id: true, name: true, color: true } },
+          assignedStaff: { select: { id: true, name: true, email: true } },
           tags: { include: { tag: true } },
           conversations: { take: 1, orderBy: { createdAt: "desc" } }
         }
@@ -166,6 +176,7 @@ export async function findOrCreateCustomerByPhone({
         countryCode,
         status: status || "COLD",
         groupId: groupId || null,
+        assignedStaffId: assignedStaffId || null,
         notes: notes || null,
         conversations: {
           create: {}
@@ -173,6 +184,7 @@ export async function findOrCreateCustomerByPhone({
       },
       include: {
         group: { select: { id: true, name: true, color: true } },
+        assignedStaff: { select: { id: true, name: true, email: true } },
         tags: { include: { tag: true } },
         conversations: { take: 1 }
       }
@@ -399,6 +411,7 @@ export async function listCustomers(params: CustomerFilterParams = {}) {
       take: limit,
       include: {
         group: { select: { id: true, name: true, color: true } },
+        assignedStaff: { select: { id: true, name: true, email: true } },
         tags: { include: { tag: true } },
         conversations: {
           take: 1,
@@ -443,6 +456,7 @@ export async function updateCustomer(
     state?: CustomerState;
     status?: CustomerStatus;
     groupId?: string | null;
+    assignedStaffId?: string | null;
     tags?: string[];
   }
 ) {
@@ -457,6 +471,9 @@ export async function updateCustomer(
   if (data.state !== undefined) updatePayload.state = data.state;
   if (data.status !== undefined) updatePayload.status = data.status;
   if (data.groupId !== undefined) updatePayload.groupId = data.groupId;
+  if (data.assignedStaffId !== undefined) {
+    updatePayload.assignedStaffId = data.assignedStaffId || null;
+  }
 
   if (Object.keys(updatePayload).length > 0) {
     await prisma.customer.update({
@@ -486,6 +503,7 @@ export async function updateCustomer(
     where: { id },
     include: {
       group: { select: { id: true, name: true, color: true } },
+      assignedStaff: { select: { id: true, name: true, email: true } },
       tags: { include: { tag: true } },
       conversations: { take: 1, orderBy: { createdAt: "desc" } }
     }
