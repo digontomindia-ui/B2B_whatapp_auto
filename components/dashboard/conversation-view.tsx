@@ -21,7 +21,9 @@ import {
   Flame,
   Sun,
   Snowflake,
-  Building2
+  Building2,
+  ImageOff,
+  Download
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { formatDisplayPhone } from "@/utils/phone";
@@ -34,6 +36,73 @@ function formatFileSize(bytes?: number | null): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function ChatAvatar({
+  url,
+  name,
+  className = "h-9 w-9 text-xs"
+}: {
+  url?: string | null;
+  name: string;
+  className?: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const initials = (name || "WA").slice(0, 2).toUpperCase();
+
+  if (!url || hasError) {
+    return (
+      <div
+        className={`bg-muted border-border flex items-center justify-center rounded-full border font-semibold ${className}`}
+      >
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={url}
+      alt={name}
+      onError={() => setHasError(true)}
+      className={`border-border rounded-full border object-cover ${className}`}
+    />
+  );
+}
+
+function ChatImage({
+  src,
+  alt,
+  isSticker
+}: {
+  src: string;
+  alt: string;
+  isSticker?: boolean;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className="bg-muted/30 text-muted-foreground flex flex-col items-center justify-center gap-1.5 p-4 text-center text-xs">
+        <ImageOff className="size-5 opacity-60" />
+        <span className="text-[11px]">Media unavailable or expired</span>
+      </div>
+    );
+  }
+
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setHasError(true)}
+      className={`${
+        isSticker ? "max-h-36 max-w-36" : "max-h-72 w-auto max-w-full"
+      } rounded object-contain`}
+      loading="lazy"
+    />
+  );
 }
 
 interface ConversationViewProps {
@@ -166,27 +235,14 @@ export function ConversationView({
   return (
     <div className="bg-background flex h-full flex-col">
       {/* Top Header of Chat */}
-      <div className="border-border bg-card flex h-14 items-center justify-between border-b px-4 shadow-2xs">
+      <div className="border-border bg-card flex h-14 items-center justify-between border-b px-4 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
-            {customer.profilePicUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={customer.profilePicUrl}
-                alt={displayName}
-                className="border-border h-9 w-9 rounded-full border object-cover"
-              />
-            ) : (
-              <div className="bg-muted border-border flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold">
-                {customer.customName ? (
-                  customer.customName.slice(0, 2).toUpperCase()
-                ) : customer.whatsappName ? (
-                  customer.whatsappName.slice(0, 2).toUpperCase()
-                ) : (
-                  <User className="text-muted-foreground size-4" />
-                )}
-              </div>
-            )}
+            <ChatAvatar
+              url={customer.profilePicUrl}
+              name={displayName}
+              className="size-9 text-xs"
+            />
           </div>
 
           <div>
@@ -325,7 +381,7 @@ export function ConversationView({
             <div key={groupIdx} className="space-y-3">
               {/* Date Header Badge */}
               <div className="flex justify-center">
-                <span className="bg-card text-muted-foreground border-border rounded-full border px-3 py-0.5 text-[10px] font-medium shadow-2xs">
+                <span className="bg-card text-muted-foreground border-border rounded-full border px-3 py-0.5 text-[10px] font-medium shadow-xs">
                   {formatDateHeader(group.date)}
                 </span>
               </div>
@@ -340,7 +396,7 @@ export function ConversationView({
                     className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`relative max-w-[78%] rounded-lg px-3.5 py-2 text-xs shadow-2xs sm:max-w-[65%] ${
+                      className={`relative max-w-[78%] rounded-lg px-3.5 py-2 text-xs shadow-xs sm:max-w-[65%] ${
                         isOutbound
                           ? "border-cf-orange/30 text-foreground border bg-amber-500/10 dark:bg-amber-500/15"
                           : "bg-card border-border text-foreground border"
@@ -357,11 +413,21 @@ export function ConversationView({
                       {/* Media (Images, Videos, Audio, Documents) with Open in New Tab Button */}
                       {msg.mediaAttachment &&
                         (() => {
-                          const mediaUrl =
-                            msg.mediaAttachment.metaUrl ||
-                            (msg.mediaAttachment.id
+                          const isExternalPublic = Boolean(
+                            msg.mediaAttachment.metaUrl &&
+                              !msg.mediaAttachment.metaUrl.includes(
+                                "fbsbx.com"
+                              ) &&
+                              !msg.mediaAttachment.metaUrl.includes(
+                                "facebook.com"
+                              )
+                          );
+
+                          const mediaUrl = isExternalPublic
+                            ? msg.mediaAttachment.metaUrl
+                            : msg.mediaAttachment.id
                               ? `/api/media/${msg.mediaAttachment.id}`
-                              : null);
+                              : msg.mediaAttachment.metaUrl || null;
 
                           if (!mediaUrl) return null;
 
@@ -377,19 +443,15 @@ export function ConversationView({
                               {/* IMAGE / STICKER */}
                               {isImage && (
                                 <div className="border-border/80 group relative overflow-hidden rounded-md border bg-black/5 dark:bg-black/20">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
+                                  <ChatImage
                                     src={mediaUrl}
                                     alt={
                                       msg.mediaAttachment.fileName ||
                                       "WhatsApp image"
                                     }
-                                    className={`${
+                                    isSticker={
                                       msg.mediaAttachment.type === "STICKER"
-                                        ? "max-h-36 max-w-36"
-                                        : "max-h-72 w-auto max-w-full"
-                                    } rounded object-contain`}
-                                    loading="lazy"
+                                    }
                                   />
                                   <div className="bg-muted/40 border-border/50 mt-1 flex items-center justify-between border-t px-2 py-1 text-[11px]">
                                     <span className="text-muted-foreground max-w-[150px] truncate text-[10px]">
@@ -402,11 +464,11 @@ export function ConversationView({
                                       href={mediaUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="bg-background/90 hover:bg-background text-foreground border-border inline-flex cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-2xs transition-colors"
+                                      className="bg-background/90 hover:bg-background text-foreground border-border inline-flex cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-xs transition-colors"
                                       title="Open image in new tab"
                                     >
                                       <ExternalLink className="text-cf-orange size-3" />
-                                      <span>Open in new tab</span>
+                                      <span>Open</span>
                                     </a>
                                   </div>
                                 </div>
@@ -435,7 +497,7 @@ export function ConversationView({
                                       href={mediaUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="bg-background/90 hover:bg-background text-foreground border-border ml-2 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-2xs transition-colors"
+                                      className="bg-background/90 hover:bg-background text-foreground border-border ml-2 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-xs transition-colors"
                                       title="Open video in new tab"
                                     >
                                       <ExternalLink className="text-cf-orange size-3" />
@@ -460,7 +522,7 @@ export function ConversationView({
                                       href={mediaUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="bg-background/90 hover:bg-background text-foreground border-border ml-2 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-2xs transition-colors"
+                                      className="bg-background/90 hover:bg-background text-foreground border-border ml-2 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-xs transition-colors"
                                       title="Open audio in new tab"
                                     >
                                       <ExternalLink className="text-cf-orange size-3" />
@@ -506,16 +568,29 @@ export function ConversationView({
                                       </p>
                                     </div>
                                   </div>
-                                  <a
-                                    href={mediaUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-background hover:bg-muted text-foreground border-border inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2.5 py-1 text-[11px] font-medium shadow-2xs transition-colors"
-                                    title="Open document in new tab"
-                                  >
-                                    <ExternalLink className="text-cf-orange size-3" />
-                                    <span>Open in new tab</span>
-                                  </a>
+                                  <div className="flex items-center gap-1.5">
+                                    <a
+                                      href={mediaUrl}
+                                      download={
+                                        msg.mediaAttachment.fileName ||
+                                        "document"
+                                      }
+                                      className="bg-background hover:bg-muted text-foreground border-border inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium shadow-xs transition-colors"
+                                      title="Download document"
+                                    >
+                                      <Download className="text-cf-orange size-3" />
+                                      <span>Download</span>
+                                    </a>
+                                    <a
+                                      href={mediaUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="bg-background hover:bg-muted text-foreground border-border inline-flex shrink-0 cursor-pointer items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium shadow-xs transition-colors"
+                                      title="Open document in new tab"
+                                    >
+                                      <ExternalLink className="text-cf-orange size-3" />
+                                    </a>
+                                  </div>
                                 </div>
                               )}
 
@@ -534,7 +609,7 @@ export function ConversationView({
                                     title="Open attachment in new tab"
                                   >
                                     <ExternalLink className="text-cf-orange size-3" />
-                                    <span>Open in new tab</span>
+                                    <span>Open</span>
                                   </a>
                                 </div>
                               )}
@@ -565,7 +640,7 @@ export function ConversationView({
                               {buttons.map((btn, bIdx) => (
                                 <span
                                   key={btn.id || bIdx}
-                                  className="border-border/80 bg-background/80 text-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-2xs"
+                                  className="border-border/80 bg-background/80 text-foreground inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-medium shadow-xs"
                                 >
                                   🔘 {btn.title}
                                 </span>

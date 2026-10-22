@@ -58,7 +58,7 @@ export default function GroupsPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formColor, setFormColor] = useState("#f6821f");
 
-  const { data: groups = [], isLoading } = useQuery<GroupItem[]>({
+  const { data, isLoading } = useQuery<GroupItem[]>({
     queryKey: ["groups"],
     queryFn: async () => {
       const res = await fetch("/api/groups");
@@ -67,6 +67,9 @@ export default function GroupsPage() {
       return json.data;
     }
   });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const groups = data?.length ? data || [] : [];
 
   // Create mutation
   const createMutation = useMutation({

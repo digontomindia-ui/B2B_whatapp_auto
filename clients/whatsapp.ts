@@ -353,7 +353,8 @@ export class WhatsAppClient {
     try {
       const response = await fetch(meta.url, {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`
+          Authorization: `Bearer ${this.accessToken}`,
+          "User-Agent": "curl/7.68.0"
         }
       });
 
@@ -374,6 +375,39 @@ export class WhatsAppClient {
       return { buffer, mimeType };
     } catch (err) {
       console.error(`Error downloading media from Meta:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Download media binary directly using a known Meta media download URL
+   */
+  async downloadMediaByUrl(
+    url: string,
+    mimeTypeHint?: string
+  ): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "User-Agent": "curl/7.68.0"
+        }
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const mimeType =
+        response.headers.get("content-type") ||
+        mimeTypeHint ||
+        "application/octet-stream";
+
+      return { buffer, mimeType };
+    } catch (err) {
+      console.error("Error downloading media by URL:", err);
       return null;
     }
   }

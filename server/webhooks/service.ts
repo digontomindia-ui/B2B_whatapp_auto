@@ -262,17 +262,20 @@ async function handleIncomingMessage(
     body = msg.reaction.emoji;
   }
 
-  // Fetch direct Meta URL (metadata only, no binary downloading or server processing)
+  // Pre-cache media binary immediately using authenticated client
+  let mediaBuffer: Buffer | null = null;
   if (mediaData?.metaMediaId) {
     try {
-      const meta = await whatsappClient.getMediaMetadata(mediaData.metaMediaId);
-      if (meta?.url) {
-        mediaData.metaUrl = meta.url;
-        if (meta.file_size) mediaData.fileSize = meta.file_size;
-        if (meta.mime_type) mediaData.mimeType = meta.mime_type;
+      const downloaded = await whatsappClient.downloadMedia(
+        mediaData.metaMediaId
+      );
+      if (downloaded) {
+        mediaBuffer = downloaded.buffer;
+        mediaData.mimeType = downloaded.mimeType;
+        mediaData.fileSize = downloaded.buffer.length;
       }
     } catch (err) {
-      console.error("Failed to retrieve Meta media URL metadata:", err);
+      console.error("Failed to pre-cache media binary in webhook:", err);
     }
   }
 
@@ -300,7 +303,10 @@ async function handleIncomingMessage(
                 type: mediaData.type,
                 metaMediaId: mediaData.metaMediaId,
                 metaUrl: mediaData.metaUrl || null,
-                fileSize: mediaData.fileSize || null,
+                data: mediaBuffer ? new Uint8Array(mediaBuffer) : null,
+                fileSize:
+                  mediaData.fileSize ||
+                  (mediaBuffer ? mediaBuffer.length : null),
                 mimeType: mediaData.mimeType || "application/octet-stream",
                 caption: mediaData.caption,
                 fileName: mediaData.fileName
